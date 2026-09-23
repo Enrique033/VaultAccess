@@ -26,7 +26,7 @@ function friendlyWorkspaceError(message: string): string {
   if (/relation .* does not exist|schema cache/i.test(message))
     return 'Faltan las tablas de equipos. Ejecuta supabase/schema-sharing.sql en el SQL Editor de Supabase.'
   if (/row-level security/i.test(message))
-    return 'Supabase bloqueó la operación (RLS). Revisa que ejecutaste supabase/schema-sharing.sql y que iniciaste sesión.'
+    return `Supabase bloqueó la operación (RLS). Revisa que ejecutaste supabase/schema-sharing.sql y que iniciaste sesión. Detalle: ${message}`
   if (/Failed to fetch|NetworkError|network/i.test(message))
     return 'Sin conexión con Supabase. Revisa tu internet o la URL del proyecto.'
   if (/duplicate key/i.test(message))
@@ -149,36 +149,57 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
 
   createWorkspace: async (name) => {
     const userId = await requireUserId()
-    const { data, error } = await supabase
+    const clean = name.trim()
+    // Generamos el id aquí y NO pedimos RETURNING (`.select()`): la política de
+    // SELECT de `vault_workspaces` se apoya en is_workspace_member(), que es
+    // STABLE y evalúa con el snapshot de la misma sentencia → no ve la fila que
+    // se acaba de insertar y Postgres abortaba con
+    // "new row violates row-level security policy for table vault_workspaces".
+    const id = crypto.randomUUID()
+    const { error } = await supabase
       .from('vault_workspaces')
-      .insert({ owner_id: userId, name: name.trim() })
-      .select()
-      .single()
+      .insert({ id, owner_id: userId, name: clean })
     if (error) throw new Error(friendlyWorkspaceError(error.message))
-    const workspace = toWorkspace(data as WorkspaceRow)
+
+    const workspace: Workspace = {
+      id,
+      name: clean,
+      ownerId: userId,
+      createdAt: new Date().toISOString(),
+    }
 
     // El propietario también queda como miembro con rol 'owner' (con su email).
     const { data: userData } = await supabase.auth.getUser()
     const email = userData.user?.email
     if (email) {
-      const { data: member, error: memberError } = await supabase
+      const memberId = crypto.randomUUID()
+      const { error: memberError } = await supabase
         .from('vault_workspace_members')
         .insert({
+          id: memberId,
           workspace_id: workspace.id,
           user_id: userId,
           email,
           role: 'owner',
         })
-        .select()
-        .single()
       if (memberError) {
         console.warn(
           '[WorkVault] No se pudo registrar al propietario como miembro:',
           memberError.message,
         )
-      } else if (member) {
+      } else {
         set((s) => ({
-          members: [...s.members, toWorkspaceMember(member as WorkspaceMemberRow)],
+          members: [
+            ...s.members,
+            {
+              id: memberId,
+              workspaceId: workspace.id,
+              userId,
+              email,
+              role: 'owner',
+              createdAt: new Date().toISOString(),
+            },
+          ],
         }))
       }
     }

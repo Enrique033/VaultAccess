@@ -111,6 +111,10 @@ git push -u origin main
    > Marca los entornos **Production** y **Preview**. Si las variables quedaron
    > vacías o las cambias después, haz **Redeploy** (Deployments → ⋯ →
    > Redeploy): Vite las incrusta en el build, no se leen en runtime.
+   > **Cuidado con el valor**: un typo en la URL (una letra de menos, comillas
+   > pegadas) no rompe el build, pero el host no resuelve y todo falla con
+   > `Failed to fetch`. La app muestra el host en uso en el mensaje de error:
+   > compáralo con *Supabase → Project Settings → API → Project URL*.
 4. Deploy → obtienes `https://workvault.vercel.app` (o similar).
 
 > `vercel.json` ya incluye el rewrite SPA: recargar `/login` o

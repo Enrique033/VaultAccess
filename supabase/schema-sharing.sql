@@ -183,6 +183,7 @@ alter table public.vault_workspace_items enable row level security;
 
 -- Limpieza idempotente (por si se re-ejecuta el script)
 drop policy if exists "ws_select_members" on public.vault_workspaces;
+drop policy if exists "ws_select_own" on public.vault_workspaces;
 drop policy if exists "ws_insert_self" on public.vault_workspaces;
 drop policy if exists "ws_update_owner" on public.vault_workspaces;
 drop policy if exists "ws_delete_owner" on public.vault_workspaces;
@@ -200,6 +201,15 @@ drop policy if exists "item_delete_editor" on public.vault_workspace_items;
 create policy "ws_select_members"
   on public.vault_workspaces for select
   using (public.is_workspace_member(id));
+
+-- El propietario ve su espacio aunque la fila se acabe de crear en la misma
+-- sentencia (`insert ... returning`). Necesario porque is_workspace_member() es
+-- STABLE: evalúa con el snapshot de la sentencia que hace el INSERT y no puede
+-- ver la fila nueva, así que Postgres abortaba el insert con
+-- "new row violates row-level security policy for table vault_workspaces".
+create policy "ws_select_own"
+  on public.vault_workspaces for select
+  using (owner_id = auth.uid());
 
 create policy "ws_insert_self"
   on public.vault_workspaces for insert
