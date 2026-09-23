@@ -86,12 +86,6 @@ export function Login() {
             ? 'Crea tu cuenta. Tu bóveda será solo tuya.'
             : 'Escribe tu correo y te enviaremos un enlace para restablecer tu contraseña.'
       }
-      legal={
-        <p className="text-center text-[11px] leading-relaxed text-muted">
-          Cada cuenta ve únicamente sus propios datos (Row Level Security por
-          usuario).
-        </p>
-      }
     >
         {status === 'unconfigured' && (
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">

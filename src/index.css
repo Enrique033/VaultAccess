@@ -144,3 +144,79 @@ html {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ============================================================
+   Animaciones del sistema.
+   Tailwind 4 solo genera las utilidades `animate-*` personalizadas
+   si las variables viven dentro de @theme: por eso se registran aquí
+   (incluidas las tres que ya existían y no se estaban generando).
+   ============================================================ */
+@theme {
+  --animate-fade-in: fade-in 0.15s ease-out;
+  --animate-slide-in: slide-in 0.2s ease-out;
+  --animate-slide-in-left: slide-in-left 0.2s ease-out;
+  --animate-fade-up: fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  --animate-float-soft: float-soft 5s ease-in-out infinite;
+  --animate-drift: drift 20s ease-in-out infinite;
+  --animate-glow-pulse: glow-pulse 3.5s ease-in-out infinite;
+  --animate-gradient-pan: gradient-pan 8s ease-in-out infinite;
+}
+
+/* Entrada escalonada: aparece desde 14 px más abajo. */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Flotación continua del logo de marca. */
+@keyframes float-soft {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Deriva lenta de los degradados del fondo. */
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(48px, 32px) scale(1.12);
+  }
+}
+
+/* Pulso del halo detrás del logo. */
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.18);
+  }
+}
+
+/* Recorrido del degradado del titular. */
+@keyframes gradient-pan {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
