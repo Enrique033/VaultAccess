@@ -221,15 +221,15 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
           <Select
             id="import-format"
             value={format}
-            onChange={(e) => setFormat(e.target.value as FormatChoice)}
-          >
-            <option value="auto">Detectar automáticamente</option>
-            {IMPORT_FORMATS.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </Select>
+            onChange={(v) => setFormat(v as FormatChoice)}
+            options={[
+              { value: 'auto', label: 'Detectar automáticamente' },
+              ...IMPORT_FORMATS.map((item) => ({
+                value: item.value,
+                label: item.label,
+              })),
+            ]}
+          />
           {detectedLabel && (
             <p className="text-[11px] text-muted">Detectado: {detectedLabel}</p>
           )}

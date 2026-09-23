@@ -19,8 +19,10 @@ Auth** (email/password y Google OAuth) y protegida con **Row Level Security**.
   últimas) y puedes restaurarla desde el diálogo de la credencial
   (`supabase/schema-history.sql`).
 - **Equipos (espacios compartidos)**: invita por email con rol (*propietario*,
-  *puede editar*, *solo lectura*) y comparte solo las credenciales que decidas,
-  sin exponer el resto de tu espacio personal (`supabase/schema-sharing.sql`).
+  *puede editar*, *solo lectura*) y comparte solo las credenciales que decidas.
+  Al invitar se env�a al correo un enlace m�gico de acceso (requiere que el
+  proveedor **Email** de Supabase est� activo) y, al abrirlo, el invitado reclama
+  la invitaci�n autom�ticamente (`supabase/schema-sharing.sql`).
 - **Importar respaldos**: CSV de Bitwarden / Chrome / Edge / 1Password /
   LastPass y el propio Excel de WorkVault, con detección automática de formato,
   vista previa, creación de categorías por carpeta y omisión de duplicados
@@ -130,10 +132,13 @@ Cuando ya tengas la URL de Vercel:
 - [ ] **Providers → Google**: *Authorized JavaScript origins* +=
       `https://<tu-app>.vercel.app` (la redirect URI de Google **no** cambia:
       sigue siendo `https://<proyecto>.supabase.co/auth/v1/callback`)
+- [x] **Providers → Email**: activo (las invitaciones a equipos envían un enlace
+      mágico al email del invitado; usa SMTP o el remitente por defecto de
+      Supabase)
 - [ ] **Emails**: revisar plantilla de "Reset password" (opcional: traducirla)
 - [ ] **Emails → Security notifications**: activar la plantilla "Password
       changed"
-- [ ] **Providers → Email**: "Confirm email" activado
+- [ ] **Providers → Email**: "Confirm email" activado (registro y reset)
 - [ ] Tras cambiar Site URL, probar en producción: registro, login Google y
       reset password
 
@@ -144,7 +149,8 @@ Cuando ya tengas la URL de Vercel:
 - [x] Cierre de sesión por inactividad (15 min sin interacción).
 - [x] Importación de respaldos (Bitwarden, Chrome, 1Password, LastPass, .xlsx).
 - [x] Historial de versiones de claves.
-- [x] Espacios compartidos con roles y reclamación de invitaciones por email.
+- [x] Espacios compartidos con roles: invitación por email con enlace mágico y
+      reclamación automática al iniciar sesión.
 - [x] Medidor de fuerza de claves (implementación propia en
       `src/lib/password-strength.ts`).
 - [x] Limpieza automática del portapapeles al copiar una clave (30 s).

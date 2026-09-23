@@ -237,15 +237,34 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
 
   inviteMember: async (workspaceId, email, role) => {
     const clean = email.trim().toLowerCase()
+
     const { data, error } = await supabase
       .from('vault_workspace_members')
       .insert({ workspace_id: workspaceId, email: clean, role })
       .select()
       .single()
     if (error) throw new Error(friendlyWorkspaceError(error.message))
+    const member = toWorkspaceMember(data as WorkspaceMemberRow)
     set((s) => ({
-      members: [...s.members, toWorkspaceMember(data as WorkspaceMemberRow)],
+      members: [...s.members, member],
     }))
+
+    // Best effort: notifica al invitado por email con un enlace mágico. Al
+    // abrirlo crea/entra con ese correo y `claim_workspace_invites` le
+    // adjudica la invitación pendiente. No anula la invitación si falla.
+    const { error: otpError } = await supabase.auth.signInWithOtp({
+      email: clean,
+      options: {
+        shouldCreateUser: true,
+        emailRedirectTo: `${window.location.origin}/equipos`,
+      },
+    })
+    if (otpError)
+      throw new Error(
+        'Invitación registrada, pero no se pudo enviar el email. Activa el ' +
+          'proveedor Email en Supabase Auth (SMTP o remitente por defecto) y ' +
+          `vuelve a invitar. Detalle: ${friendlyWorkspaceError(otpError.message)}`,
+      )
   },
 
   setMemberRole: async (memberId, role) => {

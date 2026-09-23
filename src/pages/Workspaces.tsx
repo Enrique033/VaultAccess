@@ -142,8 +142,8 @@ export function Workspaces() {
       await inviteMember(active.id, inviteEmail, inviteRole)
       setInviteEmail('')
       toast.success(
-        'Invitación registrada',
-        'La persona verá el espacio al iniciar sesión con ese correo.',
+        'Invitación enviada',
+        'Se registró el miembro y se envió el email de acceso; al entrar se adjudica el espacio.',
       )
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'No se pudo invitar')
@@ -233,25 +233,19 @@ export function Workspaces() {
               {isOwner && !isMe ? (
                 <Select
                   value={member.role}
-                  aria-label={`Rol de ${member.email}`}
+                  ariaLabel={`Rol de ${member.email}`}
                   className="h-8 w-36 text-xs"
-                  onChange={(e) =>
+                  onChange={(v) =>
                     void run(
-                      () =>
-                        setMemberRole(
-                          member.id,
-                          e.target.value as WorkspaceRole,
-                        ),
+                      () => setMemberRole(member.id, v as WorkspaceRole),
                       'Rol actualizado',
                     )
                   }
-                >
-                  {ALL_ROLES.map((role) => (
-                    <option key={role} value={role}>
-                      {ROLE_LABELS[role]}
-                    </option>
-                  ))}
-                </Select>
+                  options={ALL_ROLES.map((role) => ({
+                    value: role,
+                    label: ROLE_LABELS[role],
+                  }))}
+                />
               ) : (
                 <span className="rounded-md border border-border bg-elevated px-2 py-1 text-[11px] text-muted">
                   {ROLE_LABELS[member.role]}
@@ -300,14 +294,12 @@ export function Workspaces() {
               id="invite-role"
               value={inviteRole}
               className="w-36"
-              onChange={(e) => setInviteRole(e.target.value as WorkspaceRole)}
-            >
-              {ALL_ROLES.map((role) => (
-                <option key={role} value={role}>
-                  {ROLE_LABELS[role]}
-                </option>
-              ))}
-            </Select>
+              onChange={(v) => setInviteRole(v as WorkspaceRole)}
+              options={ALL_ROLES.map((role) => ({
+                value: role,
+                label: ROLE_LABELS[role],
+              }))}
+            />
           </div>
           <Button type="submit" variant="primary" disabled={busy}>
             <Plus className="size-3.5" /> Invitar
