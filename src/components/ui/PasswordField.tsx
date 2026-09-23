@@ -4,7 +4,7 @@ import { useClipboard } from '@/hooks/useClipboard'
 import { toast } from '@/store/ui.store'
 import { cn } from '@/lib/utils'
 
-/** El portapapeles se limpia automáticamente 30 s tras copiar una contraseña. */
+/** El portapapeles se limpia automáticamente 30 s tras copiar una clave. */
 const CLIPBOARD_CLEAR_MS = 30_000
 
 interface PasswordFieldProps {
@@ -14,8 +14,8 @@ interface PasswordFieldProps {
 }
 
 /**
- * Muestra una contraseña oculta con controles de revelar y copiar.
- * La contraseña revelada se vuelve a ocultar automáticamente tras `autoHideDelay` ms.
+ * Muestra una clave oculta con controles de revelar y copiar.
+ * La clave revelada se vuelve a ocultar automáticamente tras `autoHideDelay` ms.
  */
 export function PasswordField({
   value,
@@ -40,12 +40,12 @@ export function PasswordField({
     const ok = await copy(value, CLIPBOARD_CLEAR_MS)
     if (ok) {
       toast.success(
-        'Contraseña copiada',
+        'Clave copiada',
         'Se borrará del portapapeles en 30 s (si no copias otra cosa).',
       )
       setRevealed(false)
     } else {
-      toast.error('No se pudo copiar la contraseña')
+      toast.error('No se pudo copiar la clave')
     }
   }
 
@@ -64,7 +64,7 @@ export function PasswordField({
         type="button"
         onClick={() => setRevealed((p) => !p)}
         className="rounded p-1 text-muted transition-colors duration-150 hover:bg-elevated hover:text-foreground"
-        aria-label={revealed ? 'Ocultar contraseña' : 'Revelar contraseña'}
+        aria-label={revealed ? 'Ocultar' : 'Revelar'}
         title={revealed ? 'Ocultar' : 'Revelar'}
       >
         {revealed ? (
@@ -78,7 +78,7 @@ export function PasswordField({
         type="button"
         onClick={handleCopy}
         className="rounded p-1 text-muted transition-colors duration-150 hover:bg-elevated hover:text-foreground"
-        aria-label="Copiar contraseña"
+        aria-label="Copiar al portapapeles"
         title="Copiar"
       >
         {copied ? (

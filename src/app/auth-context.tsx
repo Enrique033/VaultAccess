@@ -20,14 +20,14 @@ interface AuthContextValue {
   signOut: () => Promise<void>
   /** Actualiza nombre y apellido en user_metadata. */
   updateProfile: (firstName: string, lastName: string) => Promise<{ error: string | null }>
-  /** Valida la contraseña actual y cambia por la nueva. */
+  /** Valida la clave actual y cambia por la nueva. */
   changePassword: (
     currentPassword: string,
     newPassword: string,
   ) => Promise<{ error: string | null }>
   /** Inicia sesión con Google (OAuth). */
   signInWithGoogle: () => Promise<{ error: string | null }>
-  /** Envía un enlace de recuperación de contraseña al correo indicado. */
+  /** Envía un enlace de recuperación de acceso al correo indicado. */
   resetPassword: (email: string) => Promise<{ error: string | null }>
 }
 
@@ -90,12 +90,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const changePassword = async (currentPassword: string, newPassword: string) => {
     const email = session?.user.email
     if (!email) return { error: 'Sin sesión activa. Vuelve a iniciar sesión.' }
-    // Supabase no valida la contraseña actual al actualizar: la verificamos primero.
+    // Supabase no valida la clave actual al actualizar: la verificamos primero.
     const { error: verifyError } = await supabase.auth.signInWithPassword({
       email,
       password: currentPassword,
     })
-    if (verifyError) return { error: 'La contraseña actual no es correcta.' }
+    if (verifyError) return { error: 'La clave actual no es correcta.' }
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     return { error: error ? friendlyError(error.message) : null }
   }

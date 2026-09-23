@@ -86,7 +86,7 @@ export function LinkDialog({ open, onOpenChange, link, onSubmit }: LinkDialogPro
           <DialogDescription>
             {isEditing
               ? 'Actualiza los datos del enlace.'
-              : 'Guarda un enlace frecuente en tu bóveda.'}
+              : 'Guarda un enlace frecuente en tu espacio.'}
           </DialogDescription>
         </div>
         <DialogCloseButton onClick={() => onOpenChange(false)} />

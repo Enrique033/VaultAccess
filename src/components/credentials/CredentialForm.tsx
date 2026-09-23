@@ -24,7 +24,7 @@ const credentialSchema = z.object({
     .max(120, 'Máximo 120 caracteres'),
   password: z
     .string()
-    .min(1, 'La contraseña es obligatoria')
+    .min(1, 'La clave es obligatoria')
     .max(500, 'Máximo 500 caracteres'),
   url: z.union([z.string().trim().url('URL inválida'), z.literal('')]),
   categoryId: z.string(),
@@ -120,7 +120,7 @@ export function CredentialForm({
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="credential-password">Contraseña</Label>
+          <Label htmlFor="credential-password">Clave</Label>
           <PasswordInput
             id="credential-password"
             value={watch('password')}

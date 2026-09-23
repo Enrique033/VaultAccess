@@ -66,8 +66,8 @@ export function UserMenu() {
         notes: state.notes,
       })
       toast.success(
-        'Bóveda exportada a Excel',
-        'El archivo contiene contraseñas en texto plano: guárdalo en un lugar seguro.',
+        'Datos exportados a Excel',
+        'El archivo contiene tus claves en texto plano: guárdalo en un lugar seguro.',
       )
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo exportar')
@@ -102,7 +102,7 @@ export function UserMenu() {
           <User className="size-3.5" /> Editar perfil
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => setPasswordOpen(true)}>
-          <ShieldCheck className="size-3.5" /> Cambiar contraseña
+          <ShieldCheck className="size-3.5" /> Cambiar clave
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => void handleExport()}>
@@ -199,7 +199,7 @@ function ProfileDialog({ onOpenChange }: { onOpenChange: (o: boolean) => void })
   )
 }
 
-/** Dialog para cambiar contraseña: valida la actual y confirma la nueva. */
+/** Dialog para cambiar clave: valida la actual y confirma la nueva. */
 function PasswordDialog({ onOpenChange }: { onOpenChange: (o: boolean) => void }) {
   const { changePassword } = useAuth()
   const [current, setCurrent] = useState('')
@@ -212,11 +212,11 @@ function PasswordDialog({ onOpenChange }: { onOpenChange: (o: boolean) => void }
     e.preventDefault()
     setError(null)
     if (next.length < 6) {
-      setError('La nueva contraseña debe tener al menos 6 caracteres.')
+      setError('La nueva clave debe tener al menos 6 caracteres.')
       return
     }
     if (next !== confirm) {
-      setError('La confirmación no coincide con la nueva contraseña.')
+      setError('La confirmación no coincide con la nueva clave.')
       return
     }
     setBusy(true)
@@ -227,7 +227,7 @@ function PasswordDialog({ onOpenChange }: { onOpenChange: (o: boolean) => void }
       return
     }
     toast.success(
-      'Contraseña actualizada',
+      'Clave actualizada',
       'Recibirás un correo de confirmación por seguridad.',
     )
     onOpenChange(false)
@@ -237,14 +237,14 @@ function PasswordDialog({ onOpenChange }: { onOpenChange: (o: boolean) => void }
     <Dialog open onOpenChange={onOpenChange} className="max-w-md">
       <form onSubmit={submit}>
         <DialogHeader>
-          <DialogTitle>Cambiar contraseña</DialogTitle>
+          <DialogTitle>Cambiar clave</DialogTitle>
           <DialogDescription>
-            Introduce tu contraseña actual y la nueva.
+            Introduce tu clave actual y la nueva.
           </DialogDescription>
         </DialogHeader>
         <DialogContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="password-current">Contraseña actual</Label>
+            <Label htmlFor="password-current">Clave actual</Label>
             <Input
               id="password-current"
               type="password"
@@ -256,7 +256,7 @@ function PasswordDialog({ onOpenChange }: { onOpenChange: (o: boolean) => void }
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="password-new">Nueva contraseña</Label>
+            <Label htmlFor="password-new">Nueva clave</Label>
             <PasswordInput
               id="password-new"
               autoComplete="new-password"
@@ -269,7 +269,7 @@ function PasswordDialog({ onOpenChange }: { onOpenChange: (o: boolean) => void }
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="password-confirm">Confirmar nueva contraseña</Label>
+            <Label htmlFor="password-confirm">Confirmar nueva clave</Label>
             <Input
               id="password-confirm"
               type="password"
@@ -292,7 +292,7 @@ function PasswordDialog({ onOpenChange }: { onOpenChange: (o: boolean) => void }
             Cancelar
           </Button>
           <Button type="submit" variant="primary" disabled={busy}>
-            {busy ? 'Actualizando…' : 'Cambiar contraseña'}
+            {busy ? 'Actualizando…' : 'Cambiar clave'}
           </Button>
         </DialogFooter>
       </form>

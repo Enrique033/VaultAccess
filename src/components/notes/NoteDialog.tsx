@@ -76,7 +76,7 @@ export function NoteDialog({ open, onOpenChange, note, onSubmit }: NoteDialogPro
           <DialogDescription>
             {isEditing
               ? 'Actualiza el contenido de la nota.'
-              : 'Escribe una nota para tu bóveda.'}
+              : 'Escribe una nota en tu espacio.'}
           </DialogDescription>
         </div>
         <DialogCloseButton onClick={() => onOpenChange(false)} />

@@ -179,7 +179,7 @@ export function Credentials() {
       {status === 'loading' ? (
         <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
           <div className="size-8 animate-spin rounded-full border-2 border-border border-t-primary" />
-          <p className="text-sm text-muted">Sincronizando tu bóveda con Supabase…</p>
+          <p className="text-sm text-muted">Sincronizando tus datos…</p>
         </div>
       ) : status === 'error' ? (
         <EmptyState

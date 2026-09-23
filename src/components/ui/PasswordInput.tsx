@@ -19,7 +19,7 @@ interface PasswordInputProps {
   required?: boolean
   minLength?: number
   disabled?: boolean
-  /** Muestra la barra de fuerza de la contraseña. */
+  /** Muestra la barra de fuerza de la clave. */
   showStrength?: boolean
   /** Habilita el generador con opciones (longitud / conjuntos de caracteres). */
   allowGenerate?: boolean
@@ -34,7 +34,7 @@ const SET_LABELS: Record<'upper' | 'lower' | 'digits' | 'symbols', string> = {
 }
 
 /**
- * Campo de contraseña con revelar/ocultar, generador opcional
+ * Campo de clave con revelar/ocultar, generador opcional
  * (crypto.getRandomValues) y medidor de fuerza opcional.
  */
 export function PasswordInput({
@@ -55,7 +55,7 @@ export function PasswordInput({
   const [revealed, setRevealed] = useState(false)
   const [optionsOpen, setOptionsOpen] = useState(false)
   const [options, setOptions] = useState<PasswordGenOptions>(DEFAULT_GEN_OPTIONS)
-  /** Última contraseña creada por el generador (para regenerar sin pisar texto manual). */
+  /** Última clave creada por el generador (para regenerar sin pisar texto manual). */
   const [lastGenerated, setLastGenerated] = useState<string | null>(null)
 
   const strength = evaluatePassword(value)
@@ -123,8 +123,8 @@ export function PasswordInput({
                 type="button"
                 onClick={() => regenerate(options)}
                 className="rounded p-1.5 text-muted transition-colors duration-150 hover:bg-surface hover:text-foreground"
-                aria-label="Generar contraseña"
-                title="Generar contraseña"
+                aria-label="Generar clave"
+                title="Generar clave"
                 disabled={disabled}
               >
                 <Dices className="size-4" />
@@ -135,7 +135,7 @@ export function PasswordInput({
             type="button"
             onClick={() => setRevealed((p) => !p)}
             className="rounded p-1.5 text-muted transition-colors duration-150 hover:bg-surface hover:text-foreground"
-            aria-label={revealed ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+            aria-label={revealed ? 'Ocultar' : 'Mostrar'}
             title={revealed ? 'Ocultar' : 'Mostrar'}
             disabled={disabled}
           >

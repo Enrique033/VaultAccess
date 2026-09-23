@@ -12,11 +12,11 @@ modelo evita falsos positivos al reportar vulnerabilidades:
   escribirlas.
 - **No hay backend propio.** Toda la lógica de servidor vive en Supabase
   (Auth, Postgres + RLS).
-- **Las contraseñas de las credenciales se guardan en texto plano en la base**
+- **Las claves de las cuentas se guardan en texto plano en la base**
   (comentario "Fase 2" en `schema.sql`). El cifrado cliente (AES-GCM) está en
   el roadmap; hasta entonces, el riesgo asumido es: quien tenga acceso ADMIN a
   Supabase podría leerlas. El acceso desde la app está protegido por RLS.
-- **Contraseñas de usuario y sesiones:** las gestiona Supabase Auth
+- **Claves de usuario y sesiones:** las gestiona Supabase Auth
   (hash bcrypt/argon2, tokens rotados). Google OAuth delega en Google.
 
 ## Controles implementados
@@ -24,7 +24,7 @@ modelo evita falsos positivos al reportar vulnerabilidades:
 | Capa | Control |
 | --- | --- |
 | Datos | RLS activo en `vault_sections`, `vault_categories`, `vault_credentials`, `vault_links`, `vault_notes` |
-| Portapapeles | Limpieza automática 30 s tras copiar una contraseña (solo si el contenido sigue intacto) |
+| Portapapeles | Limpieza automática 30 s tras copiar una clave (solo si el contenido sigue intacto) |
 | Sesión | Cierre automático por inactividad (15 min sin interacción) |
 | Transporte | HTTPS obligatorio (Supabase y Vercel) + HSTS |
 | Browser | CSP, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` (ver `vercel.json`) |

@@ -81,10 +81,10 @@ export function Login() {
       title="WorkVault"
       subtitle={
         mode === 'signin'
-          ? 'Inicia sesión para abrir tu bóveda privada.'
+          ? 'Inicia sesión para acceder a tu espacio privado.'
           : mode === 'signup'
-            ? 'Crea tu cuenta. Tu bóveda será solo tuya.'
-            : 'Escribe tu correo y te enviaremos un enlace para restablecer tu contraseña.'
+            ? 'Crea tu cuenta. Tu espacio será solo tuyo.'
+            : 'Escribe tu correo y te enviaremos un enlace para recuperar tu acceso.'
       }
     >
         {status === 'unconfigured' && (
@@ -140,7 +140,7 @@ export function Login() {
           </div>
           {mode !== 'forgot' && (
             <div className="space-y-1.5">
-              <Label htmlFor="login-password">Contraseña</Label>
+              <Label htmlFor="login-password">Clave de acceso</Label>
               {mode === 'signup' ? (
                 <PasswordInput
                   id="login-password"
@@ -174,7 +174,7 @@ export function Login() {
                   }}
                   className="block w-full text-right text-[11px] text-muted transition-colors hover:text-foreground"
                 >
-                  ¿Olvidaste tu contraseña?
+                  ¿Olvidaste tu clave?
                 </button>
               )}
             </div>
@@ -188,7 +188,7 @@ export function Login() {
           {sent && !error && (
             <p className="rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs text-green-300">
               {mode === 'forgot'
-                ? '¡Listo! Te enviamos un enlace a tu correo para restablecer la contraseña (revisa también la carpeta spam).'
+                ? '¡Listo! Te enviamos un enlace a tu correo para recuperar el acceso (revisa también la carpeta spam).'
                 : 'Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.'}
             </p>
           )}

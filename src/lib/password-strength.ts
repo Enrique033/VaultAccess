@@ -1,5 +1,5 @@
 /**
- * Evaluación de fuerza de contraseña sin dependencias externas.
+ * Evaluación de fuerza de claves sin dependencias externas.
  * Combina longitud, variedad de caracteres y detección de patrones
  * débiles (palabras comunes, secuencias, repeticiones).
  */
@@ -24,7 +24,6 @@ const LEVELS: { label: string; barClass: string }[] = [
 const COMMON_PASSWORDS = [
   'password',
   'contrasena',
-  'contraseña',
   '123456',
   '12345678',
   'qwerty',
@@ -44,7 +43,7 @@ const COMMON_PASSWORDS = [
   'welcome',
 ]
 
-/** Evalúa una contraseña y devuelve puntuación 0–4 con etiqueta. */
+/** Evalúa una clave y devuelve puntuación 0–4 con etiqueta. */
 export function evaluatePassword(password: string): PasswordStrength {
   const empty: PasswordStrength = { score: 0, ...LEVELS[0]! }
   if (!password) return empty

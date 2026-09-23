@@ -1,13 +1,13 @@
 /**
- * Exportación de la bóveda a Excel (.xlsx) con ExcelJS.
- * El archivo contiene contraseñas EN TEXTO PLANO: el usuario debe
+ * Exportación de los datos a Excel (.xlsx) con ExcelJS.
+ * El archivo contiene claves EN TEXTO PLANO: el usuario debe
  * guardarlo en un lugar seguro.
  */
 import ExcelJS from 'exceljs'
 import type { Row, Workbook } from 'exceljs'
 import type { Category, Credential, LinkItem, Note, VaultSection } from '@/types'
 
-/** Datos de la bóveda necesarios para generar el .xlsx. */
+/** Datos necesarios para generar el .xlsx. */
 export interface VaultExcelInput {
   sections: VaultSection[]
   categories: Category[]
@@ -57,7 +57,7 @@ function detailSheet(
   }
 }
 
-/** Genera el .xlsx de la bóveda y lo descarga al instante. */
+/** Genera el .xlsx y lo descarga al instante. */
 export async function exportVaultToExcel(input: VaultExcelInput): Promise<void> {
   const { sections, categories, credentials, links, notes } = input
 
@@ -239,7 +239,7 @@ export async function exportVaultToExcel(input: VaultExcelInput): Promise<void> 
     [
       { header: 'Título', width: 28 },
       { header: 'Usuario', width: 26 },
-      { header: 'Contraseña', width: 24 },
+      { header: 'Clave', width: 24 },
       { header: 'URL', width: 36 },
       { header: 'Categoría', width: 18 },
       { header: 'Sección', width: 16 },

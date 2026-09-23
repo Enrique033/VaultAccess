@@ -198,7 +198,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         set({ notes: noteRes.data.map((r) => toNote(r as NoteRow)) })
       }
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Error al cargar la bóveda.'
+      const message = e instanceof Error ? e.message : 'Error al cargar tus datos.'
       set({ status: 'error', error: message })
     }
   },

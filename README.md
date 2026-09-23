@@ -1,24 +1,24 @@
 # 🗄️ WorkVault
 
-Bóveda privada para gestionar **credenciales, enlaces y notas** en un solo
+Espacio privado para gestionar **accesos, enlaces y notas** en un solo
 lugar. SPA construida con React + Vite + Tailwind, autenticada con **Supabase
 Auth** (email/password y Google OAuth) y protegida con **Row Level Security**.
 
 ## ✨ Características
 
-- Auth completa: registro, login, **"¿Olvidaste tu contraseña?"** por email y
+- Auth completa: registro, login, **"¿Olvidaste tu clave?"** por email y
   login con **Google**.
 - **Secciones → categorías → credenciales**, con búsqueda (Ctrl+K), favoritos
   y orden.
 - **Links y Notas** completos: tarjetas, CRUD, favoritos, búsqueda y filtros
   (tablas `vault_links` / `vault_notes` con RLS).
-- **Generador de contraseñas** (crypto.getRandomValues) con longitud 8–48,
+- **Generador de claves** (crypto.getRandomValues) con longitud 8–48,
   conjuntos de caracteres y exclusión de ambiguos.
-- **Medidor de fuerza** en registro, reset, cambiar contraseña y credenciales.
-- **Exportar bóveda a Excel (.xlsx)**: hoja *Dashboard* con KPIs y barras por
+- **Medidor de fuerza** en registro, reset, cambio de clave y credenciales.
+- **Exportar a Excel (.xlsx)**: hoja *Dashboard* con KPIs y barras por
   sección/categoría + hojas de detalle (credenciales, enlaces, notas) con
   filtros, desde el menú de usuario.
-- **Auto-limpieza del portapapeles** 30 s tras copiar una contraseña.
+- **Auto-limpieza del portapapeles** 30 s tras copiar una clave.
 - **Cierre de sesión por inactividad** (15 min) para equipos compartidos.
 - **Diseño 100 % responsivo**: drawer en móvil/tablet, grid de 1→4 columnas,
   bottom-sheets en móvil, inputs anti-zoom iOS y targets táctiles.
@@ -65,9 +65,9 @@ Ver **[SECURITY.md](./SECURITY.md)** para el modelo completo. Resumen:
 - La `anon key` es pública **por diseño**; la protección real es RLS.
 - Headers de seguridad en producción via `vercel.json`: CSP, HSTS,
   `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
-- `robots.txt` con `Disallow: /` + `meta noindex` (bóveda privada).
+- `robots.txt` con `Disallow: /` + `meta noindex` (contenido privado).
 - `.env` ignorado por git; solo existe `.env.example` en el repo.
-- **Portapapeles**: se limpia 30 s tras copiar una contraseña (si nadie la
+- **Portapapeles**: se limpia 30 s tras copiar una clave (si nadie la
   sobrescribió antes).
 - **Inactividad**: la sesión se cierra a los 15 min sin interacción.
 
@@ -120,12 +120,12 @@ Cuando ya tengas la URL de Vercel:
 
 ## 🗺 Roadmap (plus de seguridad)
 
-- [ ] **Cifrado cliente AES-GCM** de contraseñas antes de sincronizar
+- [ ] **Cifrado cliente AES-GCM** de las claves antes de sincronizar
       (fase 2 anotada en `schema.sql`).
-- [x] Bloqueo de la bóveda por inactividad (cierre de sesión a los 15 min).
-- [x] Medidor de fuerza de contraseña (implementación propia en
+- [x] Cierre de sesión por inactividad (15 min sin interacción).
+- [x] Medidor de fuerza de claves (implementación propia en
       `src/lib/password-strength.ts`).
-- [x] Limpieza automática del portapapeles al copiar una contraseña (30 s).
+- [x] Limpieza automática del portapapeles al copiar una clave (30 s).
 
 ## 📁 Estructura
 

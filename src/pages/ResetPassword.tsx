@@ -16,8 +16,8 @@ const errorBox =
   'rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300'
 
 /**
- * Destino del enlace "¿Olvidaste tu contraseña?".
- * - Con sesión de recuperación activa: permite fijar la nueva contraseña.
+ * Destino del enlace "¿Olvidaste tu clave?".
+ * - Con sesión de recuperación activa: permite fijar la nueva clave.
  * - Sin sesión (enlace caducado): permite solicitar uno nuevo.
  */
 export function ResetPassword() {
@@ -34,11 +34,11 @@ export function ResetPassword() {
     e.preventDefault()
     setError(null)
     if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.')
+      setError('La clave debe tener al menos 6 caracteres.')
       return
     }
     if (password !== confirm) {
-      setError('La confirmación no coincide con la contraseña.')
+      setError('La confirmación no coincide con la clave.')
       return
     }
     setBusy(true)
@@ -48,7 +48,7 @@ export function ResetPassword() {
         setError(friendlyError(err.message))
         return
       }
-      toast.success('Contraseña actualizada', 'Recibirás un correo de confirmación por seguridad.')
+      toast.success('Clave actualizada', 'Recibirás un correo de confirmación por seguridad.')
       navigate('/credentials', { replace: true })
     } finally {
       setBusy(false)
@@ -74,10 +74,10 @@ export function ResetPassword() {
 
   return (
     <AuthLayout
-      title="Restablecer contraseña"
+      title="Recuperar acceso"
       subtitle={
         status === 'signed-in'
-          ? 'Elige una nueva contraseña para tu cuenta.'
+          ? 'Elige una nueva clave para tu cuenta.'
           : 'Solicita un enlace nuevo si el tuyo caducó.'
       }
       legal={
@@ -90,7 +90,7 @@ export function ResetPassword() {
     >
         {!isSupabaseConfigured ? (
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
-            Supabase no está configurado: la recuperación de contraseña no está
+            Supabase no está configurado: la recuperación de acceso no está
             disponible en modo local.
           </div>
         ) : status === 'loading' ? (
@@ -103,7 +103,7 @@ export function ResetPassword() {
             className="space-y-4 rounded-xl border border-border bg-surface p-5"
           >
             <div className="space-y-1.5">
-              <Label htmlFor="reset-password">Nueva contraseña</Label>
+              <Label htmlFor="reset-password">Nueva clave</Label>
               <PasswordInput
                 id="reset-password"
                 autoComplete="new-password"
@@ -116,7 +116,7 @@ export function ResetPassword() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="reset-confirm">Confirmar contraseña</Label>
+              <Label htmlFor="reset-confirm">Confirmar clave</Label>
               <Input
                 id="reset-confirm"
                 type="password"
@@ -139,7 +139,7 @@ export function ResetPassword() {
               ) : (
                 <KeyRound className="size-4" />
               )}
-              Guardar contraseña
+              Guardar clave
             </Button>
           </form>
         ) : (

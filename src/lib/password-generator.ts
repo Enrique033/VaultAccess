@@ -1,5 +1,5 @@
 /**
- * Generador de contraseñas criptográficamente seguro (Web Crypto API).
+ * Generador de claves criptográficamente seguro (Web Crypto API).
  * Sin Math.random: usa getRandomValues con rejection sampling para
  * evitar sesgo de módulo.
  */
@@ -52,7 +52,7 @@ function pick(chars: string): string {
   return chars[randomIndex(chars.length)]!
 }
 
-/** Genera una contraseña que contiene al menos un carácter de cada conjunto activo. */
+/** Genera una clave que contiene al menos un carácter de cada conjunto activo. */
 export function generatePassword(
   options: PasswordGenOptions = DEFAULT_GEN_OPTIONS,
 ): string {

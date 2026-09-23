@@ -15,20 +15,20 @@ const HIGHLIGHTS = [
   {
     icon: Search,
     title: 'Encuéntralo todo al instante',
-    text: 'Busca cualquier contraseña, enlace o nota con Ctrl+K sin salir de la pantalla.',
+    text: 'Busca cualquier dato, enlace o nota con Ctrl+K sin salir de la pantalla.',
     tone: 'bg-primary/15 text-primary',
     delay: '350ms',
   },
   {
     icon: Dices,
-    title: 'Contraseñas fuertes en un clic',
+    title: 'Accesos seguros en un clic',
     text: 'Genera claves imposibles de adivinar y mide su fuerza antes de guardarlas.',
     tone: 'bg-emerald-500/15 text-emerald-500',
     delay: '470ms',
   },
   {
     icon: FileSpreadsheet,
-    title: 'Llévate tu bóveda a Excel',
+    title: 'Llévate tus datos a Excel',
     text: 'Exporta todo con un dashboard de KPIs y el detalle completo en un solo archivo.',
     tone: 'bg-amber-500/15 text-amber-500',
     delay: '590ms',
@@ -79,12 +79,12 @@ export function AuthLayout({ title, subtitle, children, legal }: AuthLayoutProps
               WorkVault
             </span>
             <h1 className="animate-gradient-pan bg-gradient-to-r from-foreground via-primary to-foreground bg-[length:200%_200%] bg-clip-text text-3xl font-semibold tracking-tight text-transparent">
-              Tu bóveda privada,
+              Tu espacio privado,
               <br />
               siempre a salvo.
             </h1>
             <p className="text-sm leading-relaxed text-muted">
-              Contraseñas, enlaces y notas en un solo lugar: guardados, ordenados
+              Cuentas, enlaces y notas en un solo lugar: guardados, ordenados
               y a mano en cualquier dispositivo, cuando los necesites.
             </p>
           </div>

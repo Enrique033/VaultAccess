@@ -56,7 +56,7 @@ export function AppShell() {
           <div className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs leading-relaxed text-amber-200 sm:px-5 lg:px-6">
             Supabase no está configurado (falta{' '}
             <code className="font-mono">VITE_SUPABASE_URL</code> /{' '}
-            <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>): la bóveda
+            <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>): la app
             funciona en modo local y los datos <strong>no se sincronizan</strong>.
           </div>
         )}
