@@ -1,4 +1,4 @@
-import { SlidersHorizontal, X } from 'lucide-react'
+import { ShieldAlert, SlidersHorizontal, X } from 'lucide-react'
 import { useSearchStore } from '@/store/search.store'
 import type { Category, VaultSection } from '@/types'
 
@@ -18,14 +18,19 @@ export function FilterChips({ sections, categories }: FilterChipsProps) {
   const sectionId = useSearchStore((s) => s.sectionId)
   const categoryFilter = useSearchStore((s) => s.categoryFilter)
   const query = useSearchStore((s) => s.query)
+  const weakOnly = useSearchStore((s) => s.weakOnly)
   const setSectionId = useSearchStore((s) => s.setSectionId)
   const setCategoryFilter = useSearchStore((s) => s.setCategoryFilter)
   const setQuery = useSearchStore((s) => s.setQuery)
+  const setWeakOnly = useSearchStore((s) => s.setWeakOnly)
 
   const activeSection = sections.find((s) => s.id === sectionId) ?? null
   const activeCategory = categories.find((c) => c.id === categoryFilter) ?? null
   const hasFilters =
-    sectionId !== null || categoryFilter !== null || query.trim() !== ''
+    sectionId !== null ||
+    categoryFilter !== null ||
+    weakOnly ||
+    query.trim() !== ''
 
   if (!hasFilters) return null
 
@@ -63,6 +68,17 @@ export function FilterChips({ sections, categories }: FilterChipsProps) {
           <X className="size-3 text-muted" />
         </button>
       )}
+      {weakOnly && (
+        <button
+          type="button"
+          onClick={() => setWeakOnly(false)}
+          className={chip}
+        >
+          <ShieldAlert className="size-3" />
+          Claves débiles
+          <X className="size-3 text-muted" />
+        </button>
+      )}
       {activeCategory && (
         <button
           type="button"
@@ -82,6 +98,7 @@ export function FilterChips({ sections, categories }: FilterChipsProps) {
         onClick={() => {
           setSectionId(null)
           setCategoryFilter(null)
+          setWeakOnly(false)
           setQuery('')
         }}
         className="text-muted underline-offset-2 transition-colors hover:text-foreground hover:underline"

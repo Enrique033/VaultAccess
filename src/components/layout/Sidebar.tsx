@@ -6,6 +6,7 @@ import {
   NotebookPen,
   PanelLeftClose,
   PanelLeftOpen,
+  Users2,
   Vault,
   X,
 } from 'lucide-react'
@@ -17,6 +18,7 @@ const NAV_ITEMS = [
   { to: '/credentials', label: 'Access', icon: KeyRound },
   { to: '/links', label: 'Links', icon: Link2 },
   { to: '/notes', label: 'Notas', icon: NotebookPen },
+  { to: '/workspaces', label: 'Equipos', icon: Users2 },
 ]
 
 interface SidebarPanelProps {

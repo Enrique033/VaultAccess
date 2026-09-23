@@ -1,4 +1,11 @@
-import type { Category, Credential, LinkItem, Note, VaultSection } from '@/types'
+import type {
+  Category,
+  Credential,
+  LinkItem,
+  Note,
+  PasswordHistoryEntry,
+  VaultSection,
+} from '@/types'
 
 /** Fila de vault_sections en Supabase. */
 export interface SectionRow {
@@ -103,5 +110,22 @@ export function toNote(row: NoteRow): Note {
     favorite: row.favorite,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  }
+}
+
+/** Fila de vault_password_history en Supabase. */
+export interface HistoryRow {
+  id: string
+  credential_id: string
+  password: string
+  changed_at: string
+}
+
+export function toHistoryEntry(row: HistoryRow): PasswordHistoryEntry {
+  return {
+    id: row.id,
+    credentialId: row.credential_id,
+    password: row.password,
+    changedAt: row.changed_at,
   }
 }

@@ -1,11 +1,15 @@
+import { useState } from 'react'
+import { Link } from 'react-router'
 import {
   ExternalLink,
   MoreVertical,
   Pencil,
+  Share2,
   Star,
   StarOff,
   Trash2,
   User,
+  Users2,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { CategoryBadge } from '@/components/ui/CategoryBadge'
@@ -17,7 +21,12 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/DropdownMenu'
+import { ShareCredentialDialog } from './ShareCredentialDialog'
 import { useVaultStore } from '@/store/vault.store'
+import {
+  useWorkspaceStore,
+  workspacesOfCredential,
+} from '@/store/workspace.store'
 import { toast } from '@/store/ui.store'
 import type { Credential } from '@/types'
 
@@ -34,8 +43,12 @@ export function CredentialCard({
 }: CredentialCardProps) {
   const categories = useVaultStore((s) => s.categories)
   const toggleFavorite = useVaultStore((s) => s.toggleCredentialFavorite)
+  const workspaces = useWorkspaceStore((s) => s.workspaces)
+  const sharedItems = useWorkspaceStore((s) => s.items)
+  const [shareOpen, setShareOpen] = useState(false)
 
   const category = categories.find((c) => c.id === credential.categoryId)
+  const sharedIn = workspacesOfCredential(sharedItems, workspaces, credential.id)
 
   const handleOpenLogin = () => {
     if (!credential.url) return
@@ -54,7 +67,8 @@ export function CredentialCard({
   }
 
   return (
-    <Card className="flex h-full flex-col p-4 transition-colors duration-150 hover:border-primary/40 hover:shadow-md">
+    <>
+      <Card className="flex h-full flex-col p-4 transition-colors duration-150 hover:border-primary/40 hover:shadow-md">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
@@ -70,6 +84,17 @@ export function CredentialCard({
             <div className="mt-1.5">
               <CategoryBadge category={category} />
             </div>
+          )}
+          {sharedIn.length > 0 && (
+            <Link
+              to="/workspaces"
+              title={sharedIn.map((w) => w.name).join(', ')}
+              className="mt-1.5 inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-1.5 py-0.5 text-[10px] text-muted transition-colors duration-150 hover:border-primary/40 hover:text-foreground"
+            >
+              <Users2 className="size-3" />
+              Compartida en {sharedIn.length}{' '}
+              {sharedIn.length === 1 ? 'espacio' : 'espacios'}
+            </Link>
           )}
         </div>
 
@@ -90,6 +115,11 @@ export function CredentialCard({
                 Marcar favorito
               </>
             )}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => setShareOpen(true)}>
+            <Share2 className="size-3.5" />
+            Compartir en equipo
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -138,5 +168,12 @@ export function CredentialCard({
         </Button>
       </div>
     </Card>
+
+      <ShareCredentialDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        credential={credential}
+      />
+    </>
   )
 }

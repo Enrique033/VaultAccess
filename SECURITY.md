@@ -16,6 +16,9 @@ modelo evita falsos positivos al reportar vulnerabilidades:
   (comentario "Fase 2" en `schema.sql`). El cifrado cliente (AES-GCM) está en
   el roadmap; hasta entonces, el riesgo asumido es: quien tenga acceso ADMIN a
   Supabase podría leerlas. El acceso desde la app está protegido por RLS.
+  Lo mismo aplica al **historial de claves** (`vault_password_history`) y a las
+  **credenciales compartidas** (`vault_workspace_items`), que son copias del
+  dato visible solo para los miembros del espacio.
 - **Claves de usuario y sesiones:** las gestiona Supabase Auth
   (hash bcrypt/argon2, tokens rotados). Google OAuth delega en Google.
 
@@ -23,7 +26,10 @@ modelo evita falsos positivos al reportar vulnerabilidades:
 
 | Capa | Control |
 | --- | --- |
-| Datos | RLS activo en `vault_sections`, `vault_categories`, `vault_credentials`, `vault_links`, `vault_notes` |
+| Datos | RLS activo en `vault_sections`, `vault_categories`, `vault_credentials`, `vault_links`, `vault_notes`, `vault_password_history`, `vault_workspaces`, `vault_workspace_members`, `vault_workspace_items` |
+| Equipos | RLS por pertenencia: funciones `security definer` (`is_workspace_member`, `workspace_role`) evitan recursión y no exponen `auth.users`. Compartir **copia** el dato: nunca se da acceso al vault personal |
+| Invitaciones | Roles (`owner`/`editor`/`viewer`); la invitación se reclama por email al iniciar sesión (`claim_workspace_invites()`, que solo puede fijar el propio `user_id`) |
+| Importación | Los respaldos se leen en el navegador; el archivo no se sube a ningún servidor |
 | Portapapeles | Limpieza automática 30 s tras copiar una clave (solo si el contenido sigue intacto) |
 | Sesión | Cierre automático por inactividad (15 min sin interacción) |
 | Transporte | HTTPS obligatorio (Supabase y Vercel) + HSTS |

@@ -6,11 +6,13 @@ import { Header } from './Header'
 import { useUIStore } from '@/store/ui.store'
 import { useSearchStore } from '@/store/search.store'
 import { useVaultSync } from '@/store/vault.store'
+import { useWorkspaceSync } from '@/store/workspace.store'
 import { useIdleSignOut } from '@/hooks/useIdleSignOut'
 import { isSupabaseConfigured } from '@/lib/supabase'
 
 export function AppShell() {
   useVaultSync()
+  useWorkspaceSync()
   useIdleSignOut()
 
   const collapsed = useUIStore((s) => s.sidebarCollapsed)

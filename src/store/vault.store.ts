@@ -1,20 +1,27 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { supabase, isSupabaseConfigured, requireUserId } from '@/lib/supabase'
 import {
   toCategory,
   toCredential,
+  toHistoryEntry,
   toLink,
   toNote,
   toSection,
 } from '@/lib/vault-mapper'
-import type { LinkRow, NoteRow } from '@/lib/vault-mapper'
+import type {
+  CredentialRow,
+  HistoryRow,
+  LinkRow,
+  NoteRow,
+} from '@/lib/vault-mapper'
 import { CATEGORY_COLORS } from '@/lib/category-colors'
 import type {
   Category,
   Credential,
   LinkItem,
   Note,
+  PasswordHistoryEntry,
   VaultSection,
 } from '@/types'
 
@@ -38,6 +45,18 @@ function friendlySyncError(message: string): string {
 }
 
 export type CredentialInput = Omit<Credential, 'id' | 'createdAt' | 'updatedAt' | 'favorite'>
+
+/** Resultado de una importación masiva. */
+export interface ImportResult {
+  created: number
+  skipped: number
+}
+
+/** Opciones de la importación masiva. */
+export interface ImportOptions {
+  /** `true` (por defecto) omite lo que ya existe (mismo título + usuario). */
+  skipDuplicates?: boolean
+}
 
 export interface CategoryInput {
   name: string
@@ -64,6 +83,12 @@ interface VaultState {
   /** Links/Notas (vault_links / vault_notes). */
   links: LinkItem[]
   notes: Note[]
+  /** Versiones anteriores de la clave de la credencial abierta (bajo demanda). */
+  history: PasswordHistoryEntry[]
+  /** Credencial a la que pertenece `history`. */
+  historyCredentialId: string | null
+  historyLoading: boolean
+  historyError: string | null
 
   status: SyncStatus
   error: string | null
@@ -76,6 +101,16 @@ interface VaultState {
   updateCredential: (id: string, input: Partial<CredentialInput>) => Promise<void>
   deleteCredential: (id: string) => Promise<void>
   toggleCredentialFavorite: (id: string) => Promise<void>
+  /** Importación masiva desde un respaldo (Bitwarden, Chrome, 1Password…). */
+  importCredentials: (
+    items: CredentialInput[],
+    options?: ImportOptions,
+  ) => Promise<ImportResult>
+
+  /** Historial de claves (vault_password_history). */
+  loadCredentialHistory: (credentialId: string) => Promise<void>
+  deleteHistoryEntry: (id: string) => Promise<void>
+  clearCredentialHistory: (credentialId: string) => Promise<void>
 
   addSection: (name: string) => Promise<VaultSection>
   renameSection: (id: string, name: string) => Promise<void>
@@ -104,17 +139,78 @@ function nextColor(categories: Category[]): string {
   return CATEGORY_COLORS[categories.length % CATEGORY_COLORS.length]!
 }
 
-async function requireUserId(): Promise<string> {
-  const { data } = await supabase.auth.getUser()
-  const id = data.user?.id
-  if (!id) throw new Error('Sin sesión. Inicia sesión de nuevo.')
-  return id
+/** Versiones anteriores que se conservan por credencial. */
+export const HISTORY_LIMIT = 20
+
+/** Tamaño de los lotes al importar (evita payloads enormes). */
+const IMPORT_CHUNK = 100
+
+/** Clave de duplicado al importar (título + usuario, sin mayúsculas). */
+function dedupeKey(title: string, username: string): string {
+  return `${title.trim().toLowerCase()}::${username.trim().toLowerCase()}`
+}
+
+/** Error del historial con la pista de qué script SQL falta. */
+function historyFriendlyError(message: string): string {
+  if (/relation .* does not exist|schema cache/i.test(message))
+    return 'Falta la tabla del historial. Ejecuta supabase/schema-history.sql en el SQL Editor de Supabase.'
+  return friendlySyncError(message)
+}
+
+/** Guarda en el historial la clave que se acaba de reemplazar (best-effort). */
+async function recordPasswordChange(credential: Credential): Promise<void> {
+  if (!isSupabaseConfigured) return
+  try {
+    const userId = await requireUserId()
+    const { data, error } = await supabase
+      .from('vault_password_history')
+      .insert({
+        user_id: userId,
+        credential_id: credential.id,
+        password: credential.password,
+      })
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+
+    const entry = toHistoryEntry(data as HistoryRow)
+    useVaultStore.setState((s) => ({
+      history:
+        s.historyCredentialId === credential.id
+          ? [entry, ...s.history].slice(0, HISTORY_LIMIT)
+          : s.history,
+    }))
+
+    // Poda: conserva solo las HISTORY_LIMIT versiones más recientes.
+    const { data: stale } = await supabase
+      .from('vault_password_history')
+      .select('id')
+      .eq('credential_id', credential.id)
+      .order('changed_at', { ascending: false })
+      .range(HISTORY_LIMIT, HISTORY_LIMIT + 50)
+    if (stale && stale.length > 0) {
+      await supabase
+        .from('vault_password_history')
+        .delete()
+        .in(
+          'id',
+          stale.map((row) => (row as { id: string }).id),
+        )
+    }
+  } catch (e) {
+    // Nunca debe romper el guardado de la credencial.
+    console.warn('[WorkVault] No se pudo guardar el historial de la clave:', e)
+  }
 }
 
 export const useVaultStore = create<VaultState>()((set, get) => ({
   credentials: [],
   links: [],
   notes: [],
+  history: [],
+  historyCredentialId: null,
+  historyLoading: false,
+  historyError: null,
   categories: [],
   sections: [],
 
@@ -210,6 +306,10 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       sections: [],
       links: [],
       notes: [],
+      history: [],
+      historyCredentialId: null,
+      historyLoading: false,
+      historyError: null,
       status: 'idle',
       error: null,
     }),
@@ -242,6 +342,10 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
   },
 
   updateCredential: async (id, input) => {
+    const previous = get().credentials.find((c) => c.id === id)
+    /** Solo hay historial si la clave cambia de verdad. */
+    const passwordChanged =
+      input.password !== undefined && input.password !== previous?.password
     const patch: Record<string, unknown> = {}
     if (input.title !== undefined) patch.title = input.title
     if (input.username !== undefined) patch.username = input.username
@@ -264,12 +368,23 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       },
     )
     set((s) => ({ credentials: s.credentials.map((c) => (c.id === id ? updated : c)) }))
+
+    // Guarda la clave reemplazada (best-effort: no interrumpe el guardado).
+    if (passwordChanged && previous) await recordPasswordChange(previous)
   },
 
   deleteCredential: async (id) => {
     const { error } = await supabase.from('vault_credentials').delete().eq('id', id)
     if (error) throw new Error(friendlySyncError(error.message))
-    set((s) => ({ credentials: s.credentials.filter((c) => c.id !== id) }))
+    set((s) => ({
+      credentials: s.credentials.filter((c) => c.id !== id),
+      // En la base cae en cascada; aquí limpiamos la copia local.
+      history:
+        s.historyCredentialId === id
+          ? []
+          : s.history.filter((h) => h.credentialId !== id),
+      historyCredentialId: s.historyCredentialId === id ? null : s.historyCredentialId,
+    }))
   },
 
 
@@ -291,6 +406,107 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       },
     )
     set((s) => ({ credentials: s.credentials.map((c) => (c.id === id ? updated : c)) }))
+  },
+
+  importCredentials: async (items, options) => {
+    const userId = await requireUserId()
+    const seen = new Set(
+      get().credentials.map((c) => dedupeKey(c.title, c.username)),
+    )
+    const rows: Record<string, unknown>[] = []
+    let skipped = 0
+
+    for (const item of items) {
+      const title = item.title.trim()
+      const username = item.username.trim()
+      const key = dedupeKey(title, username)
+      if (options?.skipDuplicates !== false) {
+        if (seen.has(key)) {
+          skipped += 1
+          continue
+        }
+        seen.add(key)
+      }
+      rows.push({
+        user_id: userId,
+        title,
+        username,
+        password: item.password,
+        url: item.url?.trim() || null,
+        category_id: item.categoryId || null,
+        notes: item.notes?.trim() || null,
+      })
+    }
+
+    // Inserta por lotes para no enviar payloads enormes de una vez.
+    const created: Credential[] = []
+    for (let i = 0; i < rows.length; i += IMPORT_CHUNK) {
+      const { data, error } = await supabase
+        .from('vault_credentials')
+        .insert(rows.slice(i, i + IMPORT_CHUNK))
+        .select()
+      if (error) throw new Error(friendlySyncError(error.message))
+      created.push(
+        ...(data ?? []).map((row) => toCredential(row as CredentialRow)),
+      )
+    }
+    if (created.length > 0)
+      set((s) => ({ credentials: [...created, ...s.credentials] }))
+
+    return { created: created.length, skipped }
+  },
+
+  loadCredentialHistory: async (credentialId) => {
+    set({
+      historyCredentialId: credentialId,
+      history: [],
+      historyLoading: true,
+      historyError: null,
+    })
+    if (!isSupabaseConfigured) {
+      set({
+        historyLoading: false,
+        historyError:
+          'Supabase no está configurado: el historial no está disponible.',
+      })
+      return
+    }
+    const { data, error } = await supabase
+      .from('vault_password_history')
+      .select('*')
+      .eq('credential_id', credentialId)
+      .order('changed_at', { ascending: false })
+      .limit(HISTORY_LIMIT)
+    if (error) {
+      set({
+        historyLoading: false,
+        historyError: historyFriendlyError(error.message),
+      })
+      return
+    }
+    set({
+      history: (data ?? []).map((row) => toHistoryEntry(row as HistoryRow)),
+      historyLoading: false,
+      historyError: null,
+    })
+  },
+
+  deleteHistoryEntry: async (id) => {
+    const { error } = await supabase
+      .from('vault_password_history')
+      .delete()
+      .eq('id', id)
+    if (error) throw new Error(historyFriendlyError(error.message))
+    set((s) => ({ history: s.history.filter((h) => h.id !== id) }))
+  },
+
+  clearCredentialHistory: async (credentialId) => {
+    const { error } = await supabase
+      .from('vault_password_history')
+      .delete()
+      .eq('credential_id', credentialId)
+    if (error) throw new Error(historyFriendlyError(error.message))
+    set({ history: [] })
   },
 
   addLink: async (input) => {

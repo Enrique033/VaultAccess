@@ -46,12 +46,15 @@ interface CredentialFormProps {
   credential?: Credential
   onSubmit: (values: CredentialFormValues) => void
   onCancel: () => void
+  /** Clave que se aplica al formulario (p. ej. al restaurar una versión). */
+  passwordSeed?: string
 }
 
 export function CredentialForm({
   credential,
   onSubmit,
   onCancel,
+  passwordSeed,
 }: CredentialFormProps) {
   const allCategories = useVaultStore((s) => s.categories)
   const sections = useVaultStore((s) => s.sections)
@@ -90,6 +93,12 @@ export function CredentialForm({
       reset(EMPTY_VALUES)
     }
   }, [credential, reset])
+
+  // Restauración desde el historial: se escribe como cambio pendiente.
+  useEffect(() => {
+    if (!passwordSeed) return
+    setValue('password', passwordSeed, { shouldDirty: true, shouldValidate: true })
+  }, [passwordSeed, setValue])
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

@@ -26,3 +26,14 @@ export const supabase = createClient(
 
 export const isSupabaseConfigured =
   Boolean(supabaseUrl) && Boolean(supabaseAnonKey)
+
+/**
+ * Id del usuario autenticado, o un error claro si no hay sesión.
+ * Lo usan los stores antes de insertar filas con `user_id`.
+ */
+export async function requireUserId(): Promise<string> {
+  const { data } = await supabase.auth.getUser()
+  const id = data.user?.id
+  if (!id) throw new Error('Sin sesión. Inicia sesión de nuevo.')
+  return id
+}

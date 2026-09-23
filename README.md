@@ -15,6 +15,19 @@ Auth** (email/password y Google OAuth) y protegida con **Row Level Security**.
 - **Generador de claves** (crypto.getRandomValues) con longitud 8–48,
   conjuntos de caracteres y exclusión de ambiguos.
 - **Medidor de fuerza** en registro, reset, cambio de clave y credenciales.
+- **Historial de claves**: cada cambio guarda la versión anterior (las 20
+  últimas) y puedes restaurarla desde el diálogo de la credencial
+  (`supabase/schema-history.sql`).
+- **Equipos (espacios compartidos)**: invita por email con rol (*propietario*,
+  *puede editar*, *solo lectura*) y comparte solo las credenciales que decidas,
+  sin exponer el resto de tu espacio personal (`supabase/schema-sharing.sql`).
+- **Importar respaldos**: CSV de Bitwarden / Chrome / Edge / 1Password /
+  LastPass y el propio Excel de WorkVault, con detección automática de formato,
+  vista previa, creación de categorías por carpeta y omisión de duplicados
+  (todo se procesa en el navegador).
+- **Panel de KPIs** en la vista de accesos: total, favoritas, claves débiles
+  (filtro de un clic) y compartidas en equipos.
+- **Estados de carga con skeletons** y animaciones escalonadas en las rejillas.
 - **Exportar a Excel (.xlsx)**: hoja *Dashboard* con KPIs y barras por
   sección/categoría + hojas de detalle (credenciales, enlaces, notas) con
   filtros, desde el menú de usuario.
@@ -43,6 +56,8 @@ cp .env.example .env      # y completa VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KE
 # 3. Base de datos: ejecuta en Supabase Dashboard → SQL Editor → New query
 #    1) supabase/schema.sql          (tablas principales + RLS)
 #    2) supabase/schema-content.sql  (links y notas + RLS)
+#    3) supabase/schema-history.sql  (historial de claves + RLS)
+#    4) supabase/schema-sharing.sql  (equipos / espacios compartidos + RLS)
 
 # 4. Desarrollo
 npm run dev               # http://localhost:5173
@@ -123,6 +138,9 @@ Cuando ya tengas la URL de Vercel:
 - [ ] **Cifrado cliente AES-GCM** de las claves antes de sincronizar
       (fase 2 anotada en `schema.sql`).
 - [x] Cierre de sesión por inactividad (15 min sin interacción).
+- [x] Importación de respaldos (Bitwarden, Chrome, 1Password, LastPass, .xlsx).
+- [x] Historial de versiones de claves.
+- [x] Espacios compartidos con roles y reclamación de invitaciones por email.
 - [x] Medidor de fuerza de claves (implementación propia en
       `src/lib/password-strength.ts`).
 - [x] Limpieza automática del portapapeles al copiar una clave (30 s).
@@ -132,14 +150,16 @@ Cuando ya tengas la URL de Vercel:
 ```
 src/
 ├── app/          # App, rutas, AuthContext, RequireAuth
-├── components/   # layout/ (shell, AuthLayout), credentials/, links/, notes/, ui/
-├── pages/        # Login, ResetPassword, Credentials, Links, Notes
-├── store/        # Zustand: vault, search, ui
-├── lib/          # supabase, auth-errors, generator, vault-excel, mappers...
+├── components/   # layout/, credentials/, links/, notes/, import/, workspaces?, ui/
+├── pages/        # Login, ResetPassword, Credentials, Links, Notes, Workspaces
+├── store/        # Zustand: vault, workspace, search, ui
+├── lib/          # supabase, auth-errors, generator, vault-excel, vault-import...
 ├── hooks/        # useClipboard, useIdleSignOut
 └── types/
 supabase/
 ├── schema.sql            # tablas principales + RLS
-└── schema-content.sql    # links y notas + RLS
+├── schema-content.sql    # links y notas + RLS
+├── schema-history.sql    # historial de claves + RLS
+└── schema-sharing.sql    # equipos / espacios compartidos + RLS
 ```
 

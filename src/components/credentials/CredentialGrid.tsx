@@ -14,13 +14,19 @@ export function CredentialGrid({
 }: CredentialGridProps) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-      {credentials.map((credential) => (
-        <CredentialCard
+      {credentials.map((credential, index) => (
+        <div
           key={credential.id}
-          credential={credential}
-          onEdit={onEdit}
-          onDelete={onDelete}
-        />
+          className="animate-fade-up h-full"
+          // Entrada escalonada (máx. 8 pasos) para que el grid no "salte".
+          style={{ animationDelay: `${Math.min(index, 8) * 40}ms` }}
+        >
+          <CredentialCard
+            credential={credential}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
+        </div>
       ))}
     </div>
   )

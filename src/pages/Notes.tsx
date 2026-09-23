@@ -6,6 +6,7 @@ import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FilterChips } from '@/components/ui/FilterChips'
+import { CardGridSkeleton } from '@/components/ui/Skeleton'
 import { CredentialSortSelect } from '@/components/credentials/CredentialSortSelect'
 import { NoteCard } from '@/components/notes/NoteCard'
 import { NoteDialog, type NoteFormValues } from '@/components/notes/NoteDialog'
@@ -169,10 +170,7 @@ export function Notes() {
 
       {/* Content */}
       {status === 'loading' ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-          <div className="size-8 animate-spin rounded-full border-2 border-border border-t-primary" />
-          <p className="text-sm text-muted">Sincronizando tus notas…</p>
-        </div>
+        <CardGridSkeleton />
       ) : status === 'error' ? (
         <EmptyState
           icon={NotebookPen}

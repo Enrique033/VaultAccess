@@ -1,17 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { KeyRound, Plus } from 'lucide-react'
+import { KeyRound, Plus, ShieldAlert, Star, Upload, Users2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FilterChips } from '@/components/ui/FilterChips'
+import { StatCard } from '@/components/ui/StatCard'
+import { CardGridSkeleton } from '@/components/ui/Skeleton'
 import { CredentialGrid } from '@/components/credentials/CredentialGrid'
 import { CredentialDialog } from '@/components/credentials/CredentialDialog'
 import { CredentialSortSelect } from '@/components/credentials/CredentialSortSelect'
+import { ImportDialog } from '@/components/import/ImportDialog'
 import type { CredentialFormValues } from '@/components/credentials/CredentialForm'
+import { evaluatePassword } from '@/lib/password-strength'
+import { isSupabaseConfigured } from '@/lib/supabase'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
+import { useWorkspaceStore } from '@/store/workspace.store'
 import { toast } from '@/store/ui.store'
 import type { Credential } from '@/types'
 
@@ -28,19 +34,24 @@ export function Credentials() {
   const addCredential = useVaultStore((s) => s.addCredential)
   const updateCredential = useVaultStore((s) => s.updateCredential)
   const deleteCredential = useVaultStore((s) => s.deleteCredential)
+  const sharedItems = useWorkspaceStore((s) => s.items)
 
   const query = useSearchStore((s) => s.query)
   const setQuery = useSearchStore((s) => s.setQuery)
   const sectionId = useSearchStore((s) => s.sectionId)
   const categoryFilter = useSearchStore((s) => s.categoryFilter)
+  const setCategoryFilter = useSearchStore((s) => s.setCategoryFilter)
   const sort = useSearchStore((s) => s.sort)
   const setSort = useSearchStore((s) => s.setSort)
+  const weakOnly = useSearchStore((s) => s.weakOnly)
+  const setWeakOnly = useSearchStore((s) => s.setWeakOnly)
   const focusSignal = useSearchStore((s) => s.focusSignal)
 
   const [searchParams, setSearchParams] = useSearchParams()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Credential | null>(null)
   const [deleting, setDeleting] = useState<Credential | null>(null)
+  const [importOpen, setImportOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -72,6 +83,9 @@ export function Credentials() {
       }
       return true
     }
+    const byStrength = (credential: Credential) =>
+      !weakOnly || evaluatePassword(credential.password).score <= 1
+
     const byQuery = (credential: Credential) => {
       if (!q) return true
       const category = categories.find((c) => c.id === credential.categoryId)
@@ -82,13 +96,15 @@ export function Credentials() {
         category?.name.toLowerCase().includes(q)
       )
     }
-    const list = credentials.filter((c) => byCategory(c) && byQuery(c))
+    const list = credentials.filter(
+      (c) => byCategory(c) && byQuery(c) && byStrength(c),
+    )
     if (sort === 'az') return [...list].sort((a, b) => a.title.localeCompare(b.title, 'es'))
     if (sort === 'favorites') {
       return [...list].sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.updatedAt.localeCompare(a.updatedAt))
     }
     return [...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-  }, [credentials, categories, query, categoryFilter, sectionId, sort])
+  }, [credentials, categories, query, categoryFilter, sectionId, sort, weakOnly])
 
   const handleOpenCreate = () => {
     setEditing(null)
@@ -136,6 +152,21 @@ export function Credentials() {
     }
   }
 
+  const weakCount = useMemo(
+    () =>
+      credentials.filter((c) => evaluatePassword(c.password).score <= 1).length,
+    [credentials],
+  )
+  const favoriteCount = useMemo(
+    () => credentials.filter((c) => c.favorite).length,
+    [credentials],
+  )
+  /** Credenciales distintas que están en algún espacio de equipo. */
+  const sharedCount = useMemo(
+    () => new Set(sharedItems.map((item) => item.credentialId)).size,
+    [sharedItems],
+  )
+
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5">
       {/* Header */}
@@ -151,11 +182,56 @@ export function Credentials() {
           </p>
         </div>
 
-        <Button variant="primary" onClick={handleOpenCreate}>
-          <Plus className="size-3.5" />
-          Nueva credencial
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {isSupabaseConfigured && (
+            <Button variant="outline" onClick={() => setImportOpen(true)}>
+              <Upload className="size-3.5" />
+              Importar
+            </Button>
+          )}
+          <Button variant="primary" onClick={handleOpenCreate}>
+            <Plus className="size-3.5" />
+            Nueva credencial
+          </Button>
+        </div>
       </div>
+
+      {/* KPIs: también funcionan como filtros rápidos */}
+      {status === 'ready' && credentials.length > 0 && (
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <StatCard
+            icon={KeyRound}
+            label="Credenciales"
+            value={credentials.length}
+            hint="en tu espacio personal"
+          />
+          <StatCard
+            icon={Star}
+            label="Favoritas"
+            value={favoriteCount}
+            hint="favoritas"
+            active={categoryFilter === FAVORITES}
+            onClick={() =>
+              setCategoryFilter(categoryFilter === FAVORITES ? null : FAVORITES)
+            }
+          />
+          <StatCard
+            icon={ShieldAlert}
+            label="Claves débiles"
+            tone={weakCount > 0 ? 'warning' : 'success'}
+            value={weakCount}
+            hint={weakCount > 0 ? 'claves débiles' : 'sin claves débiles'}
+            active={weakOnly}
+            onClick={() => setWeakOnly(!weakOnly)}
+          />
+          <StatCard
+            icon={Users2}
+            label="Compartidas"
+            value={sharedCount}
+            hint="compartidas en equipos"
+          />
+        </div>
+      )}
 
       {/* Search + sort */}
       {credentials.length > 0 && (
@@ -177,10 +253,7 @@ export function Credentials() {
 
       {/* Content */}
       {status === 'loading' ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-          <div className="size-8 animate-spin rounded-full border-2 border-border border-t-primary" />
-          <p className="text-sm text-muted">Sincronizando tus datos…</p>
-        </div>
+        <CardGridSkeleton />
       ) : status === 'error' ? (
         <EmptyState
           icon={KeyRound}
@@ -202,6 +275,14 @@ export function Credentials() {
               <Plus className="size-3.5" />
               Nueva credencial
             </Button>
+          }
+          secondaryAction={
+            isSupabaseConfigured ? (
+              <Button variant="ghost" onClick={() => setImportOpen(true)}>
+                <Upload className="size-3.5" />
+                Importar desde otro gestor
+              </Button>
+            ) : undefined
           }
         />
       ) : filtered.length === 0 ? (
@@ -228,6 +309,9 @@ export function Credentials() {
         credential={editing ?? undefined}
         onSubmit={handleSubmit}
       />
+
+      {/* Import dialog (respaldos de otros gestores) */}
+      <ImportDialog open={importOpen} onOpenChange={setImportOpen} />
 
       {/* Delete confirmation */}
       <ConfirmDialog

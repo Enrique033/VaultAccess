@@ -1,0 +1,223 @@
+import { useState } from 'react'
+import { Link } from 'react-router'
+import { Check, RefreshCw, Share2, Users2, X } from 'lucide-react'
+import {
+  Dialog,
+  DialogCloseButton,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog'
+import { Button } from '@/components/ui/Button'
+import { useAuth } from '@/app/auth-context'
+import { useWorkspaceStore } from '@/store/workspace.store'
+import { toast } from '@/store/ui.store'
+import type { Credential, WorkspaceRole } from '@/types'
+
+interface ShareCredentialDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  credential: Credential | null
+}
+
+/**
+ * Comparte una credencial en uno o varios espacios de trabajo.
+ * Se envía una copia del dato al espacio; el vault personal no se expone.
+ */
+export function ShareCredentialDialog({
+  open,
+  onOpenChange,
+  credential,
+}: ShareCredentialDialogProps) {
+  const { user } = useAuth()
+  const workspaces = useWorkspaceStore((s) => s.workspaces)
+  const members = useWorkspaceStore((s) => s.members)
+  const items = useWorkspaceStore((s) => s.items)
+  const shareCredential = useWorkspaceStore((s) => s.shareCredential)
+  const updateSharedItem = useWorkspaceStore((s) => s.updateSharedItem)
+  const removeSharedItem = useWorkspaceStore((s) => s.removeSharedItem)
+  const [busyId, setBusyId] = useState<string | null>(null)
+
+  if (!credential) return null
+  // Alias tipado: dentro de los callbacks no hay que volver a comprobar nada.
+  const target: Credential = credential
+
+  const run = async (workspaceId: string, action: () => Promise<void>) => {
+    setBusyId(workspaceId)
+    try {
+      await action()
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo completar')
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange} className="max-w-lg">
+      <DialogHeader>
+        <div>
+          <DialogTitle>Compartir en equipo</DialogTitle>
+          <DialogDescription>
+            Se guarda una copia de “{credential.title}” en el espacio elegido.
+            Los miembros autorizados podrán verla; el resto de tu contenido no
+            se comparte.
+          </DialogDescription>
+        </div>
+        <DialogCloseButton onClick={() => onOpenChange(false)} />
+      </DialogHeader>
+
+      <DialogContent className="space-y-2">
+        {workspaces.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center">
+            <Users2 className="mx-auto size-5 text-muted" />
+            <p className="mt-2 text-sm font-medium text-foreground">
+              Todavía no tienes espacios de equipo
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              Crea uno en la sección Equipos para compartir credenciales con tu
+              equipo.
+            </p>
+            <Link
+              to="/workspaces"
+              onClick={() => onOpenChange(false)}
+              className="mt-3 inline-block text-xs font-medium text-primary underline-offset-2 hover:underline"
+            >
+              Ir a Equipos
+            </Link>
+          </div>
+        ) : (
+          workspaces.map((workspace) => (
+            <WorkspaceShareRow
+              key={workspace.id}
+              workspaceName={workspace.name}
+              role={
+                members.find(
+                  (m) => m.workspaceId === workspace.id && m.userId === user?.id,
+                )?.role ?? (workspace.ownerId === user?.id ? 'owner' : undefined)
+              }
+              shared={Boolean(
+                items.find(
+                  (i) =>
+                    i.workspaceId === workspace.id &&
+                    i.credentialId === target.id,
+                ),
+              )}
+              busy={busyId === workspace.id}
+              onShare={() =>
+                void run(workspace.id, async () => {
+                  await shareCredential(workspace.id, target)
+                  toast.success(
+                    'Credencial compartida',
+                    'Los miembros del espacio ya pueden verla.',
+                  )
+                })
+              }
+              onUpdate={() =>
+                void run(workspace.id, async () => {
+                  const item = items.find(
+                    (i) =>
+                      i.workspaceId === workspace.id &&
+                      i.credentialId === target.id,
+                  )
+                  if (!item) return
+                  await updateSharedItem(item.id, target)
+                  toast.success('Copia actualizada en el espacio')
+                })
+              }
+              onRemove={() =>
+                void run(workspace.id, async () => {
+                  const item = items.find(
+                    (i) =>
+                      i.workspaceId === workspace.id &&
+                      i.credentialId === target.id,
+                  )
+                  if (!item) return
+                  await removeSharedItem(item.id)
+                  toast.success('Credencial retirada del espacio')
+                })
+              }
+            />
+          ))
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+interface WorkspaceShareRowProps {
+  workspaceName: string
+  role?: WorkspaceRole
+  shared: boolean
+  busy: boolean
+  onShare: () => void
+  onUpdate: () => void
+  onRemove: () => void
+}
+
+const ROLE_HINT: Record<WorkspaceRole, string> = {
+  owner: 'Eres propietario',
+  editor: 'Puedes editar',
+  viewer: 'Solo lectura',
+}
+
+/** Fila de un espacio con su estado de compartición. */
+function WorkspaceShareRow({
+  workspaceName,
+  role,
+  shared,
+  busy,
+  onShare,
+  onUpdate,
+  onRemove,
+}: WorkspaceShareRowProps) {
+  // Un miembro de solo lectura no puede publicar ni actualizar elementos (RLS).
+  const canEdit = role === 'owner' || role === 'editor'
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-background p-3">
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-[13px] font-medium text-foreground">
+          {workspaceName}
+        </p>
+        <p className="text-[11px] text-muted">
+          {role ? ROLE_HINT[role] : 'Eres miembro'}
+        </p>
+      </div>
+
+      {!canEdit && !shared ? (
+        <span className="rounded-md border border-border bg-elevated px-2 py-1 text-[11px] text-muted">
+          Sin permiso para compartir
+        </span>
+      ) : shared ? (
+        <>
+          <span className="inline-flex items-center gap-1 rounded-md border border-green-500/30 bg-green-500/10 px-2 py-1 text-[11px] text-green-500">
+            <Check className="size-3" /> Compartida
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy || !canEdit}
+            onClick={onUpdate}
+          >
+            <RefreshCw className="size-3.5" /> Actualizar
+          </Button>
+          <button
+            type="button"
+            title="Dejar de compartir"
+            disabled={busy || !canEdit}
+            onClick={onRemove}
+            className="rounded p-1.5 text-muted transition-colors duration-150 hover:bg-elevated hover:text-red-400 disabled:opacity-50"
+          >
+            <X className="size-3.5" />
+          </button>
+        </>
+      ) : (
+        <Button variant="primary" size="sm" disabled={busy} onClick={onShare}>
+          <Share2 className="size-3.5" /> Compartir
+        </Button>
+      )}
+    </div>
+  )
+}
