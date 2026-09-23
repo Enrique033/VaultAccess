@@ -30,8 +30,16 @@ function SidebarPanel({ collapsed, onToggle, onClose }: SidebarPanelProps) {
 
   return (
     <>
-      <div className="flex h-[var(--header-height)] items-center gap-2 border-b border-border px-4">
-        <Link to="/credentials" className="flex min-w-0 flex-1 items-center gap-2">
+      <div
+        className={cn(
+          'flex h-[var(--header-height)] items-center gap-2 border-b border-border',
+          collapsed ? 'justify-center px-2' : 'px-4',
+        )}
+      >
+        <Link
+          to="/credentials"
+          className={cn('flex min-w-0 items-center gap-2', collapsed ? '' : 'flex-1')}
+        >
           <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-white">
             <Vault className="size-4" />
           </span>
@@ -41,7 +49,7 @@ function SidebarPanel({ collapsed, onToggle, onClose }: SidebarPanelProps) {
             </span>
           )}
         </Link>
-        {onClose ? (
+        {onClose && (
           <button
             type="button"
             onClick={onClose}
@@ -50,21 +58,6 @@ function SidebarPanel({ collapsed, onToggle, onClose }: SidebarPanelProps) {
           >
             <X className="size-4" />
           </button>
-        ) : (
-          onToggle && (
-            <button
-              type="button"
-              onClick={onToggle}
-              className="rounded p-1.5 text-muted transition-colors duration-150 hover:bg-elevated hover:text-foreground"
-              aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
-            >
-              {collapsed ? (
-                <PanelLeftOpen className="size-4" />
-              ) : (
-                <PanelLeftClose className="size-4" />
-              )}
-            </button>
-          )
         )}
       </div>
 
@@ -98,6 +91,28 @@ function SidebarPanel({ collapsed, onToggle, onClose }: SidebarPanelProps) {
       {!collapsed && (
         <div className="max-h-[55%] overflow-y-auto overscroll-contain border-t border-border p-3">
           <CategorySidebar />
+        </div>
+      )}
+
+      {onToggle && (
+        <div className="border-t border-border p-2">
+          <button
+            type="button"
+            onClick={onToggle}
+            className={cn(
+              'flex w-full items-center justify-center gap-2 rounded-md p-2 text-muted transition-colors duration-150 hover:bg-elevated hover:text-foreground',
+              !collapsed && 'justify-end',
+            )}
+            aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+            title={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
+          >
+            {collapsed ? (
+              <PanelLeftOpen className="size-4" />
+            ) : (
+              <PanelLeftClose className="size-4" />
+            )}
+            {!collapsed && <span className="text-xs">Contraer</span>}
+          </button>
         </div>
       )}
     </>

@@ -77,12 +77,12 @@ export function CategorySidebar() {
         <span className="flex-1">Todas</span>
         <span className="rounded bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-muted">{credentials.length}</span>
       </button>
-      <button type="button" onClick={() => { setSectionId(null); setCategoryFilter('favorites') }} className={row(categoryFilter === 'favorites')}>
+      <button type="button" onClick={() => { setSectionId(null); setCategoryFilter(categoryFilter === 'favorites' ? null : 'favorites') }} className={row(categoryFilter === 'favorites')}>
         <Star className="size-4 shrink-0" />
         <span className="flex-1">Favoritas</span>
         <span className="rounded bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-muted">{favorites}</span>
       </button>
-      <button type="button" onClick={() => { setSectionId(null); setCategoryFilter('none') }} className={row(categoryFilter === 'none')}>
+      <button type="button" onClick={() => { setSectionId(null); setCategoryFilter(categoryFilter === 'none' ? null : 'none') }} className={row(categoryFilter === 'none')}>
         <FolderOpen className="size-4 shrink-0" />
         <span className="flex-1">Sin categoría</span>
         <span className="rounded bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-muted">{uncategorized}</span>
@@ -165,7 +165,15 @@ export function CategorySidebar() {
               />
             ))}
             {addingCatFor === sec.id ? (
-              <div className="flex items-center gap-1.5 pl-2.5">
+              <div
+                className="flex items-center gap-1.5 pl-2.5"
+                onBlur={(e) => {
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                    setAddingCatFor(null)
+                    setNewCat('')
+                  }
+                }}
+              >
                 <input
                   value={newCat}
                   onChange={(e) => setNewCat(e.target.value)}

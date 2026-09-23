@@ -48,7 +48,7 @@ export function ResetPassword() {
         setError(friendlyError(err.message))
         return
       }
-      toast.success('Contraseña actualizada')
+      toast.success('Contraseña actualizada', 'Recibirás un correo de confirmación por seguridad.')
       navigate('/credentials', { replace: true })
     } finally {
       setBusy(false)

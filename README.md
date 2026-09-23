@@ -15,8 +15,9 @@ Auth** (email/password y Google OAuth) y protegida con **Row Level Security**.
 - **Generador de contraseñas** (crypto.getRandomValues) con longitud 8–48,
   conjuntos de caracteres y exclusión de ambiguos.
 - **Medidor de fuerza** en registro, reset, cambiar contraseña y credenciales.
-- **Exportar / importar bóveda en JSON** (respaldo y restauración) desde el
-  menú de usuario.
+- **Exportar bóveda a Excel (.xlsx)**: hoja *Dashboard* con KPIs y barras por
+  sección/categoría + hojas de detalle (credenciales, enlaces, notas) con
+  filtros, desde el menú de usuario.
 - **Auto-limpieza del portapapeles** 30 s tras copiar una contraseña.
 - **Cierre de sesión por inactividad** (15 min) para equipos compartidos.
 - **Diseño 100 % responsivo**: drawer en móvil/tablet, grid de 1→4 columnas,
@@ -111,6 +112,8 @@ Cuando ya tengas la URL de Vercel:
       `https://<tu-app>.vercel.app` (la redirect URI de Google **no** cambia:
       sigue siendo `https://<proyecto>.supabase.co/auth/v1/callback`)
 - [ ] **Emails**: revisar plantilla de "Reset password" (opcional: traducirla)
+- [ ] **Emails → Security notifications**: activar la plantilla "Password
+      changed"
 - [ ] **Providers → Email**: "Confirm email" activado
 - [ ] Tras cambiar Site URL, probar en producción: registro, login Google y
       reset password
@@ -132,7 +135,7 @@ src/
 ├── components/   # layout/ (shell, AuthLayout), credentials/, links/, notes/, ui/
 ├── pages/        # Login, ResetPassword, Credentials, Links, Notes
 ├── store/        # Zustand: vault, search, ui
-├── lib/          # supabase, auth-errors, generator, vault-io, mappers...
+├── lib/          # supabase, auth-errors, generator, vault-excel, mappers...
 ├── hooks/        # useClipboard, useIdleSignOut
 └── types/
 supabase/

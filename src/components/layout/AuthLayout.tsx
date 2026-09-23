@@ -21,7 +21,7 @@ const HIGHLIGHTS = [
   },
   {
     icon: FileDown,
-    text: 'Exporta e importa tu bóveda en JSON cuando quieras.',
+    text: 'Exporta tu bóveda a Excel con dashboard y detalle completo.',
   },
 ]
 

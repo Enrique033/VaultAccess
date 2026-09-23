@@ -9,6 +9,7 @@ interface CardProps {
 export function Card({ children, className }: CardProps) {
   return (
     <div
+      data-card="true"
       className={cn(
         'rounded-lg border border-border bg-surface shadow-sm',
         className,

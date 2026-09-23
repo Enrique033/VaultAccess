@@ -1,8 +1,10 @@
 import { useEffect } from 'react'
+import type { MouseEvent } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { Sidebar, MobileSidebar } from './Sidebar'
 import { Header } from './Header'
 import { useUIStore } from '@/store/ui.store'
+import { useSearchStore } from '@/store/search.store'
 import { useVaultSync } from '@/store/vault.store'
 import { useIdleSignOut } from '@/hooks/useIdleSignOut'
 import { isSupabaseConfigured } from '@/lib/supabase'
@@ -15,11 +17,32 @@ export function AppShell() {
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
   const mobileNavOpen = useUIStore((s) => s.mobileNavOpen)
   const setMobileNavOpen = useUIStore((s) => s.setMobileNavOpen)
+  const sectionId = useSearchStore((s) => s.sectionId)
+  const categoryFilter = useSearchStore((s) => s.categoryFilter)
+  const clearFilters = useSearchStore((s) => s.clearFilters)
   const location = useLocation()
   // Cierra el drawer al navegar (setMobileNavOpen es estable: acción del store).
   useEffect(() => {
     setMobileNavOpen(false)
   }, [location.pathname, setMobileNavOpen])
+
+  /**
+   * Click en el fondo del contenido (fuera de tarjetas, botones, inputs y
+   * menús): deselecciona la sección/categoría activa para que el filtro no
+   * quede "pegado". La búsqueda (query) no se toca.
+   */
+  const handleContentClick = (e: MouseEvent<HTMLElement>) => {
+    if (sectionId === null && categoryFilter === null) return
+    const el = e.target as HTMLElement
+    if (
+      el.closest(
+        'button, a, input, textarea, select, label, [data-card], [role="dialog"], [role="menu"]',
+      )
+    ) {
+      return
+    }
+    clearFilters()
+  }
 
   return (
     <div className="flex h-dvh overflow-hidden bg-background">
@@ -37,7 +60,10 @@ export function AppShell() {
             funciona en modo local y los datos <strong>no se sincronizan</strong>.
           </div>
         )}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6">
+        <main
+          onClick={handleContentClick}
+          className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6"
+        >
           <Outlet />
         </main>
       </div>

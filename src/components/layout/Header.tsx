@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Menu, Plus, Search } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router'
 import { Button } from '@/components/ui/Button'
@@ -14,8 +14,9 @@ export function Header() {
   const navigate = useNavigate()
   const location = useLocation()
   const query = useSearchStore((s) => s.query)
-  const requestFocus = useSearchStore((s) => s.requestFocus)
+  const setQuery = useSearchStore((s) => s.setQuery)
   const toggleMobileNav = useUIStore((s) => s.toggleMobileNav)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   /** Ruta actual si tiene buscador propio; si no, /credentials. */
   const searchRoute = SEARCHABLE_ROUTES.find((r) =>
@@ -26,22 +27,17 @@ export function Header() {
     navigate({ pathname: searchRoute ?? '/credentials', search: '?new=1' })
   }
 
-  const handleSearchClick = () => {
-    if (!searchRoute) navigate('/credentials')
-    requestFocus()
-  }
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
-        if (!searchRoute) navigate('/credentials')
-        requestFocus()
+        inputRef.current?.focus()
+        inputRef.current?.select()
       }
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [searchRoute, navigate, requestFocus])
+  }, [])
 
   return (
     <header className="flex h-[var(--header-height)] shrink-0 items-center justify-between gap-2 border-b border-border bg-surface px-4 sm:gap-3 sm:px-6">
@@ -54,17 +50,21 @@ export function Header() {
         <Menu className="size-5" />
       </button>
 
-      <button
-        type="button"
-        onClick={handleSearchClick}
-        className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md border border-border bg-elevated px-3 text-left text-[13px] text-muted transition-colors duration-150 hover:border-primary/40 hover:text-foreground sm:max-w-sm"
-      >
+      <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-md border border-border bg-elevated px-3 text-[13px] text-muted transition-colors duration-150 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 sm:max-w-sm">
         <Search className="size-3.5 shrink-0" />
-        <span className="flex-1 truncate">{query ? query : 'Buscar...'}</span>
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Buscar..."
+          aria-label="Buscar"
+          className="min-w-0 flex-1 bg-transparent text-foreground placeholder:text-muted focus:outline-none"
+        />
         <kbd className="pointer-events-none hidden rounded border border-border bg-surface px-1.5 py-0.5 font-mono text-[10px] text-muted md:inline-block">
           Ctrl K
         </kbd>
-      </button>
+      </div>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
         <ThemeToggle />

@@ -10,7 +10,6 @@ import {
 } from '@/lib/vault-mapper'
 import type { LinkRow, NoteRow } from '@/lib/vault-mapper'
 import { CATEGORY_COLORS } from '@/lib/category-colors'
-import type { VaultExportData } from '@/lib/vault-io'
 import type {
   Category,
   Credential,
@@ -56,14 +55,6 @@ export type NoteInput = Omit<
 >
 
 /** Resultado de una importación de respaldo. */
-export interface ImportResult {
-  sections: number
-  categories: number
-  credentials: number
-  links: number
-  notes: number
-}
-
 export type SyncStatus = 'idle' | 'loading' | 'ready' | 'error' | 'local'
 
 interface VaultState {
@@ -104,9 +95,6 @@ interface VaultState {
   updateNote: (id: string, input: Partial<NoteInput>) => Promise<void>
   deleteNote: (id: string) => Promise<void>
   toggleNoteFavorite: (id: string) => Promise<void>
-
-  /** Importa un respaldo JSON y recarga la bóveda. */
-  importVault: (data: VaultExportData) => Promise<ImportResult>
 }
 
 function nextColor(categories: Category[]): string {
@@ -114,10 +102,6 @@ function nextColor(categories: Category[]): string {
   const free = CATEGORY_COLORS.find((color) => !used.has(color.toLowerCase()))
   if (free) return free
   return CATEGORY_COLORS[categories.length % CATEGORY_COLORS.length]!
-}
-
-function isValidDate(value: string): boolean {
-  return Boolean(value) && !Number.isNaN(Date.parse(value))
 }
 
 async function requireUserId(): Promise<string> {
@@ -417,149 +401,6 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     if (error) throw new Error(friendlySyncError(error.message))
     const updated = toNote(data as NoteRow)
     set((s) => ({ notes: s.notes.map((n) => (n.id === id ? updated : n)) }))
-  },
-
-  importVault: async (data) => {
-    const userId = await requireUserId()
-    const norm = (s: string) => s.trim().toLowerCase()
-    const secMap = new Map<string, string>()
-    const catMap = new Map<string, string>()
-    const counts: ImportResult = {
-      sections: 0,
-      categories: 0,
-      credentials: 0,
-      links: 0,
-      notes: 0,
-    }
-
-    /** Crea (o reutiliza por nombre) una sección y devuelve su id. */
-    const ensureSection = async (
-      importedId: string,
-      name: string,
-    ): Promise<string> => {
-      const cached = secMap.get(importedId)
-      if (cached) return cached
-      const existing = get().sections.find((s) => norm(s.name) === norm(name))
-      if (existing) {
-        secMap.set(importedId, existing.id)
-        return existing.id
-      }
-      const { data: created, error } = await supabase
-        .from('vault_sections')
-        .insert({
-          user_id: userId,
-          name: name.trim().slice(0, 60) || 'Importada',
-        })
-        .select()
-        .single()
-      if (error) throw new Error(friendlySyncError(error.message))
-      const section = toSection(created as { id: string; name: string })
-      set((s) => ({ sections: [...s.sections, section] }))
-      secMap.set(importedId, section.id)
-      counts.sections += 1
-      return section.id
-    }
-
-    /** Crea (o reutiliza por nombre dentro de la sección) una categoría. */
-    const ensureCategory = async (imported: Category): Promise<string> => {
-      const cached = catMap.get(imported.id)
-      if (cached) return cached
-      const sectionName =
-        data.sections.find((s) => s.id === imported.sectionId)?.name ?? 'General'
-      const sectionId = await ensureSection(imported.sectionId, sectionName)
-      const existing = get().categories.find(
-        (c) => c.sectionId === sectionId && norm(c.name) === norm(imported.name),
-      )
-      if (existing) {
-        catMap.set(imported.id, existing.id)
-        return existing.id
-      }
-      const { data: created, error } = await supabase
-        .from('vault_categories')
-        .insert({
-          user_id: userId,
-          section_id: sectionId,
-          name: imported.name,
-          color: imported.color,
-        })
-        .select()
-        .single()
-      if (error) throw new Error(friendlySyncError(error.message))
-      const category = toCategory(
-        created as { id: string; name: string; color: string; section_id: string },
-      )
-      set((s) => ({ categories: [...s.categories, category] }))
-      catMap.set(imported.id, category.id)
-      counts.categories += 1
-      return category.id
-    }
-
-    for (const section of data.sections) {
-      await ensureSection(section.id, section.name)
-    }
-    for (const category of data.categories) {
-      await ensureCategory(category)
-    }
-
-    // Credenciales en lote (omitimos las que ya existen por id).
-    const existingCredIds = new Set(get().credentials.map((c) => c.id))
-    const credentialRows = data.credentials
-      .filter((c) => !existingCredIds.has(c.id))
-      .map((c) => ({
-        user_id: userId,
-        title: c.title,
-        username: c.username,
-        password: c.password,
-        url: c.url ?? null,
-        category_id: c.categoryId ? (catMap.get(c.categoryId) ?? null) : null,
-        notes: c.notes ?? null,
-        favorite: c.favorite,
-        ...(isValidDate(c.createdAt) ? { created_at: c.createdAt } : {}),
-      }))
-    if (credentialRows.length > 0) {
-      const { error } = await supabase.from('vault_credentials').insert(credentialRows)
-      if (error) throw new Error(friendlySyncError(error.message))
-      counts.credentials = credentialRows.length
-    }
-
-    // Links y notas (también omitimos duplicados por id).
-    const existingLinkIds = new Set(get().links.map((l) => l.id))
-    const linkRows = data.links
-      .filter((l) => !existingLinkIds.has(l.id))
-      .map((l) => ({
-        user_id: userId,
-        title: l.title,
-        url: l.url,
-        category_id: l.categoryId ? (catMap.get(l.categoryId) ?? null) : null,
-        description: l.description ?? null,
-        favorite: l.favorite,
-        ...(isValidDate(l.createdAt) ? { created_at: l.createdAt } : {}),
-      }))
-    if (linkRows.length > 0) {
-      const { error } = await supabase.from('vault_links').insert(linkRows)
-      if (error) throw new Error(friendlySyncError(error.message))
-      counts.links = linkRows.length
-    }
-
-    const existingNoteIds = new Set(get().notes.map((n) => n.id))
-    const noteRows = data.notes
-      .filter((n) => !existingNoteIds.has(n.id))
-      .map((n) => ({
-        user_id: userId,
-        title: n.title,
-        content: n.content,
-        category_id: n.categoryId ? (catMap.get(n.categoryId) ?? null) : null,
-        favorite: n.favorite,
-        ...(isValidDate(n.createdAt) ? { created_at: n.createdAt } : {}),
-      }))
-    if (noteRows.length > 0) {
-      const { error } = await supabase.from('vault_notes').insert(noteRows)
-      if (error) throw new Error(friendlySyncError(error.message))
-      counts.notes = noteRows.length
-    }
-
-    await get().load()
-    return counts
   },
 
   addSection: async (name) => {
