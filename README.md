@@ -92,6 +92,9 @@ git push -u origin main
 3. **Environment Variables** (Settings → Environment Variables):
    - `VITE_SUPABASE_URL` = `https://tu-proyecto.supabase.co`
    - `VITE_SUPABASE_ANON_KEY` = `<anon key>`
+   > Marca los entornos **Production** y **Preview**. Si las variables quedaron
+   > vacías o las cambias después, haz **Redeploy** (Deployments → ⋯ →
+   > Redeploy): Vite las incrusta en el build, no se leen en runtime.
 4. Deploy → obtienes `https://workvault.vercel.app` (o similar).
 
 > `vercel.json` ya incluye el rewrite SPA: recargar `/login` o
