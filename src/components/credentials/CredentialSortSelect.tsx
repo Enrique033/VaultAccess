@@ -49,7 +49,7 @@ export function CredentialSortSelect({ value, onChange }: Props) {
         aria-expanded={open}
         title="Ordenar"
         className={cn(
-          'flex h-9 items-center gap-2 rounded-md border border-border bg-elevated px-3 text-[13px] text-foreground',
+          'flex h-10 items-center gap-2 rounded-md border border-border bg-elevated px-3 text-[13px] text-foreground lg:h-9',
           open ? 'border-primary/50 ring-2 ring-primary/20' : 'hover:border-primary/40',
         )}
       >
@@ -58,7 +58,7 @@ export function CredentialSortSelect({ value, onChange }: Props) {
         <ChevronDown className={cn('size-3.5 text-muted transition-transform', open && 'rotate-180')} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-30 mt-1.5 w-56 overflow-hidden rounded-lg border border-border bg-elevated p-1.5 shadow-2xl" role="listbox">
+        <div className="absolute right-0 top-full z-30 mt-1.5 w-56 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-border bg-elevated p-1.5 shadow-2xl" role="listbox">
           {OPTIONS.map((o) => {
             const OIcon = ICONS[o.id]
             const active = o.id === value

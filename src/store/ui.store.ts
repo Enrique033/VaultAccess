@@ -16,11 +16,15 @@ export type Theme = 'light' | 'dark'
 
 interface UIState {
   sidebarCollapsed: boolean
+  /** Drawer de navegación en móvil/tablet. */
+  mobileNavOpen: boolean
   theme: Theme
   toasts: Toast[]
 
   toggleSidebar: () => void
   setSidebarCollapsed: (collapsed: boolean) => void
+  toggleMobileNav: () => void
+  setMobileNavOpen: (open: boolean) => void
   toggleTheme: () => void
 
   addToast: (toast: Omit<Toast, 'id'>) => void
@@ -35,6 +39,7 @@ export const useUIStore = create<UIState>()(
   persist(
     (set) => ({
       sidebarCollapsed: false,
+      mobileNavOpen: false,
       theme: 'dark' as Theme,
       toasts: [],
 
@@ -42,6 +47,10 @@ export const useUIStore = create<UIState>()(
         set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
 
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
+
+      toggleMobileNav: () => set((s) => ({ mobileNavOpen: !s.mobileNavOpen })),
+
+      setMobileNavOpen: (mobileNavOpen) => set({ mobileNavOpen }),
 
       toggleTheme: () =>
         set((s) => {

@@ -14,7 +14,8 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
     return (
       <div
         className={cn(
-          'flex h-9 items-center gap-2 rounded-md border border-border bg-elevated px-3 transition-colors duration-150 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20',
+          'flex h-10 items-center gap-2 rounded-md border border-border bg-elevated px-3 transition-colors duration-150 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20',
+          'lg:h-9',
           className,
         )}
       >
@@ -25,7 +26,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="flex-1 bg-transparent text-[13px] text-foreground placeholder:text-muted focus:outline-none"
+          className="min-w-0 flex-1 bg-transparent text-base text-foreground placeholder:text-muted focus:outline-none lg:text-[13px]"
         />
         {value && (
           <button

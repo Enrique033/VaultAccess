@@ -80,7 +80,7 @@ export function CategorySelect({ value, onChange, id }: Props) {
         aria-haspopup="listbox"
         aria-expanded={open}
         className={cn(
-          'flex h-9 w-full items-center gap-2 rounded-md border border-border bg-elevated px-3 text-left text-[13px]',
+          'flex h-10 w-full items-center gap-2 rounded-md border border-border bg-elevated px-3 text-left text-base lg:h-9 lg:text-[13px]',
           open ? 'border-primary/50 ring-2 ring-primary/20' : 'hover:border-primary/40',
         )}
       >
@@ -106,7 +106,7 @@ export function CategorySelect({ value, onChange, id }: Props) {
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Buscar o crear categoría..."
-              className="flex-1 bg-transparent text-[13px] text-foreground placeholder:text-muted focus:outline-none"
+              className="min-w-0 flex-1 bg-transparent text-base text-foreground placeholder:text-muted focus:outline-none lg:text-[13px]"
             />
           </div>
           {mode === 'list' ? (
@@ -156,7 +156,7 @@ export function CategorySelect({ value, onChange, id }: Props) {
                 placeholder="Nombre de la categoría"
                 autoFocus
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void confirm() } }}
-                className="h-8 w-full rounded-md border border-border bg-elevated px-2.5 text-[13px] text-foreground placeholder:text-muted focus:border-primary/50 focus:outline-none"
+                className="h-9 w-full rounded-md border border-border bg-elevated px-2.5 text-base text-foreground placeholder:text-muted focus:border-primary/50 focus:outline-none lg:h-8 lg:text-[13px]"
               />
               <div className="flex flex-wrap gap-1.5">
                 {sections.map((s) => (

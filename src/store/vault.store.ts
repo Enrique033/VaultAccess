@@ -4,10 +4,20 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase'
 import {
   toCategory,
   toCredential,
+  toLink,
+  toNote,
   toSection,
 } from '@/lib/vault-mapper'
+import type { LinkRow, NoteRow } from '@/lib/vault-mapper'
 import { CATEGORY_COLORS } from '@/lib/category-colors'
-import type { Category, Credential, VaultSection } from '@/types'
+import type { VaultExportData } from '@/lib/vault-io'
+import type {
+  Category,
+  Credential,
+  LinkItem,
+  Note,
+  VaultSection,
+} from '@/types'
 
 /** Secciones sugeridas cuando el usuario entra por primera vez (se crean en remoto). */
 const DEFAULT_SECTIONS = ['Trabajo', 'Redes'] as const
@@ -36,15 +46,33 @@ export interface CategoryInput {
   sectionId: string
 }
 
+export type LinkInput = Omit<
+  LinkItem,
+  'id' | 'createdAt' | 'updatedAt' | 'favorite'
+>
+export type NoteInput = Omit<
+  Note,
+  'id' | 'createdAt' | 'updatedAt' | 'favorite'
+>
+
+/** Resultado de una importación de respaldo. */
+export interface ImportResult {
+  sections: number
+  categories: number
+  credentials: number
+  links: number
+  notes: number
+}
+
 export type SyncStatus = 'idle' | 'loading' | 'ready' | 'error' | 'local'
 
 interface VaultState {
   credentials: Credential[]
   categories: Category[]
   sections: VaultSection[]
-  /** Links/Notas siguen locales hasta su migración. */
-  links: never[]
-  notes: never[]
+  /** Links/Notas (vault_links / vault_notes). */
+  links: LinkItem[]
+  notes: Note[]
 
   status: SyncStatus
   error: string | null
@@ -66,6 +94,19 @@ interface VaultState {
   renameCategory: (id: string, name: string) => Promise<void>
   moveCategory: (id: string, sectionId: string) => Promise<void>
   deleteCategory: (id: string) => Promise<void>
+
+  addLink: (input: LinkInput) => Promise<LinkItem>
+  updateLink: (id: string, input: Partial<LinkInput>) => Promise<void>
+  deleteLink: (id: string) => Promise<void>
+  toggleLinkFavorite: (id: string) => Promise<void>
+
+  addNote: (input: NoteInput) => Promise<Note>
+  updateNote: (id: string, input: Partial<NoteInput>) => Promise<void>
+  deleteNote: (id: string) => Promise<void>
+  toggleNoteFavorite: (id: string) => Promise<void>
+
+  /** Importa un respaldo JSON y recarga la bóveda. */
+  importVault: (data: VaultExportData) => Promise<ImportResult>
 }
 
 function nextColor(categories: Category[]): string {
@@ -73,6 +114,10 @@ function nextColor(categories: Category[]): string {
   const free = CATEGORY_COLORS.find((color) => !used.has(color.toLowerCase()))
   if (free) return free
   return CATEGORY_COLORS[categories.length % CATEGORY_COLORS.length]!
+}
+
+function isValidDate(value: string): boolean {
+  return Boolean(value) && !Number.isNaN(Date.parse(value))
 }
 
 async function requireUserId(): Promise<string> {
@@ -156,13 +201,34 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       }
 
       set({ status: 'ready', error: null, sections, categories, credentials })
+
+      // Links/Notas: carga best-effort; si aún no existe la tabla, no bloquea.
+      const [linkRes, noteRes] = await Promise.all([
+        supabase.from('vault_links').select('*').order('updated_at', { ascending: false }),
+        supabase.from('vault_notes').select('*').order('updated_at', { ascending: false }),
+      ])
+      if (!linkRes.error && linkRes.data) {
+        set({ links: linkRes.data.map((r) => toLink(r as LinkRow)) })
+      }
+      if (!noteRes.error && noteRes.data) {
+        set({ notes: noteRes.data.map((r) => toNote(r as NoteRow)) })
+      }
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Error al cargar la bóveda.'
       set({ status: 'error', error: message })
     }
   },
 
-  reset: () => set({ credentials: [], categories: [], sections: [], status: 'idle', error: null }),
+  reset: () =>
+    set({
+      credentials: [],
+      categories: [],
+      sections: [],
+      links: [],
+      notes: [],
+      status: 'idle',
+      error: null,
+    }),
 
   addCredential: async (input) => {
     const userId = await requireUserId()
@@ -241,6 +307,259 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       },
     )
     set((s) => ({ credentials: s.credentials.map((c) => (c.id === id ? updated : c)) }))
+  },
+
+  addLink: async (input) => {
+    const userId = await requireUserId()
+    const { data, error } = await supabase
+      .from('vault_links')
+      .insert({
+        user_id: userId,
+        title: input.title,
+        url: input.url,
+        category_id: input.categoryId ?? null,
+        description: input.description ?? null,
+      })
+      .select()
+      .single()
+    if (error) throw new Error(friendlySyncError(error.message))
+    const link = toLink(data as LinkRow)
+    set((s) => ({ links: [link, ...s.links] }))
+    return link
+  },
+
+  updateLink: async (id, input) => {
+    const patch: Record<string, unknown> = {}
+    if (input.title !== undefined) patch.title = input.title
+    if (input.url !== undefined) patch.url = input.url
+    if (input.categoryId !== undefined) patch.category_id = input.categoryId ?? null
+    if (input.description !== undefined) patch.description = input.description ?? null
+    const { data, error } = await supabase
+      .from('vault_links')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(friendlySyncError(error.message))
+    const updated = toLink(data as LinkRow)
+    set((s) => ({ links: s.links.map((l) => (l.id === id ? updated : l)) }))
+  },
+
+  deleteLink: async (id) => {
+    const { error } = await supabase.from('vault_links').delete().eq('id', id)
+    if (error) throw new Error(friendlySyncError(error.message))
+    set((s) => ({ links: s.links.filter((l) => l.id !== id) }))
+  },
+
+  toggleLinkFavorite: async (id) => {
+    const current = get().links.find((l) => l.id === id)
+    if (!current) return
+    const { data, error } = await supabase
+      .from('vault_links')
+      .update({ favorite: !current.favorite })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(friendlySyncError(error.message))
+    const updated = toLink(data as LinkRow)
+    set((s) => ({ links: s.links.map((l) => (l.id === id ? updated : l)) }))
+  },
+
+  addNote: async (input) => {
+    const userId = await requireUserId()
+    const { data, error } = await supabase
+      .from('vault_notes')
+      .insert({
+        user_id: userId,
+        title: input.title,
+        content: input.content,
+        category_id: input.categoryId ?? null,
+      })
+      .select()
+      .single()
+    if (error) throw new Error(friendlySyncError(error.message))
+    const note = toNote(data as NoteRow)
+    set((s) => ({ notes: [note, ...s.notes] }))
+    return note
+  },
+
+  updateNote: async (id, input) => {
+    const patch: Record<string, unknown> = {}
+    if (input.title !== undefined) patch.title = input.title
+    if (input.content !== undefined) patch.content = input.content
+    if (input.categoryId !== undefined) patch.category_id = input.categoryId ?? null
+    const { data, error } = await supabase
+      .from('vault_notes')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(friendlySyncError(error.message))
+    const updated = toNote(data as NoteRow)
+    set((s) => ({ notes: s.notes.map((n) => (n.id === id ? updated : n)) }))
+  },
+
+  deleteNote: async (id) => {
+    const { error } = await supabase.from('vault_notes').delete().eq('id', id)
+    if (error) throw new Error(friendlySyncError(error.message))
+    set((s) => ({ notes: s.notes.filter((n) => n.id !== id) }))
+  },
+
+  toggleNoteFavorite: async (id) => {
+    const current = get().notes.find((n) => n.id === id)
+    if (!current) return
+    const { data, error } = await supabase
+      .from('vault_notes')
+      .update({ favorite: !current.favorite })
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(friendlySyncError(error.message))
+    const updated = toNote(data as NoteRow)
+    set((s) => ({ notes: s.notes.map((n) => (n.id === id ? updated : n)) }))
+  },
+
+  importVault: async (data) => {
+    const userId = await requireUserId()
+    const norm = (s: string) => s.trim().toLowerCase()
+    const secMap = new Map<string, string>()
+    const catMap = new Map<string, string>()
+    const counts: ImportResult = {
+      sections: 0,
+      categories: 0,
+      credentials: 0,
+      links: 0,
+      notes: 0,
+    }
+
+    /** Crea (o reutiliza por nombre) una sección y devuelve su id. */
+    const ensureSection = async (
+      importedId: string,
+      name: string,
+    ): Promise<string> => {
+      const cached = secMap.get(importedId)
+      if (cached) return cached
+      const existing = get().sections.find((s) => norm(s.name) === norm(name))
+      if (existing) {
+        secMap.set(importedId, existing.id)
+        return existing.id
+      }
+      const { data: created, error } = await supabase
+        .from('vault_sections')
+        .insert({
+          user_id: userId,
+          name: name.trim().slice(0, 60) || 'Importada',
+        })
+        .select()
+        .single()
+      if (error) throw new Error(friendlySyncError(error.message))
+      const section = toSection(created as { id: string; name: string })
+      set((s) => ({ sections: [...s.sections, section] }))
+      secMap.set(importedId, section.id)
+      counts.sections += 1
+      return section.id
+    }
+
+    /** Crea (o reutiliza por nombre dentro de la sección) una categoría. */
+    const ensureCategory = async (imported: Category): Promise<string> => {
+      const cached = catMap.get(imported.id)
+      if (cached) return cached
+      const sectionName =
+        data.sections.find((s) => s.id === imported.sectionId)?.name ?? 'General'
+      const sectionId = await ensureSection(imported.sectionId, sectionName)
+      const existing = get().categories.find(
+        (c) => c.sectionId === sectionId && norm(c.name) === norm(imported.name),
+      )
+      if (existing) {
+        catMap.set(imported.id, existing.id)
+        return existing.id
+      }
+      const { data: created, error } = await supabase
+        .from('vault_categories')
+        .insert({
+          user_id: userId,
+          section_id: sectionId,
+          name: imported.name,
+          color: imported.color,
+        })
+        .select()
+        .single()
+      if (error) throw new Error(friendlySyncError(error.message))
+      const category = toCategory(
+        created as { id: string; name: string; color: string; section_id: string },
+      )
+      set((s) => ({ categories: [...s.categories, category] }))
+      catMap.set(imported.id, category.id)
+      counts.categories += 1
+      return category.id
+    }
+
+    for (const section of data.sections) {
+      await ensureSection(section.id, section.name)
+    }
+    for (const category of data.categories) {
+      await ensureCategory(category)
+    }
+
+    // Credenciales en lote (omitimos las que ya existen por id).
+    const existingCredIds = new Set(get().credentials.map((c) => c.id))
+    const credentialRows = data.credentials
+      .filter((c) => !existingCredIds.has(c.id))
+      .map((c) => ({
+        user_id: userId,
+        title: c.title,
+        username: c.username,
+        password: c.password,
+        url: c.url ?? null,
+        category_id: c.categoryId ? (catMap.get(c.categoryId) ?? null) : null,
+        notes: c.notes ?? null,
+        favorite: c.favorite,
+        ...(isValidDate(c.createdAt) ? { created_at: c.createdAt } : {}),
+      }))
+    if (credentialRows.length > 0) {
+      const { error } = await supabase.from('vault_credentials').insert(credentialRows)
+      if (error) throw new Error(friendlySyncError(error.message))
+      counts.credentials = credentialRows.length
+    }
+
+    // Links y notas (también omitimos duplicados por id).
+    const existingLinkIds = new Set(get().links.map((l) => l.id))
+    const linkRows = data.links
+      .filter((l) => !existingLinkIds.has(l.id))
+      .map((l) => ({
+        user_id: userId,
+        title: l.title,
+        url: l.url,
+        category_id: l.categoryId ? (catMap.get(l.categoryId) ?? null) : null,
+        description: l.description ?? null,
+        favorite: l.favorite,
+        ...(isValidDate(l.createdAt) ? { created_at: l.createdAt } : {}),
+      }))
+    if (linkRows.length > 0) {
+      const { error } = await supabase.from('vault_links').insert(linkRows)
+      if (error) throw new Error(friendlySyncError(error.message))
+      counts.links = linkRows.length
+    }
+
+    const existingNoteIds = new Set(get().notes.map((n) => n.id))
+    const noteRows = data.notes
+      .filter((n) => !existingNoteIds.has(n.id))
+      .map((n) => ({
+        user_id: userId,
+        title: n.title,
+        content: n.content,
+        category_id: n.categoryId ? (catMap.get(n.categoryId) ?? null) : null,
+        favorite: n.favorite,
+        ...(isValidDate(n.createdAt) ? { created_at: n.createdAt } : {}),
+      }))
+    if (noteRows.length > 0) {
+      const { error } = await supabase.from('vault_notes').insert(noteRows)
+      if (error) throw new Error(friendlySyncError(error.message))
+      counts.notes = noteRows.length
+    }
+
+    await get().load()
+    return counts
   },
 
   addSection: async (name) => {

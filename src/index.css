@@ -109,3 +109,38 @@ body {
 *::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* Drawer móvil: entra desde la izquierda. */
+:root {
+  --animate-slide-in-left: slide-in-left 0.2s ease-out;
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Sin tap-highlight en móvil (se siente "nativo"). */
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Selección de texto con el color del tema. */
+::selection {
+  background-color: color-mix(in srgb, var(--c-primary) 30%, transparent);
+}
+
+/* Respeta la preferencia de movimiento reducido del sistema. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

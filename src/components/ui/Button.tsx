@@ -14,9 +14,9 @@ const buttonVariants = cva(
         danger: 'bg-red-600 text-white hover:bg-red-600/90 active:bg-red-600/80',
       },
       size: {
-        sm: 'h-8 gap-1.5 px-3 text-[13px]',
-        md: 'h-9 gap-2 px-4 text-sm',
-        icon: 'size-8',
+        sm: 'h-9 gap-1.5 px-3.5 text-[13px] sm:h-8 sm:px-3',
+        md: 'h-11 gap-2 px-4 text-sm sm:h-9',
+        icon: 'size-9 sm:size-8',
       },
     },
     defaultVariants: {

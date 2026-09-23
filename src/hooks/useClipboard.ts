@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { copyToClipboard } from '@/lib/clipboard'
+import { copyToClipboard, scheduleClipboardClear } from '@/lib/clipboard'
 
 interface UseClipboardResult {
   copied: boolean
-  copy: (text: string) => Promise<boolean>
+  /** Copia `text`; con `clearAfterMs` programa la limpieza automática del portapapeles. */
+  copy: (text: string, clearAfterMs?: number) => Promise<boolean>
 }
 
 /**
@@ -22,12 +23,15 @@ export function useClipboard(resetDelay = 1500): UseClipboardResult {
   }, [])
 
   const copy = useCallback(
-    async (text: string) => {
+    async (text: string, clearAfterMs?: number) => {
       const ok = await copyToClipboard(text)
       if (ok) {
         setCopied(true)
         if (timerRef.current !== null) window.clearTimeout(timerRef.current)
         timerRef.current = window.setTimeout(() => setCopied(false), resetDelay)
+        if (clearAfterMs && clearAfterMs > 0) {
+          scheduleClipboardClear(text, clearAfterMs)
+        }
       }
       return ok
     },

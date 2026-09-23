@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { FormEvent } from 'react'
-import { LogOut, ShieldCheck, User } from 'lucide-react'
+import { Download, LogOut, ShieldCheck, Upload, User } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import {
@@ -18,8 +18,18 @@ import {
 } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
+import { PasswordInput } from '@/components/ui/PasswordInput'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { useAuth } from '@/app/auth-context'
+import { useVaultStore, type ImportResult } from '@/store/vault.store'
 import { toast } from '@/store/ui.store'
+import {
+  buildVaultExport,
+  downloadJson,
+  exportFilename,
+  parseVaultExport,
+  type VaultExportData,
+} from '@/lib/vault-io'
 
 const errorBox =
   'rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400'
@@ -30,6 +40,9 @@ export function UserMenu() {
   const [busy, setBusy] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [passwordOpen, setPasswordOpen] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [pendingImport, setPendingImport] = useState<VaultExportData | null>(null)
+  const [importing, setImporting] = useState(false)
 
   if (!user) return null
 
@@ -49,6 +62,51 @@ export function UserMenu() {
       toast.show('Sesión cerrada')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const handleExport = () => {
+    const state = useVaultStore.getState()
+    const data = buildVaultExport({
+      sections: state.sections,
+      categories: state.categories,
+      credentials: state.credentials,
+      links: state.links,
+      notes: state.notes,
+    })
+    downloadJson(data, exportFilename())
+    toast.success(
+      'Bóveda exportada',
+      'El JSON contiene contraseñas en texto plano: guárdalo en un lugar seguro.',
+    )
+  }
+
+  const handleImportFile = async (file: File | undefined) => {
+    if (!file) return
+    try {
+      const text = await file.text()
+      setPendingImport(parseVaultExport(text))
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo leer el archivo')
+    }
+  }
+
+  const handleConfirmImport = async () => {
+    if (!pendingImport) return
+    setImporting(true)
+    try {
+      const counts: ImportResult = await useVaultStore
+        .getState()
+        .importVault(pendingImport)
+      toast.success(
+        'Respaldo importado',
+        `${counts.credentials} credenciales, ${counts.links} enlaces y ${counts.notes} notas añadidos.`,
+      )
+      setPendingImport(null)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo importar')
+    } finally {
+      setImporting(false)
     }
   }
 
@@ -83,10 +141,44 @@ export function UserMenu() {
           <ShieldCheck className="size-3.5" /> Cambiar contraseña
         </DropdownMenuItem>
         <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={handleExport}>
+          <Download className="size-3.5" /> Exportar bóveda (JSON)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => fileRef.current?.click()}>
+          <Upload className="size-3.5" /> Importar respaldo…
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem variant="danger" onClick={handleSignOut}>
           <LogOut className="size-3.5" /> {busy ? 'Saliendo…' : 'Cerrar sesión'}
         </DropdownMenuItem>
       </DropdownMenu>
+
+      <input
+        ref={fileRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        onChange={(e) => {
+          void handleImportFile(e.target.files?.[0])
+          e.target.value = ''
+        }}
+      />
+
+      <ConfirmDialog
+        open={pendingImport !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingImport(null)
+        }}
+        title="Importar respaldo"
+        description={
+          pendingImport
+            ? `Se añadirán ${pendingImport.credentials.length} credenciales, ${pendingImport.links.length} enlaces y ${pendingImport.notes.length} notas. Los registros que ya existan (mismo id) se omiten.`
+            : undefined
+        }
+        confirmLabel={importing ? 'Importando…' : 'Importar'}
+        variant="primary"
+        onConfirm={() => void handleConfirmImport()}
+      />
 
       {profileOpen && <ProfileDialog onOpenChange={setProfileOpen} />}
       {passwordOpen && <PasswordDialog onOpenChange={setPasswordOpen} />}
@@ -228,15 +320,15 @@ function PasswordDialog({ onOpenChange }: { onOpenChange: (o: boolean) => void }
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="password-new">Nueva contraseña</Label>
-            <Input
+            <PasswordInput
               id="password-new"
-              type="password"
               autoComplete="new-password"
               required
               minLength={6}
               value={next}
-              onChange={(e) => setNext(e.target.value)}
-              placeholder="••••••••"
+              onChange={setNext}
+              showStrength
+              allowGenerate
             />
           </div>
           <div className="space-y-1.5">

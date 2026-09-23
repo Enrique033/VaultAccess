@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Navigate } from 'react-router'
-import { KeyRound, Loader2, Mail, Vault } from 'lucide-react'
+import { KeyRound, Loader2, Mail } from 'lucide-react'
 import { useAuth } from '@/app/auth-context'
 import { Input } from '@/components/ui/Input'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Label } from '@/components/ui/Label'
 import { Button } from '@/components/ui/Button'
-import { ThemeToggle } from '@/components/layout/ThemeToggle'
+import { AuthLayout } from '@/components/layout/AuthLayout'
 
 type Mode = 'signin' | 'signup' | 'forgot'
 
@@ -76,27 +77,22 @@ export function Login() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-background p-6">
-      <div className="absolute right-4 top-4">
-        <ThemeToggle />
-      </div>
-      <div className="w-full max-w-sm space-y-6">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <span className="flex size-11 items-center justify-center rounded-xl bg-primary text-white shadow-lg">
-            <Vault className="size-5" />
-          </span>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">WorkVault</h1>
-            <p className="mt-1 text-sm text-muted">
-              {mode === 'signin'
-                ? 'Inicia sesión para abrir tu bóveda privada.'
-                : mode === 'signup'
-                  ? 'Crea tu cuenta. Tu bóveda será solo tuya.'
-                  : 'Escribe tu correo y te enviaremos un enlace para restablecer tu contraseña.'}
-            </p>
-          </div>
-        </div>
-
+    <AuthLayout
+      title="WorkVault"
+      subtitle={
+        mode === 'signin'
+          ? 'Inicia sesión para abrir tu bóveda privada.'
+          : mode === 'signup'
+            ? 'Crea tu cuenta. Tu bóveda será solo tuya.'
+            : 'Escribe tu correo y te enviaremos un enlace para restablecer tu contraseña.'
+      }
+      legal={
+        <p className="text-center text-[11px] leading-relaxed text-muted">
+          Cada cuenta ve únicamente sus propios datos (Row Level Security por
+          usuario).
+        </p>
+      }
+    >
         {status === 'unconfigured' && (
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
             Supabase no está configurado. Copia <code className="font-mono">.env.example</code> a{' '}
@@ -151,16 +147,29 @@ export function Login() {
           {mode !== 'forgot' && (
             <div className="space-y-1.5">
               <Label htmlFor="login-password">Contraseña</Label>
-              <Input
-                id="login-password"
-                type="password"
-                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-              />
+              {mode === 'signup' ? (
+                <PasswordInput
+                  id="login-password"
+                  autoComplete="new-password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={setPassword}
+                  showStrength
+                  allowGenerate
+                />
+              ) : (
+                <Input
+                  id="login-password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+              )}
               {mode === 'signin' && (
                 <button
                   type="button"
@@ -243,12 +252,7 @@ export function Login() {
             </>
           )}
         </form>
-
-        <p className="text-center text-[11px] leading-relaxed text-muted">
-          Cada cuenta ve únicamente sus propios datos (Row Level Security por usuario).
-        </p>
-      </div>
-    </div>
+    </AuthLayout>
   )
 }
 

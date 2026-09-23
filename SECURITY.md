@@ -23,7 +23,9 @@ modelo evita falsos positivos al reportar vulnerabilidades:
 
 | Capa | Control |
 | --- | --- |
-| Datos | RLS activo en `vault_sections`, `vault_categories`, `vault_credentials` |
+| Datos | RLS activo en `vault_sections`, `vault_categories`, `vault_credentials`, `vault_links`, `vault_notes` |
+| Portapapeles | Limpieza automática 30 s tras copiar una contraseña (solo si el contenido sigue intacto) |
+| Sesión | Cierre automático por inactividad (15 min sin interacción) |
 | Transporte | HTTPS obligatorio (Supabase y Vercel) + HSTS |
 | Browser | CSP, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` (ver `vercel.json`) |
 | Secretos | `.env` fuera de git (`.gitignore`); solo variables `VITE_*` (públicas) |

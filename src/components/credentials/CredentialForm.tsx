@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Input } from '@/components/ui/Input'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Textarea } from '@/components/ui/Textarea'
 import { CategorySelect } from './CategorySelect'
 import { Label } from '@/components/ui/Label'
@@ -120,11 +121,15 @@ export function CredentialForm({
 
         <div className="space-y-1.5">
           <Label htmlFor="credential-password">Contraseña</Label>
-          <Input
+          <PasswordInput
             id="credential-password"
-            type="password"
+            value={watch('password')}
+            onChange={(v) =>
+              setValue('password', v, { shouldDirty: true, shouldValidate: true })
+            }
             autoComplete="new-password"
-            {...register('password')}
+            showStrength
+            allowGenerate
           />
           {errors.password && (
             <p className="text-xs text-red-400">{errors.password.message}</p>

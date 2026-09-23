@@ -58,7 +58,7 @@ export function DropdownMenu({
         <button
           type="button"
           onClick={() => setOpen((p) => !p)}
-          className="inline-flex items-center justify-center rounded-md p-1 text-muted transition-colors duration-150 hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="inline-flex items-center justify-center rounded-md p-1.5 text-muted transition-colors duration-150 hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 sm:p-1"
           aria-haspopup="menu"
           aria-expanded={open}
         >
@@ -69,7 +69,7 @@ export function DropdownMenu({
           <div
             role="menu"
             className={cn(
-              'animate-fade-in absolute top-full z-20 mt-1 min-w-[160px] rounded-md border border-border bg-elevated py-1 shadow-lg',
+              'animate-fade-in absolute top-full z-20 mt-1 min-w-[160px] max-w-[calc(100vw-1.5rem)] rounded-md border border-border bg-elevated py-1 shadow-lg',
               align === 'end' ? 'right-0' : 'left-0',
             )}
           >
@@ -105,7 +105,7 @@ export function DropdownMenuItem({
       role="menuitem"
       onClick={handleClick}
       className={cn(
-        'flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors duration-150',
+        'flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] transition-colors duration-150 sm:py-1.5',
         variant === 'danger'
           ? 'text-red-400 hover:bg-red-500/10 hover:text-red-300'
           : 'text-foreground hover:bg-surface',

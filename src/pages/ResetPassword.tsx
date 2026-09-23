@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
-import { KeyRound, Loader2, Mail, Vault } from 'lucide-react'
+import { KeyRound, Loader2, Mail } from 'lucide-react'
 import { useAuth } from '@/app/auth-context'
 import { friendlyError } from '@/lib/auth-errors'
 import { isSupabaseConfigured, supabase } from '@/lib/supabase'
 import { Input } from '@/components/ui/Input'
+import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Label } from '@/components/ui/Label'
 import { Button } from '@/components/ui/Button'
-import { ThemeToggle } from '@/components/layout/ThemeToggle'
+import { AuthLayout } from '@/components/layout/AuthLayout'
 import { toast } from '@/store/ui.store'
 
 const errorBox =
@@ -72,27 +73,21 @@ export function ResetPassword() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-background p-6">
-      <div className="absolute right-4 top-4">
-        <ThemeToggle />
-      </div>
-      <div className="w-full max-w-sm space-y-6">
-        <div className="flex flex-col items-center gap-3 text-center">
-          <span className="flex size-11 items-center justify-center rounded-xl bg-primary text-white shadow-lg">
-            <Vault className="size-5" />
-          </span>
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">
-              Restablecer contraseña
-            </h1>
-            <p className="mt-1 text-sm text-muted">
-              {status === 'signed-in'
-                ? 'Elige una nueva contraseña para tu cuenta.'
-                : 'Solicita un enlace nuevo si el tuyo caducó.'}
-            </p>
-          </div>
-        </div>
-
+    <AuthLayout
+      title="Restablecer contraseña"
+      subtitle={
+        status === 'signed-in'
+          ? 'Elige una nueva contraseña para tu cuenta.'
+          : 'Solicita un enlace nuevo si el tuyo caducó.'
+      }
+      legal={
+        <p className="text-center text-xs text-muted">
+          <Link to="/login" className="transition-colors hover:text-foreground">
+            ← Volver a iniciar sesión
+          </Link>
+        </p>
+      }
+    >
         {!isSupabaseConfigured ? (
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
             Supabase no está configurado: la recuperación de contraseña no está
@@ -109,15 +104,15 @@ export function ResetPassword() {
           >
             <div className="space-y-1.5">
               <Label htmlFor="reset-password">Nueva contraseña</Label>
-              <Input
+              <PasswordInput
                 id="reset-password"
-                type="password"
                 autoComplete="new-password"
                 required
                 minLength={6}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                onChange={setPassword}
+                showStrength
+                allowGenerate
               />
             </div>
             <div className="space-y-1.5">
@@ -184,14 +179,7 @@ export function ResetPassword() {
               Enviar enlace
             </Button>
           </form>
-        )}
-
-        <p className="text-center text-xs text-muted">
-          <Link to="/login" className="transition-colors hover:text-foreground">
-            ← Volver a iniciar sesión
-          </Link>
-        </p>
-      </div>
-    </div>
+      )}
+    </AuthLayout>
   )
 }

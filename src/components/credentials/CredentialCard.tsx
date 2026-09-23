@@ -54,7 +54,7 @@ export function CredentialCard({
   }
 
   return (
-    <Card className="flex h-full flex-col p-4">
+    <Card className="flex h-full flex-col p-4 transition-colors duration-150 hover:border-primary/40 hover:shadow-md">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">

@@ -26,3 +26,26 @@ export async function copyToClipboard(text: string): Promise<boolean> {
     return false
   }
 }
+
+let clearTimer: number | null = null
+
+/**
+ * Programa la limpieza del portapapeles tras `delayMs`.
+ * Solo borra si el contenido sigue siendo el que copiamos: si el usuario
+ * copió otra cosa (o no hay permiso de lectura), no toca nada.
+ */
+export function scheduleClipboardClear(text: string, delayMs: number): void {
+  if (typeof window === 'undefined') return
+  if (clearTimer !== null) window.clearTimeout(clearTimer)
+  clearTimer = window.setTimeout(() => {
+    void (async () => {
+      try {
+        if (!navigator.clipboard?.readText || !navigator.clipboard?.writeText) return
+        const current = await navigator.clipboard.readText()
+        if (current === text) await navigator.clipboard.writeText('')
+      } catch {
+        // Sin permiso de lectura: preferimos no tocar el portapapeles.
+      }
+    })()
+  }, delayMs)
+}

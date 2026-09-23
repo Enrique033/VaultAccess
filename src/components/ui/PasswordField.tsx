@@ -4,6 +4,9 @@ import { useClipboard } from '@/hooks/useClipboard'
 import { toast } from '@/store/ui.store'
 import { cn } from '@/lib/utils'
 
+/** El portapapeles se limpia automáticamente 30 s tras copiar una contraseña. */
+const CLIPBOARD_CLEAR_MS = 30_000
+
 interface PasswordFieldProps {
   value: string
   autoHideDelay?: number
@@ -34,9 +37,12 @@ export function PasswordField({
   }, [revealed, autoHideDelay])
 
   const handleCopy = async () => {
-    const ok = await copy(value)
+    const ok = await copy(value, CLIPBOARD_CLEAR_MS)
     if (ok) {
-      toast.success('Contraseña copiada')
+      toast.success(
+        'Contraseña copiada',
+        'Se borrará del portapapeles en 30 s (si no copias otra cosa).',
+      )
       setRevealed(false)
     } else {
       toast.error('No se pudo copiar la contraseña')
