@@ -1,0 +1,111 @@
+@import "tailwindcss";
+
+/* Paleta CLARA (por defecto) — se aplica con variables para poder alternar en runtime. */
+:root {
+  --c-background: #fafafa;
+  --c-surface: #ffffff;
+  --c-elevated: #f4f4f5;
+  --c-border: #e4e4e7;
+  --c-foreground: #18181b;
+  --c-muted: #71717a;
+  --c-primary: #6366f1;
+
+  --header-height: 57px;
+
+  --animate-fade-in: fade-in 0.15s ease-out;
+  --animate-slide-in: slide-in 0.2s ease-out;
+}
+
+/* Paleta OSCURA — activa añadiendo .dark a <html>. */
+.dark {
+  --c-background: #09090b;
+  --c-surface: #101013;
+  --c-elevated: #18181c;
+  --c-border: #26262c;
+  --c-foreground: #fafafa;
+  --c-muted: #a1a1aa;
+  --c-primary: #6366f1;
+}
+
+/* `inline` para que las utilidades de Tailwind lean la variable en runtime
+   y el cambio de tema no requiera recompilar clases. */
+@theme inline {
+  --color-background: var(--c-background);
+  --color-surface: var(--c-surface);
+  --color-elevated: var(--c-elevated);
+  --color-border: var(--c-border);
+  --color-foreground: var(--c-foreground);
+  --color-muted: var(--c-muted);
+  --color-primary: var(--c-primary);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--c-background);
+  color: var(--c-foreground);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar propio acorde al diseño (fino, redondeado, con la paleta del tema). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-border) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--c-border);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--c-muted);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}

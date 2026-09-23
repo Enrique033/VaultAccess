@@ -1,0 +1,45 @@
+import { forwardRef } from 'react'
+import { Search, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+interface SearchInputProps {
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  className?: string
+}
+
+export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
+  ({ value, onChange, placeholder = 'Buscar...', className }, ref) => {
+    return (
+      <div
+        className={cn(
+          'flex h-9 items-center gap-2 rounded-md border border-border bg-elevated px-3 transition-colors duration-150 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20',
+          className,
+        )}
+      >
+        <Search className="size-3.5 shrink-0 text-muted" />
+        <input
+          ref={ref}
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="flex-1 bg-transparent text-[13px] text-foreground placeholder:text-muted focus:outline-none"
+        />
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="rounded p-0.5 text-muted transition-colors duration-150 hover:text-foreground"
+            aria-label="Limpiar búsqueda"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
+      </div>
+    )
+  },
+)
+
+SearchInput.displayName = 'SearchInput'

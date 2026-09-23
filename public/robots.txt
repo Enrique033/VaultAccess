@@ -1,0 +1,3 @@
+# WorkVault es una bóveda privada: no indexar ninguna página.
+User-agent: *
+Disallow: /
