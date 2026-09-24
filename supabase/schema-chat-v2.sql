@@ -152,10 +152,10 @@ begin
   return query
   select
     u.id,
-    coalesce(public.chat_registered_name(u.raw_user_meta_data), u.email),
+    coalesce(public.chat_registered_name(u.raw_user_meta_data), u.email::text),
     case
       when global_viewer or public.chat_registered_name(u.raw_user_meta_data) is null
-        then u.email
+        then u.email::text
       else null
     end,
     null::text,
@@ -204,7 +204,7 @@ begin
   with directory as (
     select
       u.id,
-      u.email,
+      u.email::text,
       public.chat_registered_name(u.raw_user_meta_data) as registered_name
     from auth.users u
     where u.id = any(profile_ids)
@@ -263,11 +263,11 @@ begin
   with directory as (
     select
       u.id,
-      u.email,
+      u.email::text,
       public.chat_registered_name(u.raw_user_meta_data) as registered_name
     from auth.users u
     where u.id <> auth.uid()
-      and u.email is not null
+      and u.email::text is not null
   )
   select
     d.id,
@@ -327,11 +327,11 @@ begin
   with directory as (
     select
       u.id,
-      u.email,
+      u.email::text,
       public.chat_registered_name(u.raw_user_meta_data) as registered_name
     from auth.users u
     where u.id <> auth.uid()
-      and u.email is not null
+      and u.email::text is not null
   )
   select
     d.id,

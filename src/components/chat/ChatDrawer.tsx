@@ -3,6 +3,7 @@ import type { FormEvent, KeyboardEvent } from 'react'
 import {
   ArrowLeft,
   Check,
+  ChevronRight,
   Loader2,
   MessageCircle,
   MoreVertical,
@@ -65,6 +66,7 @@ interface PersonRowProps {
   avatarColor: string
   online: boolean
   disabled?: boolean
+  busy?: boolean
   onClick?: () => void
   trailingLabel?: string
 }
@@ -76,6 +78,7 @@ function PersonRow({
   avatarColor,
   online,
   disabled = false,
+  busy = false,
   onClick,
   trailingLabel,
 }: PersonRowProps) {
@@ -85,7 +88,7 @@ function PersonRow({
       data-user-id={id}
       disabled={disabled || !onClick}
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-elevated disabled:cursor-default disabled:opacity-70 enabled:hover:bg-elevated"
+      className="group flex w-full items-center gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left transition-all hover:border-border hover:bg-elevated disabled:cursor-default disabled:opacity-60 enabled:hover:border-primary/20 enabled:hover:bg-primary-soft/60"
     >
       <span className="relative shrink-0">
         <span
@@ -108,8 +111,12 @@ function PersonRow({
           <span className="block truncate text-[11px] text-muted">{email}</span>
         )}
       </span>
-      {trailingLabel && (
+      {busy ? (
+        <Loader2 className="size-3.5 animate-spin text-primary" />
+      ) : trailingLabel ? (
         <span className="text-[11px] text-muted">{trailingLabel}</span>
+      ) : (
+        <ChevronRight className="size-3.5 -translate-x-1 text-muted opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
       )}
     </button>
   )
@@ -242,6 +249,69 @@ export function ChatDrawer() {
         (member) => member.userId === user.id && member.role === 'owner',
       )),
   )
+
+  const recentConversations = useMemo(
+    () =>
+      [...conversations].sort((a, b) =>
+        (b.lastMessage?.created_at ?? b.created_at).localeCompare(
+          a.lastMessage?.created_at ?? a.created_at,
+        ),
+      ),
+    [conversations],
+  )
+  const getConversationTitle = (
+    conversation: (typeof conversations)[number],
+  ) => {
+    if (conversation.team_id) {
+      return (
+        workspaces.find((workspace) => workspace.id === conversation.team_id)
+          ?.name ?? 'Equipo'
+      )
+    }
+    const otherId = conversation.participants.find(
+      (participant) => participant.user_id !== user?.id,
+    )?.user_id
+    return otherId
+      ? (profiles.get(otherId)?.name ??
+          onlineUsers.get(otherId)?.name ??
+          'Conversación privada')
+      : 'Conversación privada'
+  }
+  const getConversationUserId = (
+    conversation: (typeof conversations)[number],
+  ) =>
+    conversation.participants.find(
+      (participant) => participant.user_id !== user?.id,
+    )?.user_id
+  const isConversationOnline = (
+    conversation: (typeof conversations)[number],
+  ) => {
+    const otherId = getConversationUserId(conversation)
+    return otherId ? isOnline(otherId) : false
+  }
+
+  const getConversationPreview = (
+    conversation: (typeof conversations)[number],
+  ) => {
+    const lastMessage = conversation.lastMessage
+    if (!lastMessage) return 'Aún no hay mensajes'
+    if (lastMessage.deleted_at) return 'Mensaje eliminado'
+    return lastMessage.sender_id === user?.id
+      ? `Tú: ${lastMessage.content}`
+      : lastMessage.content
+  }
+  const safeSearchError =
+    typeof searchError === 'string' && searchError.trim()
+      ? searchError
+      : searchError
+        ? 'No se pudo completar la búsqueda de personas.'
+        : null
+  const safeChatError =
+    typeof chatError === 'string' && chatError.trim()
+      ? chatError
+      : chatError
+        ? 'No se pudo completar la operación del chat.'
+        : null
 
   useEffect(() => {
     if (!open || !activeConversationId) return
@@ -380,7 +450,7 @@ export function ChatDrawer() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="chat-drawer-title"
-        className="chat-panel animate-fade-in absolute inset-y-0 right-0 flex w-full max-w-md flex-col sm:max-w-lg"
+        className="chat-panel animate-fade-in absolute inset-y-0 right-0 flex w-full max-w-5xl flex-col"
       >
         <header className="flex shrink-0 items-center gap-3 border-b border-border/80 bg-surface/80 px-5 py-4">
           <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
@@ -407,132 +477,226 @@ export function ChatDrawer() {
           </button>
         </header>
 
-        <div className="grid shrink-0 grid-cols-2 border-b border-border p-1.5">
-          <button
-            type="button"
-            onClick={() => setTab('team')}
-            className={`chat-tab flex items-center justify-center gap-2 px-3 py-2 ${tab === 'team' ? 'chat-tab-active' : ''}`}
+        <div
+          className={`grid min-h-0 flex-1 lg:grid-cols-[minmax(270px,0.9fr)_minmax(0,1.7fr)] lg:grid-rows-[auto_minmax(0,1fr)] ${
+            activeConversationId
+              ? 'grid-rows-[minmax(0,1fr)]'
+              : 'grid-rows-[auto_minmax(0,1fr)]'
+          }`}
+        >
+          <div
+            className={`grid shrink-0 grid-cols-2 border-b border-border/80 p-1.5 lg:col-start-1 lg:row-start-1 ${
+              activeConversationId ? 'hidden lg:grid' : 'grid'
+            }`}
           >
-            <Users className="size-3.5" /> Equipo
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab('search')}
-            className={`chat-tab flex items-center justify-center gap-2 px-3 py-2 ${tab === 'search' ? 'chat-tab-active' : ''}`}
-          >
-            <Search className="size-3.5" /> Búsqueda
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => setTab('team')}
+              className={`chat-tab flex items-center justify-center gap-2 px-3 py-2 ${tab === 'team' ? 'chat-tab-active' : ''}`}
+            >
+              <Users className="size-3.5" /> Equipo
+            </button>
+            <button
+              type="button"
+              onClick={() => setTab('search')}
+              className={`chat-tab flex items-center justify-center gap-2 px-3 py-2 ${tab === 'search' ? 'chat-tab-active' : ''}`}
+            >
+              <Search className="size-3.5" /> Búsqueda
+            </button>
+          </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {tab === 'team' ? (
-            <section className="p-3">
-              <div className="mb-2 flex items-center justify-between gap-3 px-1">
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-semibold text-foreground">
-                    {activeWorkspace?.name || 'Equipo'}
-                  </p>
-                  <p className="text-[11px] text-muted">
-                    Miembros aceptados del equipo activo
-                  </p>
+          <div
+            className={`min-h-0 overflow-y-auto lg:col-start-1 lg:row-start-2 ${
+              activeConversationId ? 'hidden lg:block' : 'block'
+            }`}
+          >
+            {tab === 'team' ? (
+              <section className="p-3">
+                <div className="mb-2 flex items-center justify-between gap-3 px-1">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-semibold text-foreground">
+                      {activeWorkspace?.name || 'Equipo'}
+                    </p>
+                    <p className="text-[11px] text-muted">
+                      Miembros aceptados del equipo activo
+                    </p>
+                  </div>
+                  {isTeamOwner && activeWorkspace && (
+                    <span className="rounded-full border border-success/25 bg-success/10 px-2.5 py-1 text-[10px] font-semibold text-success">
+                      [Equipo Online: {teamOnline}/{teamMembers.length}]
+                    </span>
+                  )}
                 </div>
-                {isTeamOwner && activeWorkspace && (
-                  <span className="rounded-full border border-success/25 bg-success/10 px-2.5 py-1 text-[10px] font-semibold text-success">
-                    [Equipo Online: {teamOnline}/{teamMembers.length}]
-                  </span>
+                {teamMembers.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center">
+                    <p className="text-sm font-medium text-foreground">
+                      No hay miembros disponibles
+                    </p>
+                    <p className="mt-1 text-xs text-muted">
+                      Crea o selecciona un equipo con miembros registrados.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-0.5">
+                    {teamMembers.map((member) => {
+                      const memberId = member.userId
+                      if (!memberId) return null
+                      const online = onlineUsers.get(memberId)
+                      const profile = profiles.get(memberId)
+                      const person = memberToChatUser(member, profile ?? online)
+                      const isMe = memberId === user?.id
+                      return (
+                        <PersonRow
+                          key={member.id}
+                          id={person.id}
+                          name={person.name}
+                          email={person.email}
+                          avatarColor={person.avatarColor}
+                          online={person.isOnline}
+                          disabled={isMe || openingId !== null}
+                          onClick={() => void openConversation(memberId)}
+                          trailingLabel={isMe ? 'Tú' : undefined}
+                        />
+                      )
+                    })}
+                  </div>
                 )}
-              </div>
-              {teamMembers.length === 0 ? (
-                <div className="rounded-xl border border-dashed border-border px-4 py-8 text-center">
-                  <p className="text-sm font-medium text-foreground">
-                    No hay miembros disponibles
-                  </p>
-                  <p className="mt-1 text-xs text-muted">
-                    Crea o selecciona un equipo con miembros registrados.
-                  </p>
+              </section>
+            ) : (
+              <section className="p-3">
+                <div className="relative" aria-busy={searching}>
+                  <SearchInput
+                    value={searchInput}
+                    onChange={setSearchInput}
+                    placeholder="Buscar por nombre o correo..."
+                  />
+                  {searching && (
+                    <Loader2
+                      className="pointer-events-none absolute right-10 top-1/2 size-4 -translate-y-1/2 animate-spin text-primary"
+                      aria-label="Buscando personas"
+                    />
+                  )}
                 </div>
-              ) : (
-                <div className="space-y-0.5">
-                  {teamMembers.map((member) => {
-                    const memberId = member.userId
-                    if (!memberId) return null
-                    const online = onlineUsers.get(memberId)
-                    const profile = profiles.get(memberId)
-                    const person = memberToChatUser(member, profile ?? online)
-                    const isMe = memberId === user?.id
-                    return (
+                {safeSearchError && (
+                  <p
+                    role="alert"
+                    className="mt-2 rounded-xl border border-danger/25 bg-danger/10 px-3 py-2.5 text-[11px] leading-relaxed text-danger"
+                  >
+                    {safeSearchError}
+                  </p>
+                )}
+                <div className="mt-2 min-h-24">
+                  {searching && (
+                    <div className="space-y-2 p-1">
+                      <Skeleton className="h-12 w-full" />
+                      <Skeleton className="h-12 w-full" />
+                    </div>
+                  )}
+                  {!searching &&
+                    !safeSearchError &&
+                    searchInput.trim().length >= 2 &&
+                    searchedUsers.length === 0 && (
+                      <p className="px-2 py-6 text-center text-xs text-muted">
+                        No encontramos usuarios.
+                      </p>
+                    )}
+                  {!searching && searchInput.trim().length < 2 && (
+                    <p className="px-2 py-6 text-center text-xs text-muted">
+                      Escribe al menos 2 caracteres para buscar.
+                    </p>
+                  )}
+                  <div className="space-y-0.5">
+                    {searchedUsers.map((result) => (
                       <PersonRow
-                        key={member.id}
-                        id={person.id}
-                        name={person.name}
-                        email={person.email}
-                        avatarColor={person.avatarColor}
-                        online={person.isOnline}
-                        disabled={isMe || openingId !== null}
-                        onClick={() => void openConversation(memberId)}
-                        trailingLabel={isMe ? 'Tú' : undefined}
+                        key={result.id}
+                        id={result.id}
+                        name={result.name}
+                        email={result.email}
+                        avatarColor={
+                          result.avatarColor || getAvatarColor(result.id)
+                        }
+                        online={isOnline(result.id)}
+                        disabled={openingId !== null}
+                        busy={openingId === result.id}
+                        onClick={() => void openConversation(result.id)}
                       />
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {recentConversations.length > 0 && (
+              <section className="border-t border-border/80 p-3">
+                <div className="mb-2 flex items-center justify-between px-1">
+                  <span className="eyebrow">Conversaciones</span>
+                  <span className="text-[10px] font-semibold text-muted">
+                    {recentConversations.length}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  {recentConversations.slice(0, 6).map((conversation) => {
+                    const title = getConversationTitle(conversation)
+                    const otherId = getConversationUserId(conversation)
+                    const online = isConversationOnline(conversation)
+                    const lastMessage = conversation.lastMessage
+                    return (
+                      <button
+                        key={conversation.id}
+                        type="button"
+                        onClick={() => {
+                          setActiveConversation(conversation.id)
+                          setSearchInput('')
+                          clearSearch()
+                        }}
+                        className={`group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-all hover:bg-elevated ${
+                          activeConversationId === conversation.id
+                            ? 'bg-primary-soft ring-1 ring-primary/20'
+                            : ''
+                        }`}
+                      >
+                        <span
+                          className="relative flex size-9 shrink-0 items-center justify-center rounded-xl text-[10px] font-bold text-white"
+                          style={{
+                            backgroundColor: getAvatarColor(
+                              otherId ?? conversation.id,
+                            ),
+                          }}
+                          aria-hidden="true"
+                        >
+                          {initials(title)}
+                          <span
+                            className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-surface ${
+                              online ? 'bg-success' : 'bg-muted'
+                            }`}
+                          />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-xs font-semibold text-foreground">
+                            {title}
+                          </span>
+                          <span className="block truncate text-[10px] text-muted">
+                            {getConversationPreview(conversation)}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-[9px] text-muted">
+                          {formatTime(
+                            lastMessage?.created_at ?? conversation.created_at,
+                          )}
+                        </span>
+                      </button>
                     )
                   })}
                 </div>
-              )}
-            </section>
-          ) : (
-            <section className="p-3">
-              <SearchInput
-                value={searchInput}
-                onChange={setSearchInput}
-                placeholder="Buscar por nombre o correo..."
-              />
-              {searchError && (
-                <p
-                  role="alert"
-                  className="mt-2 rounded-xl bg-danger/10 px-3 py-2.5 text-[11px] text-danger"
-                >
-                  {searchError}
-                </p>
-              )}
-              <div className="mt-2 min-h-24">
-                {searching && (
-                  <div className="space-y-2 p-1">
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-12 w-full" />
-                  </div>
-                )}
-                {!searching &&
-                  !searchError &&
-                  searchInput.trim().length >= 2 &&
-                  searchedUsers.length === 0 && (
-                    <p className="px-2 py-6 text-center text-xs text-muted">
-                      No encontramos usuarios.
-                    </p>
-                  )}
-                {!searching && searchInput.trim().length < 2 && (
-                  <p className="px-2 py-6 text-center text-xs text-muted">
-                    Escribe al menos 2 caracteres para buscar.
-                  </p>
-                )}
-                <div className="space-y-0.5">
-                  {searchedUsers.map((result) => (
-                    <PersonRow
-                      key={result.id}
-                      id={result.id}
-                      name={result.name}
-                      email={result.email}
-                      avatarColor={
-                        result.avatarColor || getAvatarColor(result.id)
-                      }
-                      online={isOnline(result.id)}
-                      disabled={openingId !== null}
-                      onClick={() => void openConversation(result.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
+              </section>
+            )}
+          </div>
 
-          <section className="border-t border-border">
+          <section
+            className={`min-h-0 flex-col border-t border-border/80 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:flex lg:border-l lg:border-t-0 ${
+              activeConversationId ? 'flex border-t-0' : 'hidden'
+            }`}
+          >
             <div className="flex items-center gap-2 border-b border-border px-4 py-3">
               {activeConversationId && (
                 <button
@@ -558,12 +722,13 @@ export function ChatDrawer() {
                 <Loader2 className="size-3.5 animate-spin text-muted" />
               )}
             </div>
-            <div className="min-h-40 space-y-3 bg-elevated/20 p-4">
+            <div className="min-h-40 flex-1 space-y-3 overflow-y-auto bg-elevated/20 p-4 sm:p-5">
               {activeMessages.length === 0 ? (
                 <div className="flex min-h-36 flex-col items-center justify-center text-center">
                   <MessageCircle className="size-7 text-muted/60" />
                   <p className="mt-2 text-xs text-muted">
-                    Elige a alguien para comenzar a chatear.
+                    Esta conversación todavía no tiene mensajes. Envía el
+                    primero.
                   </p>
                 </div>
               ) : (
@@ -695,12 +860,12 @@ export function ChatDrawer() {
               )}
               <div ref={messagesEndRef} />
             </div>
-            {chatError && (
+            {safeChatError && (
               <p
                 role="alert"
-                className="mx-4 mb-3 rounded-xl bg-danger/10 px-3 py-2.5 text-[11px] text-danger"
+                className="mx-4 mb-3 rounded-xl border border-danger/25 bg-danger/10 px-3 py-2.5 text-[11px] leading-relaxed text-danger"
               >
-                {chatError}
+                {safeChatError}
               </p>
             )}
             {activeConversationId && (
@@ -743,25 +908,25 @@ export function ChatDrawer() {
               </form>
             )}
           </section>
-          <ConfirmDialog
-            open={deleteTarget !== null}
-            onOpenChange={(nextOpen) => {
-              if (!nextOpen) setDeleteTarget(null)
-            }}
-            title={
-              deleteTarget?.scope === 'everyone'
-                ? '¿Eliminar para todos?'
-                : '¿Eliminar para mí?'
-            }
-            description={
-              deleteTarget?.scope === 'everyone'
-                ? 'El mensaje se mostrará como eliminado para todos los participantes.'
-                : 'El mensaje solo desaparecerá de tu vista; los demás podrán verlo.'
-            }
-            confirmLabel="Eliminar"
-            onConfirm={confirmDelete}
-          />
         </div>
+        <ConfirmDialog
+          open={deleteTarget !== null}
+          onOpenChange={(nextOpen) => {
+            if (!nextOpen) setDeleteTarget(null)
+          }}
+          title={
+            deleteTarget?.scope === 'everyone'
+              ? '¿Eliminar para todos?'
+              : '¿Eliminar para mí?'
+          }
+          description={
+            deleteTarget?.scope === 'everyone'
+              ? 'El mensaje se mostrará como eliminado para todos los participantes.'
+              : 'El mensaje solo desaparecerá de tu vista; los demás podrán verlo.'
+          }
+          confirmLabel="Eliminar"
+          onConfirm={confirmDelete}
+        />
       </aside>
     </div>
   )

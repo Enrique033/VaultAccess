@@ -93,13 +93,62 @@ function isCurrentSession(generation: number): boolean {
   return generation === sessionGeneration
 }
 
+type ErrorLike = {
+  message?: unknown
+  details?: unknown
+  hint?: unknown
+  code?: unknown
+  error?: unknown
+  cause?: unknown
+  data?: unknown
+}
+
+function stringifyErrorPart(value: unknown, depth = 0): string {
+  if (value == null) return ''
+  if (typeof value === 'string') return value.trim()
+  if (typeof value === 'number' || typeof value === 'boolean')
+    return String(value)
+  if (depth >= 2) return ''
+  if (Array.isArray(value)) {
+    return value
+      .map((part) => stringifyErrorPart(part, depth + 1))
+      .filter(Boolean)
+      .join(' · ')
+  }
+  if (typeof value === 'object') {
+    const object = value as ErrorLike
+    return [
+      object.message,
+      object.details,
+      object.hint,
+      object.code,
+      object.error,
+      object.cause,
+      object.data,
+    ]
+      .map((part) => stringifyErrorPart(part, depth + 1))
+      .filter(Boolean)
+      .join(' · ')
+  }
+  return ''
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) {
+    return stringifyErrorPart(error.message) || error.name
+  }
+  return stringifyErrorPart(error)
+}
+
 function friendlyChatError(error: unknown): Error {
-  const message = error instanceof Error ? error.message : String(error)
+  const message = errorMessage(error)
   if (
-    /function .*search_chat_users|search_chat_users|schema cache/i.test(message)
+    /PGRST202|schema cache|function .*does not exist|could not find the function/i.test(
+      message,
+    )
   ) {
     return new Error(
-      'Falta la función de búsqueda del chat. Ejecuta nuevamente supabase/schema-chat-v2.sql en Supabase.',
+      'La búsqueda de usuarios no está disponible. Ejecuta nuevamente supabase/schema-chat-v3.sql en Supabase.',
     )
   }
   if (/relation .* does not exist/i.test(message)) {
@@ -112,15 +161,15 @@ function friendlyChatError(error: unknown): Error {
       'Faltan las tablas de chat. Ejecuta supabase/schema-chat.sql en Supabase.',
     )
   }
-  if (/row-level security|permission denied/i.test(message)) {
+  if (/row-level security|permission denied|jwt/i.test(message)) {
     return new Error(
-      'Supabase bloqueó el chat. Verifica las políticas RLS de schema-chat.sql.',
+      'Supabase bloqueó la operación. Verifica tu sesión y las políticas RLS del chat.',
     )
   }
-  if (/failed to fetch|network/i.test(message)) {
+  if (/failed to fetch|network|fetch failed/i.test(message)) {
     return new Error('No se pudo conectar con Supabase para usar el chat.')
   }
-  return error instanceof Error ? error : new Error(message)
+  return new Error(message || 'No se pudo completar la operación del chat.')
 }
 
 function mapConversation(row: ConversationRow): ChatConversation {
@@ -174,6 +223,54 @@ function removeMessageChannel() {
   if (!messageChannel) return
   supabase.removeChannel(messageChannel)
   messageChannel = null
+}
+
+const SEARCH_RPCS = [
+  'search_chat_users_v3',
+  'search_chat_users_v2',
+  'search_chat_users',
+  'search_users',
+] as const
+
+function isMissingSearchRpcError(message: string): boolean {
+  return /PGRST202|schema cache|function .*does not exist|could not find the function/i.test(
+    message,
+  )
+}
+
+async function searchUsersRpc(query: string): Promise<SearchUserRow[]> {
+  let missingFunctionError: unknown = null
+
+  for (const rpcName of SEARCH_RPCS) {
+    const result = await supabase.rpc(rpcName, {
+      search_term: query,
+      limit_count: 20,
+    })
+    if (!result.error) {
+      if (!Array.isArray(result.data)) {
+        throw new Error('La búsqueda devolvió una respuesta inesperada.')
+      }
+      const rows = result.data.filter(
+        (row): row is SearchUserRow =>
+          Boolean(row) && typeof row === 'object' && typeof row.id === 'string',
+      )
+      if (rows.length !== result.data.length) {
+        throw new Error(
+          'La búsqueda devolvió usuarios con un formato inválido.',
+        )
+      }
+      return rows
+    }
+
+    const message = errorMessage(result.error)
+    missingFunctionError = result.error
+    if (!isMissingSearchRpcError(message)) {
+      throw result.error
+    }
+    console.warn(`[WorkVault] RPC de búsqueda no disponible: ${rpcName}`)
+  }
+
+  throw missingFunctionError ?? new Error('No se encontró la RPC de búsqueda.')
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -635,23 +732,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
       searchError: null,
     })
     try {
-      const { data, error } = await supabase.rpc('search_chat_users', {
-        search_term: trimmed,
-        limit_count: 20,
-      })
-      if (error) throw error
+      const rows = await searchUsersRpc(trimmed)
       if (request !== searchRequest || !isCurrentSession(generation)) return
-      const users: ChatUser[] = ((data ?? []) as SearchUserRow[]).map(
-        (row) => ({
-          id: row.id,
-          email: row.email,
-          name: row.name || row.email || 'Usuario',
-          hasName: Boolean(row.name && row.name !== row.email),
-          avatarColor: row.avatar_color || '',
-          isOnline: row.is_online ?? false,
-          lastSeenAt: row.last_seen_at ?? undefined,
-        }),
-      )
+      const users: ChatUser[] = rows.map((row) => ({
+        id: row.id,
+        email: row.email,
+        name: row.name || row.email || 'Usuario',
+        hasName: Boolean(row.name && row.name !== row.email),
+        avatarColor: row.avatar_color || '',
+        isOnline: row.is_online ?? false,
+        lastSeenAt: row.last_seen_at ?? undefined,
+      }))
       set({ searchedUsers: users, searching: false, searchError: null })
     } catch (error) {
       if (request !== searchRequest || !isCurrentSession(generation)) return
@@ -659,7 +750,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
       set({
         searchedUsers: [],
         searching: false,
-        error: message,
         searchError: message,
       })
     }

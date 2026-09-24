@@ -237,7 +237,7 @@ begin
   return query
   select
     u.id,
-    u.email,
+    u.email::text,
     coalesce(
       nullif(
         trim(concat_ws(' ', u.raw_user_meta_data->>'first_name', u.raw_user_meta_data->>'last_name')),
@@ -247,17 +247,17 @@ begin
         trim(coalesce(nullif(u.raw_user_meta_data->>'full_name', ''), nullif(u.raw_user_meta_data->>'name', ''))),
         ''
       ),
-      split_part(u.email, '@', 1)
+      split_part(u.email::text, '@', 1)
     ),
     null::text,
     false,
     null::timestamptz
   from auth.users u
   where u.id <> auth.uid()
-    and u.email is not null
+    and u.email::text is not null
     and (
-      position(normalized in lower(u.email)) > 0
-      or position(normalized in lower(split_part(u.email, '@', 1))) > 0
+      position(normalized in lower(u.email::text)) > 0
+      or position(normalized in lower(split_part(u.email::text, '@', 1))) > 0
       or position(
         normalized in lower(concat_ws(' ', u.raw_user_meta_data->>'first_name', u.raw_user_meta_data->>'last_name'))
       ) > 0
@@ -265,7 +265,7 @@ begin
         normalized in lower(coalesce(nullif(u.raw_user_meta_data->>'full_name', ''), nullif(u.raw_user_meta_data->>'name', ''), ''))
       ) > 0
     )
-  order by lower(u.email)
+  order by lower(u.email::text)
   limit greatest(1, least(20, coalesce(limit_count, 20)));
 end;
 $$;

@@ -18,8 +18,8 @@ Auth** (email/password y Google OAuth) y protegida con **Row Level Security**.
 - **Historial de claves**: cada cambio guarda la versión anterior (las 20
   últimas) y puedes restaurarla desde el diálogo de la credencial
   (`supabase/schema-history.sql`).
-- **Equipos (espacios compartidos)**: invita por email con rol (*propietario*,
-  *puede editar*, *solo lectura*) y comparte solo las credenciales que decidas.
+- **Equipos (espacios compartidos)**: invita por email con rol (_propietario_,
+  _puede editar_, _solo lectura_) y comparte solo las credenciales que decidas.
   Al invitar se env�a al correo un enlace m�gico de acceso (requiere que el
   proveedor **Email** de Supabase est� activo) y, al abrirlo, el invitado reclama
   la invitaci�n autom�ticamente (`supabase/schema-sharing.sql`).
@@ -42,7 +42,7 @@ Auth** (email/password y Google OAuth) y protegida con **Row Level Security**.
 - **Panel de KPIs** en la vista de accesos: total, favoritas, claves débiles
   (filtro de un clic) y compartidas en equipos.
 - **Estados de carga con skeletons** y animaciones escalonadas en las rejillas.
-- **Exportar a Excel (.xlsx)**: hoja *Dashboard* con KPIs y barras por
+- **Exportar a Excel (.xlsx)**: hoja _Dashboard_ con KPIs y barras por
   sección/categoría + hojas de detalle (credenciales, enlaces, notas) con
   filtros, desde el menú de usuario.
 - **Auto-limpieza del portapapeles** 30 s tras copiar una clave.
@@ -76,6 +76,7 @@ cp .env.example .env      # y completa VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KE
 #    4) supabase/schema-sharing.sql  (equipos / espacios compartidos + RLS)
 #    5) supabase/schema-chat.sql     (chat + presencia + RLS + Realtime)
 #    6) supabase/schema-chat-v2.sql  (privacidad, notificaciones, editar/eliminar)
+#    7) supabase/schema-chat-v3.sql  (búsqueda global de personas + refresh API)
 
 # 4. Desarrollo
 npm run dev               # http://localhost:5173
@@ -83,12 +84,12 @@ npm run dev               # http://localhost:5173
 
 ### Scripts
 
-| Comando | Descripción |
-| --- | --- |
-| `npm run dev` | Servidor de desarrollo (Vite) |
-| `npm run build` | Type-check (`tsc -b`) + build de producción |
-| `npm run lint` | ESLint |
-| `npm run preview` | Vista previa del build |
+| Comando           | Descripción                                 |
+| ----------------- | ------------------------------------------- |
+| `npm run dev`     | Servidor de desarrollo (Vite)               |
+| `npm run build`   | Type-check (`tsc -b`) + build de producción |
+| `npm run lint`    | ESLint                                      |
+| `npm run preview` | Vista previa del build                      |
 
 ## 🔐 Seguridad
 
@@ -130,7 +131,7 @@ git push -u origin main
 
 ### 2. Vercel
 
-1. [vercel.com/new](https://vercel.com/new) → *Import Git Repository* → WorkVault.
+1. [vercel.com/new](https://vercel.com/new) → _Import Git Repository_ → WorkVault.
 2. Framework: **Vite** (detecta solo). Build: `npm run build` · Output: `dist`.
 3. **Environment Variables** (Settings → Environment Variables):
    - `VITE_SUPABASE_URL` = `https://tu-proyecto.supabase.co`
@@ -141,7 +142,7 @@ git push -u origin main
    > **Cuidado con el valor**: un typo en la URL (una letra de menos, comillas
    > pegadas) no rompe el build, pero el host no resuelve y todo falla con
    > `Failed to fetch`. La app muestra el host en uso en el mensaje de error:
-   > compáralo con *Supabase → Project Settings → API → Project URL*.
+   > compáralo con _Supabase → Project Settings → API → Project URL_.
 4. Deploy → obtienes `https://workvault.vercel.app` (o similar).
 
 > `vercel.json` ya incluye el rewrite SPA: recargar `/login` o
@@ -154,7 +155,7 @@ Cuando ya tengas la URL de Vercel:
 - [ ] **Authentication → URL Configuration → Site URL**: `https://<tu-app>.vercel.app`
 - [ ] **Redirect URLs**: añadir `https://<tu-app>.vercel.app/login` y
       `https://<tu-app>.vercel.app/reset-password`
-- [ ] **Providers → Google**: *Authorized JavaScript origins* +=
+- [ ] **Providers → Google**: _Authorized JavaScript origins_ +=
       `https://<tu-app>.vercel.app` (la redirect URI de Google **no** cambia:
       sigue siendo `https://<proyecto>.supabase.co/auth/v1/callback`)
 - [x] **Providers → Email**: activo (las invitaciones a equipos envían un enlace
@@ -199,6 +200,6 @@ supabase/
 ├── schema-history.sql    # historial de claves + RLS
 ├── schema-sharing.sql    # equipos / espacios compartidos + RLS
 ├── schema-chat.sql       # chat, presencia, RLS y publicación Realtime
-└── schema-chat-v2.sql   # privacidad, notificaciones y edición/eliminación
+├── schema-chat-v2.sql    # privacidad, notificaciones y edición/eliminación
+└── schema-chat-v3.sql    # búsqueda global de personas y refresco de PostgREST
 ```
-
