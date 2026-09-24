@@ -44,7 +44,7 @@ export function CredentialCard({
   const categories = useVaultStore((s) => s.categories)
   const toggleFavorite = useVaultStore((s) => s.toggleCredentialFavorite)
   const workspaces = useWorkspaceStore((s) => s.workspaces)
-  const sharedItems = useWorkspaceStore((s) => s.items)
+  const sharedItems = useWorkspaceStore((s) => s.itemReferences)
   const [shareOpen, setShareOpen] = useState(false)
 
   const category = categories.find((c) => c.id === credential.categoryId)

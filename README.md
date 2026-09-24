@@ -26,10 +26,9 @@ Auth** (email/password y Google OAuth) y protegida con **Row Level Security**.
 - **Chat interno en tiempo real**: panel claro/oscuro con pestañas **Equipo** y
   **Búsqueda**, conversaciones privadas, mensajes sanitizados y suscripción a
   `chat_messages` mediante Supabase Realtime (`supabase/schema-chat.sql`).
-- **Presencia en tiempo real**: canal `online-users`, indicadores individual
-  verde/gris y contador de equipo solo para propietarios. El contador global
-  se habilita mediante una RPC server-side únicamente para
-  `elvissebas39@gmail.com` y se muestra dentro del menú de cuenta.
+- **Presencia en tiempo real scalable**: heartbeat privado por usuario (TTL de 90 s),
+  consulta por equipo/conversación visible y contador global únicamente para el
+  owner autorizado. Durante la transición mantiene fallback al canal anterior.
 - **Notificaciones de chat**: campana con contador persistente, avisos por
   mensaje y cambios del equipo; al abrir la lista se marcan como leídos y al
   hacer clic se abre la conversación relacionada.
@@ -74,6 +73,7 @@ cp .env.example .env      # completa VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
 #    5) supabase/schema-chat.sql     (chat + presencia + RLS + Realtime)
 #    6) supabase/schema-chat-v2.sql  (privacidad, notificaciones, editar/eliminar)
 #    7) supabase/schema-chat-v3.sql  (búsqueda global de personas + refresh API)
+#    8) supabase/schema-scalability.sql (índices, heartbeats y snapshots; ejecutar después de v3)
 
 # 4. Desarrollo
 npm run dev               # http://localhost:5173
@@ -98,11 +98,11 @@ Ver **[SECURITY.md](./SECURITY.md)** para el modelo completo. Resumen:
   `chat_messages` no contienen credenciales; cada lectura/escritura exige ser
   participante y la creación de conversaciones directas pasa por una RPC
   `SECURITY DEFINER` validada. El texto se sanea en cliente y servidor.
-- **Presencia**: el canal `online-users` solo muestra presencia; el indicador global
-  se muestra dentro del menú de cuenta únicamente después de que
-  `is_global_owner()` confirme en Supabase el correo exacto
-  `elvissebas39@gmail.com`. Los owners de equipo ven únicamente su contador
-  `[Equipo Online: X/Y]`.
+- **Presencia**: heartbeat privado en Supabase con TTL; la UI solo consulta
+  usuarios visibles del chat/equipo abierto. El contador global se muestra en el
+  menú de cuenta únicamente después de que `is_global_owner()` confirme en
+  Supabase el correo exacto `elvissebas39@gmail.com`. Hasta aplicar la migración
+  de escalabilidad se conserva el fallback compatible al canal anterior.
 - La `anon key` es pública **por diseño**; la protección real es RLS.
 - Headers de seguridad en producción via `vercel.json`: CSP, HSTS,
   `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
@@ -200,6 +200,43 @@ en el panel de Supabase. Mientras SMTP no esté configurado, **Continuar con
 Google** puede usarse si el alta de Google marca el correo como verificado; el
 registro por correo requiere un SMTP personalizado para producción.
 
+## 📈 Escalabilidad Supabase
+
+La aplicación deja de depender de un canal global de presencia y de cargas
+masivas al iniciar. La migración `supabase/schema-scalability.sql` añade:
+
+- índices compuestos para Vault, Equipos, Chat e historial;
+- `user_presence` con heartbeat individual y TTL de 90 segundos;
+- consultas de presencia únicamente para usuarios visibles;
+- snapshots RPC para Vault, Equipos, lista de conversaciones e historial;
+- paginación lógica del historial a 200 mensajes por conversación;
+- code-splitting de rutas, Chat y exportación Excel.
+
+### Ejecutar la migración
+
+1. Haz una copia de seguridad de la base de datos.
+2. En Supabase abre **SQL Editor → New query**.
+3. Ejecuta `supabase/schema-scalability.sql` después de `schema-chat-v3.sql`.
+4. Confirma que termina sin errores y que Supabase muestra las funciones RPC
+   nuevas en **Database → Functions**.
+5. Recarga la aplicación y prueba el menú de cuenta, el chat y una conversación.
+
+La migración es idempotente y no elimina datos. El cliente conserva un fallback
+temporal al canal anterior si todavía no se ha aplicado, por lo que el
+deployment y la migración pueden ordenarse sin dejar la app rota.
+
+### Qué sigue siendo una prioridad
+
+- Para el uso local de aproximadamente 100 usuarios, la arquitectura queda
+  preparada para clientes, Vault/chat bajo demanda y presencia acotada.
+- No hay una garantía de capacidad hasta medir el plan de Supabase, el número de
+  credenciales por cuenta, mensajes enviados y conexiones simultáneas.
+- Antes de una apertura pública amplia, cifra las credenciales en cliente: hoy
+  siguen almacenadas en texto plano aunque RLS proteja el acceso desde la app.
+- Para más de 100–300 simultáneos, activa límites y alertas de Supabase, ejecuta
+  pruebas k6/Artillery y considera Redis/colas solo cuando las métricas lo
+  indiquen.
+
 ## 🗺 Roadmap (plus de seguridad)
 
 - [ ] **Cifrado cliente AES-GCM** de las claves antes de sincronizar
@@ -209,8 +246,10 @@ registro por correo requiere un SMTP personalizado para producción.
 - [x] Historial de versiones de claves.
 - [x] Espacios compartidos con roles: invitación por email con enlace mágico y
       reclamación automática al iniciar sesión.
-- [x] Chat interno en tiempo real con RLS, sanitización XSS y búsqueda de
-      usuarios; presencia individual y métricas con permisos.
+- [x] Chat interno en tiempo real con RLS, sanitización XSS, búsqueda de
+      usuarios, historial bajo demanda y presencia con permisos.
+- [x] Optimización de carga: snapshots atómicos, índices compuestos, carga
+      diferida de Links/Notas/Chat y code-splitting de rutas.
 - [x] Medidor de fuerza de claves (implementación propia en
       `src/lib/password-strength.ts`).
 - [x] Limpieza automática del portapapeles al copiar una clave (30 s).
@@ -233,5 +272,6 @@ supabase/
 ├── schema-sharing.sql    # equipos / espacios compartidos + RLS
 ├── schema-chat.sql       # chat, presencia, RLS y publicación Realtime
 ├── schema-chat-v2.sql    # privacidad, notificaciones y edición/eliminación
-└── schema-chat-v3.sql    # búsqueda global de personas y refresco de PostgREST
+├── schema-chat-v3.sql     # búsqueda global de personas y refresco de PostgREST
+└── schema-scalability.sql  # índices, presencia TTL y snapshots de lectura
 ```

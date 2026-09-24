@@ -54,6 +54,18 @@ interface ProfileRow {
   has_name: boolean
 }
 
+interface ChatSnapshotPayload {
+  conversations?: ConversationRow[]
+  participants?: ParticipantRow[]
+  last_messages?: MessageRow[]
+  deleted_message_ids?: string[]
+}
+
+interface ConversationMessagesPayload {
+  messages?: MessageRow[]
+  deleted_message_ids?: string[]
+}
+
 interface ChatState {
   conversations: ChatConversation[]
   conversationParticipants: Map<string, ChatConversationParticipant[]>
@@ -61,13 +73,19 @@ interface ChatState {
   profiles: Map<string, ChatUser>
   deletedMessageIds: Set<string>
   activeConversationId: string | null
+  loadedConversationIds: Set<string>
+  messagesLoading: Set<string>
+  messageLoadFailed: Set<string>
+  /** Usuario propietario de este estado; evita mezclar sesiones. */
+  sessionUserId: string | null
+  initialized: boolean
   loading: boolean
   error: string | null
   searchQuery: string
   searchedUsers: ChatUser[]
   searching: boolean
   searchError: string | null
-  initialize: () => Promise<void>
+  initialize: (knownUserId?: string) => Promise<void>
   reset: () => void
   setActiveConversation: (conversationId: string | null) => void
   loadConversations: () => Promise<void>
@@ -170,6 +188,36 @@ function friendlyChatError(error: unknown): Error {
     return new Error('No se pudo conectar con Supabase para usar el chat.')
   }
   return new Error(message || 'No se pudo completar la operación del chat.')
+}
+
+const CHAT_CONVERSATION_COLUMNS = 'id, created_at, is_group, team_id'
+const CHAT_PARTICIPANT_COLUMNS =
+  'conversation_id, user_id, last_read_at, created_at'
+const CHAT_MESSAGE_COLUMNS =
+  'id, conversation_id, sender_id, content, created_at, edited_at, deleted_at, deleted_by'
+const CHAT_DELETION_COLUMNS = 'message_id'
+
+function groupMessages(
+  rows: MessageRow[],
+  deletedIds: Set<string>,
+): Map<string, ChatMessage[]> {
+  const grouped = new Map<string, ChatMessage[]>()
+  for (const row of rows) {
+    if (deletedIds.has(row.id)) continue
+    const list = grouped.get(row.conversation_id) ?? []
+    list.push(mapMessage(row))
+    grouped.set(row.conversation_id, list)
+  }
+  for (const [conversationId, list] of grouped) {
+    grouped.set(conversationId, sortMessages(list))
+  }
+  return grouped
+}
+
+function isMissingSnapshotRpc(message: string): boolean {
+  return /PGRST202|schema cache|function .*does not exist|could not find the function/i.test(
+    message,
+  )
 }
 
 function mapConversation(row: ConversationRow): ChatConversation {
@@ -280,6 +328,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   profiles: new Map(),
   deletedMessageIds: new Set(),
   activeConversationId: null,
+  loadedConversationIds: new Set(),
+  messagesLoading: new Set(),
+  messageLoadFailed: new Set(),
+  sessionUserId: null,
+  initialized: false,
   loading: false,
   error: null,
   searchQuery: '',
@@ -287,68 +340,96 @@ export const useChatStore = create<ChatState>((set, get) => ({
   searching: false,
   searchError: null,
 
-  initialize: async () => {
+  initialize: async (knownUserId) => {
+    if (get().initialized || get().loading) return
     if (!isSupabaseConfigured) {
-      set({ loading: false })
+      set({ loading: false, initialized: true })
       return
     }
     const generation = sessionGeneration
     set({ loading: true, error: null })
     try {
-      await requireUserId()
+      const sessionUserId = knownUserId ?? (await requireUserId())
       if (!isCurrentSession(generation)) return
-      const [convRes, partRes, msgRes, deletionRes] = await Promise.all([
-        supabase
-          .from('chat_conversations')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(100),
-        supabase
-          .from('chat_conversation_participants')
-          .select('*')
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('chat_messages')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(500),
-        supabase.from('chat_message_deletions').select('message_id'),
-      ])
-      if (!isCurrentSession(generation)) return
-      const firstError =
-        convRes.error ?? partRes.error ?? msgRes.error ?? deletionRes.error
-      if (firstError) throw firstError
+      const snapshotResult = await supabase.rpc('get_chat_snapshot')
+      let conversations: ChatConversation[]
+      let participants: Map<string, ChatConversationParticipant[]>
+      let messages: Map<string, ChatMessage[]>
+      let deletedMessageIds: Set<string>
 
-      const deletedMessageIds = new Set(
-        ((deletionRes.data ?? []) as { message_id: string }[]).map(
-          (row) => row.message_id,
-        ),
-      )
-
-      const conversations = (convRes.data ?? []).map((row) =>
-        mapConversation(row as ConversationRow),
-      )
-      const participants = new Map<string, ChatConversationParticipant[]>()
-      for (const row of (partRes.data ?? []) as ParticipantRow[]) {
-        const list = participants.get(row.conversation_id) ?? []
-        list.push(mapParticipant(row))
-        participants.set(row.conversation_id, list)
+      if (snapshotResult.error) {
+        if (!isMissingSnapshotRpc(snapshotResult.error.message)) {
+          throw snapshotResult.error
+        }
+        const [convRes, partRes, msgRes, deletionRes] = await Promise.all([
+          supabase
+            .from('chat_conversations')
+            .select(CHAT_CONVERSATION_COLUMNS)
+            .order('created_at', { ascending: false })
+            .limit(100),
+          supabase
+            .from('chat_conversation_participants')
+            .select(CHAT_PARTICIPANT_COLUMNS)
+            .order('created_at', { ascending: true }),
+          supabase
+            .from('chat_messages')
+            .select(CHAT_MESSAGE_COLUMNS)
+            .order('created_at', { ascending: false })
+            .limit(500),
+          supabase.from('chat_message_deletions').select(CHAT_DELETION_COLUMNS),
+        ])
+        const firstError =
+          convRes.error ?? partRes.error ?? msgRes.error ?? deletionRes.error
+        if (firstError) throw firstError
+        deletedMessageIds = new Set(
+          ((deletionRes.data ?? []) as { message_id: string }[]).map(
+            (row) => row.message_id,
+          ),
+        )
+        conversations = (convRes.data ?? []).map((row) =>
+          mapConversation(row as ConversationRow),
+        )
+        participants = new Map()
+        for (const row of (partRes.data ?? []) as ParticipantRow[]) {
+          const list = participants.get(row.conversation_id) ?? []
+          list.push(mapParticipant(row))
+          participants.set(row.conversation_id, list)
+        }
+        messages = groupMessages(
+          (msgRes.data ?? []) as MessageRow[],
+          deletedMessageIds,
+        )
+      } else {
+        const payload = snapshotResult.data as ChatSnapshotPayload | null
+        if (
+          !payload ||
+          !Array.isArray(payload.conversations) ||
+          !Array.isArray(payload.participants) ||
+          !Array.isArray(payload.last_messages)
+        ) {
+          throw new Error('El snapshot de chat tiene un formato inválido.')
+        }
+        deletedMessageIds = new Set(payload.deleted_message_ids ?? [])
+        conversations = payload.conversations.map((row) => mapConversation(row))
+        participants = new Map()
+        for (const row of payload.participants) {
+          const list = participants.get(row.conversation_id) ?? []
+          list.push(mapParticipant(row))
+          participants.set(row.conversation_id, list)
+        }
+        messages = groupMessages(payload.last_messages, deletedMessageIds)
       }
-      const messages = new Map<string, ChatMessage[]>()
-      for (const row of (msgRes.data ?? []) as MessageRow[]) {
-        if (deletedMessageIds.has(row.id)) continue
-        const list = messages.get(row.conversation_id) ?? []
-        list.push(mapMessage(row))
-        messages.set(row.conversation_id, list)
-      }
-      for (const [conversationId, list] of messages)
-        messages.set(conversationId, sortMessages(list))
       if (!isCurrentSession(generation)) return
       set({
         conversations,
         conversationParticipants: participants,
         messages,
         deletedMessageIds,
+        loadedConversationIds: new Set(),
+        messagesLoading: new Set(),
+        messageLoadFailed: new Set(),
+        sessionUserId,
+        initialized: true,
         loading: false,
         error: null,
       })
@@ -375,6 +456,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
       profiles: new Map(),
       deletedMessageIds: new Set(),
       activeConversationId: null,
+      loadedConversationIds: new Set(),
+      messagesLoading: new Set(),
+      messageLoadFailed: new Set(),
+      sessionUserId: null,
+      initialized: false,
       loading: false,
       error: null,
       searchQuery: '',
@@ -384,8 +470,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
     })
   },
   setActiveConversation: (conversationId) => {
-    set({ activeConversationId: conversationId, error: null })
-    if (conversationId) void get().loadMessages(conversationId)
+    // La carga del historial la dispara ChatDrawer cuando está abierto. Evita
+    // que un clic y el effect posterior descarguen la misma conversación dos veces.
+    set((state) => {
+      const nextFailed = new Set(state.messageLoadFailed)
+      if (conversationId) nextFailed.delete(conversationId)
+      return {
+        activeConversationId: conversationId,
+        messageLoadFailed: nextFailed,
+        error: null,
+      }
+    })
   },
 
   loadConversations: async () => {
@@ -394,7 +489,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('chat_conversations')
-        .select('*')
+        .select(CHAT_CONVERSATION_COLUMNS)
         .order('created_at', { ascending: false })
         .limit(100)
       if (!isCurrentSession(generation)) return
@@ -414,51 +509,109 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   loadMessages: async (conversationId) => {
     if (!isSupabaseConfigured) return
+    const state = get()
+    if (
+      state.loadedConversationIds.has(conversationId) ||
+      state.messagesLoading.has(conversationId)
+    ) {
+      return
+    }
     const generation = sessionGeneration
+    set((current) => {
+      const nextLoading = new Set(current.messagesLoading)
+      nextLoading.add(conversationId)
+      return { messagesLoading: nextLoading, error: null }
+    })
     try {
-      const [messageResult, deletionResult] = await Promise.all([
-        supabase
-          .from('chat_messages')
-          .select('*')
-          .eq('conversation_id', conversationId)
-          .order('created_at', { ascending: true })
-          .limit(200),
-        supabase.from('chat_message_deletions').select('message_id'),
-      ])
-      if (!isCurrentSession(generation)) return
-      if (messageResult.error) throw messageResult.error
-      if (deletionResult.error) throw deletionResult.error
-      const deletedIds = new Set(
-        ((deletionResult.data ?? []) as { message_id: string }[]).map(
-          (row) => row.message_id,
-        ),
-      )
-      const messages = sortMessages(
-        ((messageResult.data ?? []) as MessageRow[])
-          .filter((row) => !deletedIds.has(row.id))
-          .map((row) => mapMessage(row)),
-      )
-      set((state) => {
-        const next = new Map(state.messages)
-        const nextDeleted = new Set(state.deletedMessageIds)
-        for (const id of deletedIds) nextDeleted.add(id)
-        next.set(conversationId, messages)
-        return { messages: next, deletedMessageIds: nextDeleted, error: null }
+      const result = await supabase.rpc('get_conversation_messages', {
+        target_conversation_id: conversationId,
+        message_limit: 200,
       })
-      // Los remitentes pueden no estar todavía en conversationParticipants al
-      // abrir una conversación existente; cargarlos desde los mensajes evita
-      // mostrar temporalmente "Usuario".
+      let messageRows: MessageRow[]
+      let deletedIds: Set<string>
+      if (result.error) {
+        if (!isMissingSnapshotRpc(result.error.message)) throw result.error
+        const messageResult = await supabase
+          .from('chat_messages')
+          .select(CHAT_MESSAGE_COLUMNS)
+          .eq('conversation_id', conversationId)
+          .order('created_at', { ascending: false })
+          .limit(200)
+        if (messageResult.error) throw messageResult.error
+        messageRows = (messageResult.data ?? []) as MessageRow[]
+        const messageIds = messageRows.map((row) => row.id)
+        const deletionResult = messageIds.length
+          ? await supabase
+              .from('chat_message_deletions')
+              .select(CHAT_DELETION_COLUMNS)
+              .in('message_id', messageIds)
+          : { data: [], error: null }
+        if (deletionResult.error) throw deletionResult.error
+        deletedIds = new Set(
+          ((deletionResult.data ?? []) as { message_id: string }[]).map(
+            (row) => row.message_id,
+          ),
+        )
+      } else {
+        const payload = result.data as ConversationMessagesPayload | null
+        if (
+          !payload ||
+          !Array.isArray(payload.messages) ||
+          !Array.isArray(payload.deleted_message_ids)
+        ) {
+          throw new Error(
+            'El historial de la conversación tiene un formato inválido.',
+          )
+        }
+        messageRows = payload.messages
+        deletedIds = new Set(payload.deleted_message_ids)
+      }
+      if (!isCurrentSession(generation)) return
+      const messages =
+        groupMessages(messageRows, deletedIds).get(conversationId) ?? []
+      set((current) => {
+        const nextMessages = new Map(current.messages)
+        nextMessages.set(conversationId, messages)
+        const nextDeleted = new Set(current.deletedMessageIds)
+        for (const id of deletedIds) nextDeleted.add(id)
+        const nextLoaded = new Set(current.loadedConversationIds)
+        nextLoaded.add(conversationId)
+        const nextFailed = new Set(current.messageLoadFailed)
+        nextFailed.delete(conversationId)
+        const nextLoading = new Set(current.messagesLoading)
+        nextLoading.delete(conversationId)
+        return {
+          messages: nextMessages,
+          deletedMessageIds: nextDeleted,
+          loadedConversationIds: nextLoaded,
+          messageLoadFailed: nextFailed,
+          messagesLoading: nextLoading,
+          error: null,
+        }
+      })
       await get().loadProfiles(messages.map((message) => message.sender_id))
     } catch (error) {
       if (isCurrentSession(generation)) {
-        set({ error: friendlyChatError(error).message })
+        set((current) => {
+          const nextLoading = new Set(current.messagesLoading)
+          nextLoading.delete(conversationId)
+          const nextFailed = new Set(current.messageLoadFailed)
+          nextFailed.add(conversationId)
+          return {
+            messagesLoading: nextLoading,
+            messageLoadFailed: nextFailed,
+            error: friendlyChatError(error).message,
+          }
+        })
       }
     }
   },
 
   loadProfiles: async (userIds) => {
     if (!isSupabaseConfigured) return
-    const uniqueIds = [...new Set(userIds.filter(Boolean))]
+    const uniqueIds = [...new Set(userIds.filter(Boolean))].filter(
+      (id) => !get().profiles.has(id),
+    )
     if (uniqueIds.length === 0) return
     const generation = sessionGeneration
     try {
@@ -521,7 +674,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           sender_id: senderId,
           content: clean,
         })
-        .select('*')
+        .select(CHAT_MESSAGE_COLUMNS)
         .single()
       if (!isCurrentSession(generation)) return
       if (error) throw error
@@ -671,12 +824,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       const [convRes, partRes] = await Promise.all([
         supabase
           .from('chat_conversations')
-          .select('*')
+          .select(CHAT_CONVERSATION_COLUMNS)
           .eq('id', conversationId)
           .single(),
         supabase
           .from('chat_conversation_participants')
-          .select('*')
+          .select(CHAT_PARTICIPANT_COLUMNS)
           .eq('conversation_id', conversationId),
       ])
       if (!isCurrentSession(generation)) return null
@@ -851,9 +1004,20 @@ export function useChatSync() {
   const { user } = useAuth()
   const userId = user?.id
   useEffect(() => {
-    const chat = useChatStore.getState()
-    chat.reset()
-    if (userId) void chat.initialize()
+    const state = useChatStore.getState()
+    if (!userId) {
+      if (state.sessionUserId) state.reset()
+      return
+    }
+    if (state.sessionUserId === userId) return
+    // Una notificación puede seleccionar una conversación antes de que el
+    // drawer lazy se monte. Ese estado pendiente se conserva; cualquier otro
+    // estado pertenece a una sesión anterior y debe limpiarse.
+    if (state.sessionUserId === null && state.activeConversationId) {
+      useChatStore.setState({ sessionUserId: userId })
+      return
+    }
+    state.reset()
   }, [userId])
 }
 

@@ -4,6 +4,9 @@ import { useAuth } from '@/app/auth-context'
 import { isSupabaseConfigured, requireUserId, supabase } from '@/lib/supabase'
 import type { ChatNotification } from '@/types/chat'
 
+const NOTIFICATION_COLUMNS =
+  'id, recipient_id, actor_id, conversation_id, message_id, workspace_id, kind, preview, created_at, read_at'
+
 type NotificationRow = ChatNotification
 
 interface NotificationState {
@@ -57,7 +60,7 @@ export const useNotificationStore = create<NotificationState>((set) => ({
       if (generation !== notificationGeneration) return
       const { data, error } = await supabase
         .from('chat_notifications')
-        .select('*')
+        .select(NOTIFICATION_COLUMNS)
         .eq('recipient_id', userId)
         .order('created_at', { ascending: false })
         .limit(50)

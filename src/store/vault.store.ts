@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
+import { useAuth } from '@/app/auth-context'
 import { supabase, isSupabaseConfigured, requireUserId } from '@/lib/supabase'
 import {
   toCategory,
@@ -10,10 +11,12 @@ import {
   toSection,
 } from '@/lib/vault-mapper'
 import type {
+  CategoryRow,
   CredentialRow,
   HistoryRow,
   LinkRow,
   NoteRow,
+  SectionRow,
 } from '@/lib/vault-mapper'
 import { CATEGORY_COLORS } from '@/lib/category-colors'
 import type {
@@ -33,6 +36,24 @@ const DEFAULT_CATS: { name: string; color: string; section: string }[] = [
   { name: 'Infraestructura', color: CATEGORY_COLORS[2]!, section: 'Trabajo' },
   { name: 'Social', color: CATEGORY_COLORS[3]!, section: 'Redes' },
 ]
+
+const SECTION_COLUMNS = 'id, name, created_at'
+const CATEGORY_COLUMNS = 'id, section_id, name, color, created_at'
+const CREDENTIAL_COLUMNS =
+  'id, title, username, password, url, category_id, notes, favorite, created_at, updated_at'
+const LINK_COLUMNS =
+  'id, title, url, description, category_id, favorite, created_at, updated_at'
+const NOTE_COLUMNS =
+  'id, title, content, category_id, favorite, created_at, updated_at'
+const HISTORY_COLUMNS = 'id, credential_id, password, changed_at'
+
+function isMissingRpcError(message: string): boolean {
+  return /PGRST202|schema cache|function .*does not exist|could not find the function/i.test(
+    message,
+  )
+}
+
+let vaultLoadGeneration = 0
 
 function friendlySyncError(message: string): string {
   if (/row-level security/i.test(message))
@@ -83,9 +104,15 @@ interface VaultState {
   credentials: Credential[]
   categories: Category[]
   sections: VaultSection[]
-  /** Links/Notas (vault_links / vault_notes). */
+  /** Links/Notas se cargan bajo demanda al abrir su módulo. */
   links: LinkItem[]
   notes: Note[]
+  linksLoaded: boolean
+  notesLoaded: boolean
+  linksLoading: boolean
+  notesLoading: boolean
+  linksError: string | null
+  notesError: string | null
   /** Versiones anteriores de la clave de la credencial abierta (bajo demanda). */
   history: PasswordHistoryEntry[]
   /** Credencial a la que pertenece `history`. */
@@ -96,7 +123,9 @@ interface VaultState {
   status: SyncStatus
   error: string | null
   /** Carga los datos del usuario logueado. Crea seeds si es su primera vez. */
-  load: () => Promise<void>
+  load: (knownUserId?: string) => Promise<void>
+  loadLinks: () => Promise<void>
+  loadNotes: () => Promise<void>
   /** Vacía el estado local (al cerrar sesión). */
   reset: () => void
 
@@ -234,6 +263,12 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
   credentials: [],
   links: [],
   notes: [],
+  linksLoaded: false,
+  notesLoaded: false,
+  linksLoading: false,
+  notesLoading: false,
+  linksError: null,
+  notesError: null,
   history: [],
   historyCredentialId: null,
   historyLoading: false,
@@ -244,132 +279,193 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
   status: isSupabaseConfigured ? 'idle' : 'local',
   error: null,
 
-  load: async () => {
+  load: async (knownUserId) => {
+    const generation = ++vaultLoadGeneration
     if (!isSupabaseConfigured) {
-      set({ status: 'local', error: null })
+      set({
+        status: 'local',
+        error: null,
+        linksLoaded: true,
+        notesLoaded: true,
+      })
       return
     }
     set({ status: 'loading', error: null })
     try {
-      const userId = await requireUserId()
-      const [secRes, catRes, credRes] = await Promise.all([
-        supabase.from('vault_sections').select('*').order('created_at'),
-        supabase.from('vault_categories').select('*').order('created_at'),
-        supabase
-          .from('vault_credentials')
-          .select('*')
-          .order('updated_at', { ascending: false }),
-      ])
-      const firstError = secRes.error ?? catRes.error ?? credRes.error
-      if (firstError) throw new Error(friendlySyncError(firstError.message))
+      const userId = knownUserId ?? (await requireUserId())
+      const snapshotResult = await supabase.rpc('get_vault_snapshot')
+      let sectionRows: SectionRow[]
+      let categoryRows: CategoryRow[]
+      let credentialRows: CredentialRow[]
 
-      let sections = (secRes.data ?? []).map((r) =>
-        toSection(r as { id: string; name: string }),
-      )
-      let categories = (catRes.data ?? []).map((r) =>
-        toCategory(
-          r as { id: string; name: string; color: string; section_id: string },
-        ),
-      )
-      const credentials = (credRes.data ?? []).map((r) =>
-        toCredential(
-          r as {
-            id: string
-            title: string
-            username: string
-            password: string
-            url: string | null
-            category_id: string | null
-            notes: string | null
-            favorite: boolean
-            created_at: string
-            updated_at: string
-          },
-        ),
-      )
+      if (snapshotResult.error) {
+        if (!isMissingRpcError(snapshotResult.error.message)) {
+          throw new Error(friendlySyncError(snapshotResult.error.message))
+        }
+        const [sectionResult, categoryResult, credentialResult] =
+          await Promise.all([
+            supabase
+              .from('vault_sections')
+              .select(SECTION_COLUMNS)
+              .order('created_at'),
+            supabase
+              .from('vault_categories')
+              .select(CATEGORY_COLUMNS)
+              .order('created_at'),
+            supabase
+              .from('vault_credentials')
+              .select(CREDENTIAL_COLUMNS)
+              .order('updated_at', { ascending: false }),
+          ])
+        const firstError =
+          sectionResult.error ?? categoryResult.error ?? credentialResult.error
+        if (firstError) throw new Error(friendlySyncError(firstError.message))
+        sectionRows = (sectionResult.data ?? []) as SectionRow[]
+        categoryRows = (categoryResult.data ?? []) as CategoryRow[]
+        credentialRows = (credentialResult.data ?? []) as CredentialRow[]
+      } else {
+        const snapshot = snapshotResult.data as {
+          sections?: SectionRow[]
+          categories?: CategoryRow[]
+          credentials?: CredentialRow[]
+        }
+        if (
+          !Array.isArray(snapshot?.sections) ||
+          !Array.isArray(snapshot.categories) ||
+          !Array.isArray(snapshot.credentials)
+        ) {
+          throw new Error('El snapshot del Vault tiene un formato inválido.')
+        }
+        sectionRows = snapshot.sections
+        categoryRows = snapshot.categories
+        credentialRows = snapshot.credentials
+      }
+
+      if (generation !== vaultLoadGeneration) return
+      let sections = sectionRows.map(toSection)
+      let categories = categoryRows.map(toCategory)
+      const credentials = credentialRows.map(toCredential)
 
       if (sections.length === 0) {
-        const created: VaultSection[] = []
-        for (const name of DEFAULT_SECTIONS) {
-          const { data, error } = await supabase
-            .from('vault_sections')
-            .insert({ user_id: userId, name })
-            .select()
-            .single()
-          if (error) throw new Error(friendlySyncError(error.message))
-          created.push(toSection(data as { id: string; name: string }))
+        if (generation !== vaultLoadGeneration) return
+        const { data: sectionData, error: sectionError } = await supabase
+          .from('vault_sections')
+          .insert(DEFAULT_SECTIONS.map((name) => ({ user_id: userId, name })))
+          .select(SECTION_COLUMNS)
+        if (sectionError) {
+          throw new Error(friendlySyncError(sectionError.message))
         }
-        sections = created
-        const byName = new Map(created.map((s) => [s.name, s.id]))
-        const seeded: Category[] = []
-        for (const seed of DEFAULT_CATS) {
+        sections = (sectionData ?? []).map(toSection)
+        if (generation !== vaultLoadGeneration) return
+        const byName = new Map(
+          sections.map((section) => [section.name, section.id]),
+        )
+        const categoryRowsToCreate = DEFAULT_CATS.flatMap((seed) => {
           const sectionId = byName.get(seed.section)
-          if (!sectionId) continue
-          const { data, error } = await supabase
-            .from('vault_categories')
-            .insert({
-              user_id: userId,
-              section_id: sectionId,
-              name: seed.name,
-              color: seed.color,
-            })
-            .select()
-            .single()
-          if (error) throw new Error(friendlySyncError(error.message))
-          seeded.push(
-            toCategory(
-              data as {
-                id: string
-                name: string
-                color: string
-                section_id: string
-              },
-            ),
-          )
+          return sectionId
+            ? [
+                {
+                  user_id: userId,
+                  section_id: sectionId,
+                  name: seed.name,
+                  color: seed.color,
+                },
+              ]
+            : []
+        })
+        if (generation !== vaultLoadGeneration) return
+        const { data: categoryData, error: categoryError } = await supabase
+          .from('vault_categories')
+          .insert(categoryRowsToCreate)
+          .select(CATEGORY_COLUMNS)
+        if (categoryError) {
+          throw new Error(friendlySyncError(categoryError.message))
         }
-        categories = seeded
+        categories = (categoryData ?? []).map(toCategory)
       }
 
+      if (generation !== vaultLoadGeneration) return
       set({ status: 'ready', error: null, sections, categories, credentials })
-
-      // Links/Notas: carga best-effort; si aún no existe la tabla, no bloquea.
-      const [linkRes, noteRes] = await Promise.all([
-        supabase
-          .from('vault_links')
-          .select('*')
-          .order('updated_at', { ascending: false }),
-        supabase
-          .from('vault_notes')
-          .select('*')
-          .order('updated_at', { ascending: false }),
-      ])
-      if (!linkRes.error && linkRes.data) {
-        set({ links: linkRes.data.map((r) => toLink(r as LinkRow)) })
-      }
-      if (!noteRes.error && noteRes.data) {
-        set({ notes: noteRes.data.map((r) => toNote(r as NoteRow)) })
-      }
     } catch (e) {
+      if (generation !== vaultLoadGeneration) return
       const message =
         e instanceof Error ? e.message : 'Error al cargar tus datos.'
       set({ status: 'error', error: message })
     }
   },
 
-  reset: () =>
+  loadLinks: async () => {
+    if (get().linksLoaded || get().linksLoading) return
+    const generation = vaultLoadGeneration
+    if (!isSupabaseConfigured) {
+      set({ linksLoaded: true, linksLoading: false, linksError: null })
+      return
+    }
+    set({ linksLoading: true, linksError: null })
+    const { data, error } = await supabase
+      .from('vault_links')
+      .select(LINK_COLUMNS)
+      .order('updated_at', { ascending: false })
+    if (generation !== vaultLoadGeneration) return
+    if (error) {
+      set({ linksLoading: false, linksError: friendlySyncError(error.message) })
+      return
+    }
+    set({
+      links: ((data ?? []) as LinkRow[]).map(toLink),
+      linksLoaded: true,
+      linksLoading: false,
+      linksError: null,
+    })
+  },
+
+  loadNotes: async () => {
+    if (get().notesLoaded || get().notesLoading) return
+    const generation = vaultLoadGeneration
+    if (!isSupabaseConfigured) {
+      set({ notesLoaded: true, notesLoading: false, notesError: null })
+      return
+    }
+    set({ notesLoading: true, notesError: null })
+    const { data, error } = await supabase
+      .from('vault_notes')
+      .select(NOTE_COLUMNS)
+      .order('updated_at', { ascending: false })
+    if (generation !== vaultLoadGeneration) return
+    if (error) {
+      set({ notesLoading: false, notesError: friendlySyncError(error.message) })
+      return
+    }
+    set({
+      notes: ((data ?? []) as NoteRow[]).map(toNote),
+      notesLoaded: true,
+      notesLoading: false,
+      notesError: null,
+    })
+  },
+
+  reset: () => {
+    vaultLoadGeneration += 1
     set({
       credentials: [],
       categories: [],
       sections: [],
       links: [],
       notes: [],
+      linksLoaded: false,
+      notesLoaded: false,
+      linksLoading: false,
+      notesLoading: false,
+      linksError: null,
+      notesError: null,
       history: [],
       historyCredentialId: null,
       historyLoading: false,
       historyError: null,
       status: 'idle',
       error: null,
-    }),
+    })
+  },
 
   addCredential: async (input) => {
     const userId = await requireUserId()
@@ -562,7 +658,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     }
     const { data, error } = await supabase
       .from('vault_password_history')
-      .select('*')
+      .select(HISTORY_COLUMNS)
       .eq('credential_id', credentialId)
       .order('changed_at', { ascending: false })
       .limit(HISTORY_LIMIT)
@@ -749,8 +845,8 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     const state = get()
     const orphans = state.categories.filter((c) => c.sectionId === id)
     const remaining = state.sections.filter((s) => s.id !== id)
-    if (orphans.length > 0 && remaining.length > 0) {
-      const fallback = remaining[0]!.id
+    const fallback = remaining[0]?.id
+    if (orphans.length > 0 && fallback) {
       const { error } = await supabase
         .from('vault_categories')
         .update({ section_id: fallback })
@@ -762,7 +858,45 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       .delete()
       .eq('id', id)
     if (error) throw new Error(friendlySyncError(error.message))
-    await get().load()
+    set((state) => {
+      const orphanedCategoryIds = new Set(
+        state.categories
+          .filter((category) => category.sectionId === id)
+          .map((category) => category.id),
+      )
+      return {
+        sections: state.sections.filter((section) => section.id !== id),
+        categories: fallback
+          ? state.categories.map((category) =>
+              category.sectionId === id
+                ? { ...category, sectionId: fallback }
+                : category,
+            )
+          : state.categories.filter((category) => category.sectionId !== id),
+        credentials: fallback
+          ? state.credentials
+          : state.credentials.map((credential) =>
+              credential.categoryId &&
+              orphanedCategoryIds.has(credential.categoryId)
+                ? { ...credential, categoryId: undefined }
+                : credential,
+            ),
+        links: fallback
+          ? state.links
+          : state.links.map((link) =>
+              link.categoryId && orphanedCategoryIds.has(link.categoryId)
+                ? { ...link, categoryId: undefined }
+                : link,
+            ),
+        notes: fallback
+          ? state.notes
+          : state.notes.map((note) =>
+              note.categoryId && orphanedCategoryIds.has(note.categoryId)
+                ? { ...note, categoryId: undefined }
+                : note,
+            ),
+      }
+    })
   },
 
   addCategory: async (input) => {
@@ -819,29 +953,35 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       .delete()
       .eq('id', id)
     if (error) throw new Error(friendlySyncError(error.message))
-    await get().load()
+    set((state) => ({
+      categories: state.categories.filter((category) => category.id !== id),
+      links: state.links.map((link) =>
+        link.categoryId === id ? { ...link, categoryId: undefined } : link,
+      ),
+      notes: state.notes.map((note) =>
+        note.categoryId === id ? { ...note, categoryId: undefined } : note,
+      ),
+      credentials: state.credentials.map((credential) =>
+        credential.categoryId === id
+          ? { ...credential, categoryId: undefined }
+          : credential,
+      ),
+    }))
   },
 }))
 
-/** Sincroniza el store con la sesión: carga al entrar, limpia al salir. Montar una vez. */
+/** Una sola carga por cambio de sesión; AuthContext ya resolve getSession. */
 export function useVaultSync() {
+  const { user } = useAuth()
+  const userId = user?.id
   useEffect(() => {
-    let cancelled = false
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (cancelled) return
-        if (session) void useVaultStore.getState().load()
-        else useVaultStore.getState().reset()
-      },
-    )
-    supabase.auth.getSession().then(({ data }) => {
-      if (cancelled) return
-      if (data.session) void useVaultStore.getState().load()
-      else useVaultStore.getState().reset()
-    })
-    return () => {
-      cancelled = true
-      listener.subscription.unsubscribe()
+    if (!isSupabaseConfigured) {
+      if (useVaultStore.getState().status !== 'local') {
+        void useVaultStore.getState().load()
+      }
+      return
     }
-  }, [])
+    if (userId) void useVaultStore.getState().load(userId)
+    else useVaultStore.getState().reset()
+  }, [userId])
 }

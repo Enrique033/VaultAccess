@@ -22,7 +22,10 @@ export function Links() {
   const sections = useVaultStore((s) => s.sections)
   const status = useVaultStore((s) => s.status)
   const syncError = useVaultStore((s) => s.error)
-  const retryLoad = useVaultStore((s) => s.load)
+  const linksLoaded = useVaultStore((s) => s.linksLoaded)
+  const linksLoading = useVaultStore((s) => s.linksLoading)
+  const linksError = useVaultStore((s) => s.linksError)
+  const loadLinks = useVaultStore((s) => s.loadLinks)
   const addLink = useVaultStore((s) => s.addLink)
   const updateLink = useVaultStore((s) => s.updateLink)
   const deleteLink = useVaultStore((s) => s.deleteLink)
@@ -44,6 +47,10 @@ export function Links() {
   useEffect(() => {
     if (focusSignal > 0) searchRef.current?.focus()
   }, [focusSignal])
+
+  useEffect(() => {
+    void loadLinks()
+  }, [loadLinks])
 
   // Abre el diálogo cuando el Header navega con ?new=1
   const newParam = searchParams.get('new')
@@ -161,7 +168,7 @@ export function Links() {
       )}
 
       {/* Content */}
-      {status === 'loading' ? (
+      {status === 'loading' || linksLoading || (!linksLoaded && !linksError) ? (
         <CardGridSkeleton />
       ) : status === 'error' ? (
         <EmptyState
@@ -169,7 +176,18 @@ export function Links() {
           title="No se pudo sincronizar"
           description={syncError ?? 'Error al cargar los datos desde Supabase.'}
           action={
-            <Button variant="primary" onClick={() => void retryLoad()}>
+            <Button variant="primary" onClick={() => void loadLinks()}>
+              Reintentar
+            </Button>
+          }
+        />
+      ) : linksError ? (
+        <EmptyState
+          icon={Link2}
+          title="No se pudieron cargar los enlaces"
+          description={linksError}
+          action={
+            <Button variant="primary" onClick={() => void loadLinks()}>
               Reintentar
             </Button>
           }

@@ -25,24 +25,24 @@ modelo evita falsos positivos al reportar vulnerabilidades:
 
 ## Controles implementados
 
-| Capa | Control |
-| --- | --- |
-| Datos | RLS activo en las tablas del Vault, sharing, historial y `chat_conversations`, `chat_conversation_participants`, `chat_messages` |
-| Privacidad | `list_workspace_members()` y `get_chat_user_profiles()` ocultan el email a usuarios no globales cuando existe un nombre registrado; solo `elvissebas39@gmail.com` ve nombre + correo |
-| Chat | Las tablas `chat_*` están aisladas de credenciales; lectura y envío exigen ser participante. La creación de chats directos usa una RPC `SECURITY DEFINER` validada y el contenido se sanea antes de persistirse |
-| Notificaciones | `chat_notifications` solo es legible por su destinatario; un registro por mensaje y avisos genéricos de cambios del equipo, sin copiar credenciales |
-| Mensajes | Editar/eliminar para todos requiere ser el emisor; “eliminar para mí” se registra en `chat_message_deletions` sin modificar el mensaje de los demás |
-| Presencia | Canal Realtime `online-users`; el contador global se muestra en el menú de cuenta solo tras `is_global_owner()` server-side para `elvissebas39@gmail.com`. Los owners de equipo solo ven su equipo |
-| Equipos | RLS por pertenencia: funciones `security definer` (`is_workspace_member`, `workspace_role`) evitan recursión y no exponen `auth.users`. Compartir **copia** el dato: nunca se da acceso al vault personal |
-| Invitaciones | Roles (`owner`/`editor`/`viewer`); la invitación se reclama por email al iniciar sesión (`claim_workspace_invites()`, que solo puede fijar el propio `user_id`) |
-| Importación | Los respaldos se leen en el navegador; el archivo no se sube a ningún servidor |
-| Portapapeles | Limpieza automática 30 s tras copiar una clave (solo si el contenido sigue intacto) |
-| Sesión | Cierre automático por inactividad (15 min sin interacción) |
-| Transporte | HTTPS obligatorio (Supabase y Vercel) + HSTS |
-| Browser | CSP, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` (ver `vercel.json`) |
-| Secretos | `.env` fuera de git (`.gitignore`); solo variables `VITE_*` (públicas) |
-| Auth | Email/password + Google OAuth, reset por enlace con caducidad, validación de errores sin filtrar detalles |
-| Indexación | `robots.txt` con `Disallow: /` + `meta noindex` |
+| Capa           | Control                                                                                                                                                                                                         |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Datos          | RLS activo en las tablas del Vault, sharing, historial y `chat_conversations`, `chat_conversation_participants`, `chat_messages`                                                                                |
+| Privacidad     | `list_workspace_members()` y `get_chat_user_profiles()` ocultan el email a usuarios no globales cuando existe un nombre registrado; solo `elvissebas39@gmail.com` ve nombre + correo                            |
+| Chat           | Las tablas `chat_*` están aisladas de credenciales; lectura y envío exigen ser participante. La creación de chats directos usa una RPC `SECURITY DEFINER` validada y el contenido se sanea antes de persistirse |
+| Notificaciones | `chat_notifications` solo es legible por su destinatario; un registro por mensaje y avisos genéricos de cambios del equipo, sin copiar credenciales                                                             |
+| Mensajes       | Editar/eliminar para todos requiere ser el emisor; “eliminar para mí” se registra en `chat_message_deletions` sin modificar el mensaje de los demás                                                             |
+| Presencia      | Heartbeat privado con TTL y consultas solo a usuarios visibles; el contador global requiere `is_global_owner()` server-side para `elvissebas39@gmail.com`. El canal anterior queda como fallback temporal       |
+| Equipos        | RLS por pertenencia: funciones `security definer` (`is_workspace_member`, `workspace_role`) evitan recursión y no exponen `auth.users`. Compartir **copia** el dato: nunca se da acceso al vault personal       |
+| Invitaciones   | Roles (`owner`/`editor`/`viewer`); la invitación se reclama por email al iniciar sesión (`claim_workspace_invites()`, que solo puede fijar el propio `user_id`)                                                 |
+| Importación    | Los respaldos se leen en el navegador; el archivo no se sube a ningún servidor                                                                                                                                  |
+| Portapapeles   | Limpieza automática 30 s tras copiar una clave (solo si el contenido sigue intacto)                                                                                                                             |
+| Sesión         | Cierre automático por inactividad (15 min sin interacción)                                                                                                                                                      |
+| Transporte     | HTTPS obligatorio (Supabase y Vercel) + HSTS                                                                                                                                                                    |
+| Browser        | CSP, `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy` (ver `vercel.json`)                                                                                                            |
+| Secretos       | `.env` fuera de git (`.gitignore`); solo variables `VITE_*` (públicas)                                                                                                                                          |
+| Auth           | Email/password + Google OAuth, reset por enlace con caducidad, validación de errores sin filtrar detalles                                                                                                       |
+| Indexación     | `robots.txt` con `Disallow: /` + `meta noindex`                                                                                                                                                                 |
 
 ## Versiones soportadas
 

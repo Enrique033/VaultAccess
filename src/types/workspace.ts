@@ -22,6 +22,12 @@ export interface WorkspaceMember {
   createdAt: string
 }
 
+export interface WorkspaceItemReference {
+  id: string
+  workspaceId: string
+  credentialId?: string
+}
+
 /** Copia compartida de una credencial dentro de un espacio. */
 export interface WorkspaceItem {
   id: string

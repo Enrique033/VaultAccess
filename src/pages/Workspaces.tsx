@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Link } from 'react-router'
 import {
@@ -56,12 +56,17 @@ export function Workspaces() {
 
   const workspaces = useWorkspaceStore((s) => s.workspaces)
   const members = useWorkspaceStore((s) => s.members)
-  const items = useWorkspaceStore((s) => s.items)
+  const itemReferences = useWorkspaceStore((s) => s.itemReferences)
+  const itemsWorkspaceId = useWorkspaceStore((s) => s.itemsWorkspaceId)
+  const itemsLoading = useWorkspaceStore((s) => s.itemsLoading)
+  const itemsError = useWorkspaceStore((s) => s.itemsError)
   const activeId = useWorkspaceStore((s) => s.activeId)
   const status = useWorkspaceStore((s) => s.status)
   const error = useWorkspaceStore((s) => s.error)
   const setActive = useWorkspaceStore((s) => s.setActive)
   const load = useWorkspaceStore((s) => s.load)
+  const loadWorkspaceItems = useWorkspaceStore((s) => s.loadWorkspaceItems)
+  const items = useWorkspaceStore((s) => s.items)
   const createWorkspace = useWorkspaceStore((s) => s.createWorkspace)
   const renameWorkspace = useWorkspaceStore((s) => s.renameWorkspace)
   const deleteWorkspace = useWorkspaceStore((s) => s.deleteWorkspace)
@@ -85,16 +90,21 @@ export function Workspaces() {
     () => members.filter((m) => m.workspaceId === activeId),
     [members, activeId],
   )
+  useEffect(() => {
+    if (!activeId) return
+    void loadWorkspaceItems(activeId)
+  }, [activeId, loadWorkspaceItems])
+
   const activeItems = useMemo(
-    () => items.filter((i) => i.workspaceId === activeId),
-    [items, activeId],
+    () => (itemsWorkspaceId === activeId ? items : []),
+    [activeId, items, itemsWorkspaceId],
   )
   const isOwner = Boolean(active && user && active.ownerId === user.id)
 
   const countMembers = (id: string) =>
     members.filter((m) => m.workspaceId === id).length
   const countItems = (id: string) =>
-    items.filter((i) => i.workspaceId === id).length
+    itemReferences.filter((i) => i.workspaceId === id).length
 
   /** Ejecuta una acción del store con toast de error unificado. */
   const run = async (action: () => Promise<void>, ok?: string) => {
@@ -160,7 +170,7 @@ export function Workspaces() {
         <p className="mt-1 text-sm text-muted">
           {workspaces.length === 0
             ? 'Comparte credenciales concretas con tu equipo sin exponer el resto de tu espacio personal.'
-            : `${workspaces.length} espacio${workspaces.length === 1 ? '' : 's'} · ${items.length} credencial${items.length === 1 ? '' : 'es'} compartida${items.length === 1 ? '' : 's'}.`}
+            : `${workspaces.length} espacio${workspaces.length === 1 ? '' : 's'} · ${itemReferences.length} credencial${itemReferences.length === 1 ? '' : 'es'} compartida${itemReferences.length === 1 ? '' : 's'}.`}
         </p>
       </div>
       <Button variant="primary" onClick={openCreate}>
@@ -325,7 +335,28 @@ export function Workspaces() {
         Credenciales compartidas
       </h2>
 
-      {activeItems.length === 0 ? (
+      {itemsLoading ? (
+        <div
+          className="mt-3 space-y-2"
+          aria-label="Cargando credenciales compartidas"
+        >
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
+        </div>
+      ) : itemsError ? (
+        <div className="mt-3 rounded-lg border border-danger/25 bg-danger/10 px-3 py-3 text-xs text-danger">
+          {itemsError}{' '}
+          <button
+            type="button"
+            className="font-semibold underline underline-offset-2"
+            onClick={() => {
+              if (activeId) void loadWorkspaceItems(activeId)
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      ) : activeItems.length === 0 ? (
         <div className="mt-3 rounded-lg border border-dashed border-border px-4 py-8 text-center">
           <Building2 className="mx-auto size-5 text-muted" />
           <p className="mt-2 text-sm font-medium text-foreground">

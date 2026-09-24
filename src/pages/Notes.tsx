@@ -22,7 +22,10 @@ export function Notes() {
   const sections = useVaultStore((s) => s.sections)
   const status = useVaultStore((s) => s.status)
   const syncError = useVaultStore((s) => s.error)
-  const retryLoad = useVaultStore((s) => s.load)
+  const notesLoaded = useVaultStore((s) => s.notesLoaded)
+  const notesLoading = useVaultStore((s) => s.notesLoading)
+  const notesError = useVaultStore((s) => s.notesError)
+  const loadNotes = useVaultStore((s) => s.loadNotes)
   const addNote = useVaultStore((s) => s.addNote)
   const updateNote = useVaultStore((s) => s.updateNote)
   const deleteNote = useVaultStore((s) => s.deleteNote)
@@ -44,6 +47,10 @@ export function Notes() {
   useEffect(() => {
     if (focusSignal > 0) searchRef.current?.focus()
   }, [focusSignal])
+
+  useEffect(() => {
+    void loadNotes()
+  }, [loadNotes])
 
   // Abre el diálogo cuando el Header navega con ?new=1
   const newParam = searchParams.get('new')
@@ -159,7 +166,7 @@ export function Notes() {
       )}
 
       {/* Content */}
-      {status === 'loading' ? (
+      {status === 'loading' || notesLoading || (!notesLoaded && !notesError) ? (
         <CardGridSkeleton />
       ) : status === 'error' ? (
         <EmptyState
@@ -167,7 +174,18 @@ export function Notes() {
           title="No se pudo sincronizar"
           description={syncError ?? 'Error al cargar los datos desde Supabase.'}
           action={
-            <Button variant="primary" onClick={() => void retryLoad()}>
+            <Button variant="primary" onClick={() => void loadNotes()}>
+              Reintentar
+            </Button>
+          }
+        />
+      ) : notesError ? (
+        <EmptyState
+          icon={NotebookPen}
+          title="No se pudieron cargar las notas"
+          description={notesError}
+          action={
+            <Button variant="primary" onClick={() => void loadNotes()}>
               Reintentar
             </Button>
           }

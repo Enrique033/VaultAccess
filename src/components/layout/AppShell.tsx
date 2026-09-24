@@ -1,9 +1,10 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import type { MouseEvent } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import { Sidebar, MobileSidebar } from './Sidebar'
 import { Header } from './Header'
 import { useUIStore } from '@/store/ui.store'
+import { isSupabaseConfigured } from '@/lib/supabase'
 import { useSearchStore } from '@/store/search.store'
 import { useVaultSync } from '@/store/vault.store'
 import { useWorkspaceSync } from '@/store/workspace.store'
@@ -11,8 +12,11 @@ import { useIdleSignOut } from '@/hooks/useIdleSignOut'
 import { PresenceProvider } from '@/hooks/usePresence'
 import { useChatSync } from '@/store/chat.store'
 import { useNotificationSync } from '@/store/notification.store'
-import { ChatDrawer } from '@/components/chat/ChatDrawer'
-import { isSupabaseConfigured } from '@/lib/supabase'
+const ChatDrawer = lazy(() =>
+  import('@/components/chat/ChatDrawer').then((module) => ({
+    default: module.ChatDrawer,
+  })),
+)
 
 export function AppShell() {
   useVaultSync()
@@ -24,6 +28,7 @@ export function AppShell() {
   const collapsed = useUIStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
   const mobileNavOpen = useUIStore((s) => s.mobileNavOpen)
+  const chatOpen = useUIStore((s) => s.chatOpen)
   const setMobileNavOpen = useUIStore((s) => s.setMobileNavOpen)
   const sectionId = useSearchStore((s) => s.sectionId)
   const categoryFilter = useSearchStore((s) => s.categoryFilter)
@@ -77,7 +82,11 @@ export function AppShell() {
             </div>
           </main>
         </div>
-        <ChatDrawer />
+        {chatOpen && (
+          <Suspense fallback={null}>
+            <ChatDrawer />
+          </Suspense>
+        )}
       </div>
     </PresenceProvider>
   )

@@ -26,7 +26,8 @@ import {
 import { SearchInput } from '@/components/ui/SearchInput'
 import { Textarea } from '@/components/ui/Textarea'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { getAvatarColor, usePresenceContext } from '@/hooks/usePresence'
+import { getAvatarColor } from '@/lib/avatar'
+import { usePresenceContext } from '@/hooks/usePresence'
 import {
   useChatStore,
   useConversationsWithLastMessage,
@@ -124,17 +125,18 @@ function PersonRow({
 
 function memberToChatUser(
   member: WorkspaceMember,
-  online: ChatUser | undefined,
+  profile: ChatUser | undefined,
+  isOnline: boolean,
 ): ChatUser {
   const id = member.userId ?? member.displayName
   return {
     id,
     email: member.email,
-    name: online?.name || member.displayName,
+    name: profile?.name || member.displayName,
     hasName: member.displayName !== member.email,
-    avatarColor: online?.avatarColor || getAvatarColor(id),
-    isOnline: Boolean(online),
-    lastSeenAt: online?.lastSeenAt,
+    avatarColor: profile?.avatarColor || getAvatarColor(id),
+    isOnline,
+    lastSeenAt: profile?.lastSeenAt,
   }
 }
 
@@ -145,7 +147,7 @@ export function ChatDrawer() {
   const workspaces = useWorkspaceStore((state) => state.workspaces)
   const members = useWorkspaceStore((state) => state.members)
   const activeWorkspaceId = useWorkspaceStore((state) => state.activeId)
-  const { users: onlineUsers, isOnline } = usePresenceContext()
+  const { users: onlineUsers, isOnline, refreshPresence } = usePresenceContext()
   const conversations = useConversationsWithLastMessage()
   const activeConversationId = useChatStore(
     (state) => state.activeConversationId,
@@ -177,6 +179,17 @@ export function ChatDrawer() {
   const subscribeToMessages = useChatStore((state) => state.subscribeToMessages)
   const chatError = useChatStore((state) => state.error)
   const loading = useChatStore((state) => state.loading)
+  const initializeChat = useChatStore((state) => state.initialize)
+  const chatInitialized = useChatStore((state) => state.initialized)
+  const chatLoading = useChatStore((state) => state.loading)
+  const loadedConversationIds = useChatStore(
+    (state) => state.loadedConversationIds,
+  )
+  const messagesLoading = useChatStore((state) => state.messagesLoading)
+  const messageLoadFailed = useChatStore((state) => state.messageLoadFailed)
+  const activeMessageLoading = activeConversationId
+    ? messagesLoading.has(activeConversationId)
+    : false
   const markConversationRead = useNotificationStore(
     (state) => state.markConversationRead,
   )
@@ -194,6 +207,7 @@ export function ChatDrawer() {
     scope: 'me' | 'everyone'
   } | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const chatInitializationRequested = useRef<string | null>(null)
 
   const activeWorkspace =
     workspaces.find((workspace) => workspace.id === activeWorkspaceId) ?? null
@@ -231,6 +245,21 @@ export function ChatDrawer() {
       ),
     [activeWorkspaceId, members],
   )
+  const visiblePresenceIds = useMemo(
+    () =>
+      [
+        ...new Set([
+          ...teamMembers.flatMap((member) =>
+            member.userId ? [member.userId] : [],
+          ),
+          ...activeParticipants.map((participant) => participant.user_id),
+          ...[...profiles.keys()],
+          ...searchedUsers.map((searched) => searched.id),
+        ]),
+      ].slice(0, 200),
+    [activeParticipants, profiles, searchedUsers, teamMembers],
+  )
+  const presenceKey = visiblePresenceIds.join(',')
   const teamOnline =
     user &&
     activeWorkspace &&
@@ -314,16 +343,67 @@ export function ChatDrawer() {
         : null
 
   useEffect(() => {
-    if (!open || !activeConversationId) return
-    if (!messagesByConversation.has(activeConversationId)) {
-      void loadMessages(activeConversationId)
+    if (!open || !presenceKey) return
+    const ids = presenceKey.split(',').filter(Boolean)
+    void refreshPresence(ids)
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshPresence(ids)
+    }, 30_000)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void refreshPresence(ids)
     }
-  }, [activeConversationId, loadMessages, messagesByConversation, open])
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [open, presenceKey, refreshPresence])
 
   useEffect(() => {
-    if (!activeConversationId) return
+    chatInitializationRequested.current = null
+  }, [user?.id])
+
+  useEffect(() => {
+    if (!open) {
+      chatInitializationRequested.current = null
+      return
+    }
+    if (
+      !user?.id ||
+      chatInitialized ||
+      chatLoading ||
+      chatInitializationRequested.current === user.id
+    ) {
+      return
+    }
+    chatInitializationRequested.current = user.id
+    void initializeChat(user.id)
+  }, [chatInitialized, chatLoading, initializeChat, open, user?.id])
+
+  useEffect(() => {
+    if (!open || !chatInitialized || !activeConversationId) return
+    if (
+      loadedConversationIds.has(activeConversationId) ||
+      messagesLoading.has(activeConversationId) ||
+      messageLoadFailed.has(activeConversationId)
+    ) {
+      return
+    }
+    void loadMessages(activeConversationId)
+  }, [
+    activeConversationId,
+    chatInitialized,
+    loadedConversationIds,
+    loadMessages,
+    messageLoadFailed,
+    messagesLoading,
+    open,
+  ])
+
+  useEffect(() => {
+    if (!open || !chatInitialized || !activeConversationId) return
     return subscribeToMessages(activeConversationId)
-  }, [activeConversationId, subscribeToMessages])
+  }, [activeConversationId, chatInitialized, open, subscribeToMessages])
 
   useEffect(() => {
     if (!activeConversationId) return
@@ -541,9 +621,12 @@ export function ChatDrawer() {
                     {teamMembers.map((member) => {
                       const memberId = member.userId
                       if (!memberId) return null
-                      const online = onlineUsers.get(memberId)
                       const profile = profiles.get(memberId)
-                      const person = memberToChatUser(member, profile ?? online)
+                      const person = memberToChatUser(
+                        member,
+                        profile ?? onlineUsers.get(memberId),
+                        isOnline(memberId),
+                      )
                       const isMe = memberId === user?.id
                       return (
                         <PersonRow
@@ -718,7 +801,7 @@ export function ChatDrawer() {
                   Los mensajes se muestran como texto seguro
                 </p>
               </div>
-              {loading && (
+              {(loading || activeMessageLoading) && (
                 <Loader2 className="size-3.5 animate-spin text-muted" />
               )}
             </div>

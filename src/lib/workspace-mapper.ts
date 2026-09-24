@@ -1,6 +1,7 @@
 import type {
   Workspace,
   WorkspaceItem,
+  WorkspaceItemReference,
   WorkspaceMember,
   WorkspaceRole,
 } from '@/types'
@@ -22,6 +23,12 @@ export interface WorkspaceMemberRow {
   display_name?: string | null
   role: WorkspaceRole
   created_at: string
+}
+
+export interface WorkspaceItemReferenceRow {
+  id: string
+  workspace_id: string
+  credential_id: string | null
 }
 
 /** Fila de `vault_workspace_items` en Supabase. */
@@ -58,6 +65,16 @@ export function toWorkspaceMember(row: WorkspaceMemberRow): WorkspaceMember {
     displayName,
     role: row.role,
     createdAt: row.created_at,
+  }
+}
+
+export function toWorkspaceItemReference(
+  row: WorkspaceItemReferenceRow,
+): WorkspaceItemReference {
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    credentialId: row.credential_id ?? undefined,
   }
 }
 

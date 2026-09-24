@@ -33,7 +33,7 @@ export function ShareCredentialDialog({
   const { user } = useAuth()
   const workspaces = useWorkspaceStore((s) => s.workspaces)
   const members = useWorkspaceStore((s) => s.members)
-  const items = useWorkspaceStore((s) => s.items)
+  const itemReferences = useWorkspaceStore((s) => s.itemReferences)
   const shareCredential = useWorkspaceStore((s) => s.shareCredential)
   const updateSharedItem = useWorkspaceStore((s) => s.updateSharedItem)
   const removeSharedItem = useWorkspaceStore((s) => s.removeSharedItem)
@@ -100,7 +100,7 @@ export function ShareCredentialDialog({
                 (workspace.ownerId === user?.id ? 'owner' : undefined)
               }
               shared={Boolean(
-                items.find(
+                itemReferences.find(
                   (i) =>
                     i.workspaceId === workspace.id &&
                     i.credentialId === target.id,
@@ -118,7 +118,7 @@ export function ShareCredentialDialog({
               }
               onUpdate={() =>
                 void run(workspace.id, async () => {
-                  const item = items.find(
+                  const item = itemReferences.find(
                     (i) =>
                       i.workspaceId === workspace.id &&
                       i.credentialId === target.id,
@@ -130,7 +130,7 @@ export function ShareCredentialDialog({
               }
               onRemove={() =>
                 void run(workspace.id, async () => {
-                  const item = items.find(
+                  const item = itemReferences.find(
                     (i) =>
                       i.workspaceId === workspace.id &&
                       i.credentialId === target.id,

@@ -29,7 +29,7 @@ export function Credentials() {
   const addCredential = useVaultStore((s) => s.addCredential)
   const updateCredential = useVaultStore((s) => s.updateCredential)
   const deleteCredential = useVaultStore((s) => s.deleteCredential)
-  const sharedItems = useWorkspaceStore((s) => s.items)
+  const sharedItems = useWorkspaceStore((s) => s.itemReferences)
 
   const query = useSearchStore((s) => s.query)
   const sectionId = useSearchStore((s) => s.sectionId)

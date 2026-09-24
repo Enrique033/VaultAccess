@@ -22,7 +22,6 @@ import { PasswordInput } from '@/components/ui/PasswordInput'
 import { useAuth } from '@/app/auth-context'
 import { useVaultStore } from '@/store/vault.store'
 import { toast } from '@/store/ui.store'
-import { exportVaultToExcel } from '@/lib/vault-excel'
 import { usePresenceContext } from '@/hooks/usePresence'
 
 const errorBox =
@@ -58,7 +57,24 @@ export function UserMenu() {
 
   const handleExport = async () => {
     try {
+      const before = useVaultStore.getState()
+      if (before.linksLoading || before.notesLoading) {
+        toast.error('Espera a que terminen de cargar enlaces y notas.')
+        return
+      }
+      await Promise.all([
+        useVaultStore.getState().loadLinks(),
+        useVaultStore.getState().loadNotes(),
+      ])
       const state = useVaultStore.getState()
+      if (state.linksError || state.notesError) {
+        throw new Error(
+          state.linksError ??
+            state.notesError ??
+            'No se pudieron cargar todos los datos.',
+        )
+      }
+      const { exportVaultToExcel } = await import('@/lib/vault-excel')
       await exportVaultToExcel({
         sections: state.sections,
         categories: state.categories,

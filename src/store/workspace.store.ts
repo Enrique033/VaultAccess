@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
+import { useAuth } from '@/app/auth-context'
 import {
   appUrl,
   isSupabaseConfigured,
@@ -10,8 +11,10 @@ import {
   toWorkspace,
   toWorkspaceItem,
   toWorkspaceMember,
+  toWorkspaceItemReference,
 } from '@/lib/workspace-mapper'
 import type {
+  WorkspaceItemReferenceRow,
   WorkspaceItemRow,
   WorkspaceMemberRow,
   WorkspaceRow,
@@ -20,6 +23,7 @@ import type { Credential } from '@/types'
 import type {
   Workspace,
   WorkspaceItem,
+  WorkspaceItemReference,
   WorkspaceMember,
   WorkspaceRole,
 } from '@/types'
@@ -41,6 +45,20 @@ function friendlyWorkspaceError(message: string): string {
   return message
 }
 
+const WORKSPACE_COLUMNS = 'id, owner_id, name, created_at'
+const ITEM_REFERENCE_COLUMNS = 'id, workspace_id, credential_id'
+const ITEM_COLUMNS =
+  'id, workspace_id, credential_id, created_by, title, username, password, url, notes, created_at, updated_at'
+
+function isMissingRpcError(message: string): boolean {
+  return /PGRST202|schema cache|function .*does not exist|could not find the function/i.test(
+    message,
+  )
+}
+
+let workspaceLoadGeneration = 0
+let workspaceItemsGeneration = 0
+
 /** Copia el dato de una credencial al formato de elemento compartido. */
 function itemPayload(credential: Credential) {
   return {
@@ -56,13 +74,19 @@ interface WorkspaceState {
   workspaces: Workspace[]
   members: WorkspaceMember[]
   items: WorkspaceItem[]
+  /** Referencias mínimas para badges y contadores, sin claves/URLs/notas. */
+  itemReferences: WorkspaceItemReference[]
+  itemsWorkspaceId: string | null
+  itemsLoading: boolean
+  itemsError: string | null
   /** Espacio seleccionado en la vista de equipos. */
   activeId: string | null
   status: WorkspaceStatus
   error: string | null
 
-  /** Carga espacios, miembros y elementos del usuario logueado. */
+  /** Carga espacios, miembros y referencias mínimas. */
   load: () => Promise<void>
+  loadWorkspaceItems: (workspaceId: string) => Promise<void>
   setActive: (id: string | null) => void
   reset: () => void
 
@@ -92,52 +116,105 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
   workspaces: [],
   members: [],
   items: [],
+  itemReferences: [],
+  itemsWorkspaceId: null,
+  itemsLoading: false,
+  itemsError: null,
   activeId: null,
   status: isSupabaseConfigured ? 'idle' : 'local',
   error: null,
 
   load: async () => {
+    const generation = ++workspaceLoadGeneration
+    workspaceItemsGeneration += 1
     if (!isSupabaseConfigured) {
-      set({ status: 'local', error: null })
+      set({
+        status: 'local',
+        error: null,
+        workspaces: [],
+        members: [],
+        items: [],
+        itemReferences: [],
+        itemsWorkspaceId: null,
+        itemsLoading: false,
+        itemsError: null,
+      })
       return
     }
     set({ status: 'loading', error: null })
     try {
-      // Reclama invitaciones pendientes dirigidas a mi email (si existe la
-      // función). Si falla, la consulta siguiente dará el error explicado.
       await supabase.rpc('claim_workspace_invites')
+      // v2 contiene solo referencias mínimas; si aún no está aplicada, el
+      // fallback directo mantiene la app funcional sin descargar secretos.
+      const snapshotResult = await supabase.rpc('get_workspace_snapshot_v2')
+      let workspaceRows: WorkspaceRow[]
+      let memberRows: WorkspaceMemberRow[]
+      let itemReferenceRows: WorkspaceItemReferenceRow[]
 
-      const [wsRes, memRes, itemRes] = await Promise.all([
-        supabase.from('vault_workspaces').select('*').order('created_at'),
-        supabase.rpc('list_workspace_members'),
-        supabase
-          .from('vault_workspace_items')
-          .select('*')
-          .order('updated_at', { ascending: false }),
-      ])
-      const firstError = wsRes.error ?? memRes.error ?? itemRes.error
-      if (firstError)
-        throw new Error(friendlyWorkspaceError(firstError.message))
+      if (snapshotResult.error) {
+        if (!isMissingRpcError(snapshotResult.error.message)) {
+          throw new Error(friendlyWorkspaceError(snapshotResult.error.message))
+        }
+        const [workspaceResult, memberResult, itemReferenceResult] =
+          await Promise.all([
+            supabase
+              .from('vault_workspaces')
+              .select(WORKSPACE_COLUMNS)
+              .order('created_at'),
+            supabase.rpc('list_workspace_members'),
+            supabase
+              .from('vault_workspace_items')
+              .select(ITEM_REFERENCE_COLUMNS),
+          ])
+        const firstError =
+          workspaceResult.error ??
+          memberResult.error ??
+          itemReferenceResult.error
+        if (firstError) {
+          throw new Error(friendlyWorkspaceError(firstError.message))
+        }
+        workspaceRows = (workspaceResult.data ?? []) as WorkspaceRow[]
+        memberRows = (memberResult.data ?? []) as WorkspaceMemberRow[]
+        itemReferenceRows = (itemReferenceResult.data ??
+          []) as WorkspaceItemReferenceRow[]
+      } else {
+        const snapshot = snapshotResult.data as {
+          workspaces?: WorkspaceRow[]
+          members?: WorkspaceMemberRow[]
+          item_references?: WorkspaceItemReferenceRow[]
+        }
+        if (
+          !Array.isArray(snapshot?.workspaces) ||
+          !Array.isArray(snapshot.members) ||
+          !Array.isArray(snapshot.item_references)
+        ) {
+          throw new Error('El snapshot de equipos tiene un formato inválido.')
+        }
+        workspaceRows = snapshot.workspaces
+        memberRows = snapshot.members
+        itemReferenceRows = snapshot.item_references
+      }
 
-      const workspaces = (wsRes.data ?? []).map((row) =>
-        toWorkspace(row as WorkspaceRow),
-      )
-      set((s) => ({
+      const workspaces = workspaceRows.map(toWorkspace)
+      if (generation !== workspaceLoadGeneration) return
+      set((state) => ({
         workspaces,
-        members: (memRes.data ?? []).map((row: WorkspaceMemberRow) =>
-          toWorkspaceMember(row),
-        ),
-        items: (itemRes.data ?? []).map((row) =>
-          toWorkspaceItem(row as WorkspaceItemRow),
-        ),
+        members: memberRows.map(toWorkspaceMember),
+        items: [],
+        itemReferences: itemReferenceRows.map(toWorkspaceItemReference),
+        itemsWorkspaceId: null,
+        itemsLoading: false,
+        itemsError: null,
         status: 'ready',
         error: null,
         activeId:
-          s.activeId && workspaces.some((w) => w.id === s.activeId)
-            ? s.activeId
+          state.activeId &&
+          workspaces.some((workspace) => workspace.id === state.activeId)
+            ? state.activeId
             : (workspaces[0]?.id ?? null),
       }))
     } catch (e) {
+      if (generation !== workspaceLoadGeneration) return
       set({
         status: 'error',
         error: e instanceof Error ? e.message : 'Error al cargar los espacios.',
@@ -145,17 +222,64 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
     }
   },
 
+  loadWorkspaceItems: async (workspaceId) => {
+    const state = get()
+    if (state.itemsWorkspaceId === workspaceId && !state.itemsError) return
+    const generation = ++workspaceItemsGeneration
+    if (!isSupabaseConfigured) {
+      set({
+        items: [],
+        itemsWorkspaceId: workspaceId,
+        itemsLoading: false,
+        itemsError: null,
+      })
+      return
+    }
+    set({
+      items: [],
+      itemsWorkspaceId: workspaceId,
+      itemsLoading: true,
+      itemsError: null,
+    })
+    const { data, error } = await supabase
+      .from('vault_workspace_items')
+      .select(ITEM_COLUMNS)
+      .eq('workspace_id', workspaceId)
+      .order('updated_at', { ascending: false })
+    if (generation !== workspaceItemsGeneration) return
+    if (error) {
+      set({
+        itemsLoading: false,
+        itemsError: friendlyWorkspaceError(error.message),
+      })
+      return
+    }
+    set({
+      items: ((data ?? []) as WorkspaceItemRow[]).map(toWorkspaceItem),
+      itemsWorkspaceId: workspaceId,
+      itemsLoading: false,
+      itemsError: null,
+    })
+  },
+
   setActive: (activeId) => set({ activeId }),
 
-  reset: () =>
+  reset: () => {
+    workspaceLoadGeneration += 1
+    workspaceItemsGeneration += 1
     set({
       workspaces: [],
       members: [],
       items: [],
+      itemReferences: [],
+      itemsWorkspaceId: null,
+      itemsLoading: false,
+      itemsError: null,
       activeId: null,
       status: 'idle',
       error: null,
-    }),
+    })
+  },
 
   createWorkspace: async (name) => {
     const userId = await requireUserId()
@@ -247,6 +371,8 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
       workspaces: s.workspaces.filter((w) => w.id !== id),
       members: s.members.filter((m) => m.workspaceId !== id),
       items: s.items.filter((i) => i.workspaceId !== id),
+      itemReferences: s.itemReferences.filter((i) => i.workspaceId !== id),
+      itemsWorkspaceId: s.itemsWorkspaceId === id ? null : s.itemsWorkspaceId,
       activeId: s.activeId === id ? null : s.activeId,
     }))
   },
@@ -314,7 +440,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
 
   shareCredential: async (workspaceId, credential) => {
     const userId = await requireUserId()
-    const existing = get().items.find(
+    const existing = get().itemReferences.find(
       (item) =>
         item.workspaceId === workspaceId && item.credentialId === credential.id,
     )
@@ -339,7 +465,21 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
     const { data, error } = await request
     if (error) throw new Error(friendlyWorkspaceError(error.message))
     const item = toWorkspaceItem(data as WorkspaceItemRow)
-    set((s) => ({ items: [item, ...s.items.filter((i) => i.id !== item.id)] }))
+    const reference = toWorkspaceItemReference({
+      id: item.id,
+      workspace_id: item.workspaceId,
+      credential_id: item.credentialId ?? null,
+    })
+    set((s) => ({
+      itemReferences: [
+        reference,
+        ...s.itemReferences.filter((i) => i.id !== item.id),
+      ],
+      items:
+        s.itemsWorkspaceId === workspaceId
+          ? [item, ...s.items.filter((i) => i.id !== item.id)]
+          : s.items,
+    }))
   },
 
   updateSharedItem: async (itemId, credential) => {
@@ -351,7 +491,12 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
       .single()
     if (error) throw new Error(friendlyWorkspaceError(error.message))
     const item = toWorkspaceItem(data as WorkspaceItemRow)
-    set((s) => ({ items: s.items.map((i) => (i.id === itemId ? item : i)) }))
+    set((s) => ({
+      items:
+        s.itemsWorkspaceId === item.workspaceId
+          ? s.items.map((i) => (i.id === itemId ? item : i))
+          : s.items,
+    }))
   },
 
   removeSharedItem: async (itemId) => {
@@ -360,13 +505,16 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
       .delete()
       .eq('id', itemId)
     if (error) throw new Error(friendlyWorkspaceError(error.message))
-    set((s) => ({ items: s.items.filter((i) => i.id !== itemId) }))
+    set((s) => ({
+      items: s.items.filter((i) => i.id !== itemId),
+      itemReferences: s.itemReferences.filter((i) => i.id !== itemId),
+    }))
   },
 }))
 
 /** Espacios en los que está compartida una credencial. */
 export function workspacesOfCredential(
-  items: WorkspaceItem[],
+  items: WorkspaceItemReference[],
   workspaces: Workspace[],
   credentialId: string,
 ): Workspace[] {
@@ -378,25 +526,18 @@ export function workspacesOfCredential(
   return workspaces.filter((workspace) => ids.has(workspace.id))
 }
 
-/** Sincroniza los espacios con la sesión: carga al entrar, limpia al salir. */
+/** Una sola carga por cambio de sesión; AuthContext ya resuelve getSession. */
 export function useWorkspaceSync() {
+  const { user } = useAuth()
+  const userId = user?.id
   useEffect(() => {
-    let cancelled = false
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (cancelled) return
-        if (session) void useWorkspaceStore.getState().load()
-        else useWorkspaceStore.getState().reset()
-      },
-    )
-    supabase.auth.getSession().then(({ data }) => {
-      if (cancelled) return
-      if (data.session) void useWorkspaceStore.getState().load()
-      else useWorkspaceStore.getState().reset()
-    })
-    return () => {
-      cancelled = true
-      listener.subscription.unsubscribe()
+    if (!isSupabaseConfigured) {
+      if (useWorkspaceStore.getState().status !== 'local') {
+        void useWorkspaceStore.getState().load()
+      }
+      return
     }
-  }, [])
+    if (userId) void useWorkspaceStore.getState().load()
+    else useWorkspaceStore.getState().reset()
+  }, [userId])
 }
