@@ -1,6 +1,12 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { FileSpreadsheet, LogOut, ShieldCheck, Upload, User } from 'lucide-react'
+import {
+  FileSpreadsheet,
+  LogOut,
+  ShieldCheck,
+  Upload,
+  User,
+} from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import {
@@ -26,7 +32,7 @@ import { exportVaultToExcel } from '@/lib/vault-excel'
 import { ImportDialog } from '@/components/import/ImportDialog'
 
 const errorBox =
-  'rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400'
+  'rounded-xl border border-danger/30 bg-danger/10 px-3 py-2.5 text-xs text-danger'
 
 export function UserMenu() {
   const { user, signOut } = useAuth()
@@ -39,8 +45,7 @@ export function UserMenu() {
   if (!user) return null
 
   const meta = user.user_metadata as
-    | { first_name?: string; last_name?: string }
-    | undefined
+    { first_name?: string; last_name?: string } | undefined
   const name =
     (typeof meta?.first_name === 'string' && meta.first_name.trim()) ||
     user.email?.split('@')[0] ||
@@ -87,7 +92,7 @@ export function UserMenu() {
             <span className="hidden max-w-28 truncate font-medium sm:inline">
               {name}
             </span>
-            <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/20">
+            <span className="relative flex size-6 items-center justify-center rounded-lg bg-primary-soft text-primary">
               <User className="size-3.5" />
             </span>
           </span>
@@ -95,7 +100,8 @@ export function UserMenu() {
       >
         <div className="px-3 py-2">
           <p className="truncate text-[13px] font-semibold text-foreground">
-            {[meta?.first_name, meta?.last_name].filter(Boolean).join(' ') || name}
+            {[meta?.first_name, meta?.last_name].filter(Boolean).join(' ') ||
+              name}
           </p>
           <p className="truncate text-[11px] text-muted">{user.email}</p>
         </div>
@@ -127,11 +133,14 @@ export function UserMenu() {
 }
 
 /** Dialog para editar nombre y apellido (user_metadata). */
-function ProfileDialog({ onOpenChange }: { onOpenChange: (o: boolean) => void }) {
+function ProfileDialog({
+  onOpenChange,
+}: {
+  onOpenChange: (o: boolean) => void
+}) {
   const { user, updateProfile } = useAuth()
   const meta = user?.user_metadata as
-    | { first_name?: string; last_name?: string }
-    | undefined
+    { first_name?: string; last_name?: string } | undefined
   const [firstName, setFirstName] = useState(meta?.first_name ?? '')
   const [lastName, setLastName] = useState(meta?.last_name ?? '')
   const [busy, setBusy] = useState(false)
@@ -193,7 +202,11 @@ function ProfileDialog({ onOpenChange }: { onOpenChange: (o: boolean) => void })
           )}
         </DialogContent>
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+          >
             Cancelar
           </Button>
           <Button type="submit" variant="primary" disabled={busy}>
@@ -206,7 +219,11 @@ function ProfileDialog({ onOpenChange }: { onOpenChange: (o: boolean) => void })
 }
 
 /** Dialog para cambiar clave: valida la actual y confirma la nueva. */
-function PasswordDialog({ onOpenChange }: { onOpenChange: (o: boolean) => void }) {
+function PasswordDialog({
+  onOpenChange,
+}: {
+  onOpenChange: (o: boolean) => void
+}) {
   const { changePassword } = useAuth()
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
@@ -294,7 +311,11 @@ function PasswordDialog({ onOpenChange }: { onOpenChange: (o: boolean) => void }
           )}
         </DialogContent>
         <DialogFooter>
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => onOpenChange(false)}
+          >
             Cancelar
           </Button>
           <Button type="submit" variant="primary" disabled={busy}>
@@ -305,4 +326,3 @@ function PasswordDialog({ onOpenChange }: { onOpenChange: (o: boolean) => void }
     </Dialog>
   )
 }
-

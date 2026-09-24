@@ -13,7 +13,7 @@ import { AuthLayout } from '@/components/layout/AuthLayout'
 import { toast } from '@/store/ui.store'
 
 const errorBox =
-  'rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300'
+  'rounded-xl border border-danger/30 bg-danger/10 px-3 py-2.5 text-xs text-danger'
 
 /**
  * Destino del enlace "¿Olvidaste tu clave?".
@@ -48,7 +48,10 @@ export function ResetPassword() {
         setError(friendlyError(err.message))
         return
       }
-      toast.success('Clave actualizada', 'Recibirás un correo de confirmación por seguridad.')
+      toast.success(
+        'Clave actualizada',
+        'Recibirás un correo de confirmación por seguridad.',
+      )
       navigate('/credentials', { replace: true })
     } finally {
       setBusy(false)
@@ -88,97 +91,101 @@ export function ResetPassword() {
         </p>
       }
     >
-        {!isSupabaseConfigured ? (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
-            Supabase no está configurado: la recuperación de acceso no está
-            disponible en modo local.
+      {!isSupabaseConfigured ? (
+        <div className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs leading-relaxed text-warning">
+          Supabase no está configurado: la recuperación de acceso no está
+          disponible en modo local.
+        </div>
+      ) : status === 'loading' ? (
+        <div className="flex justify-center py-8">
+          <Loader2 className="size-5 animate-spin text-muted" />
+        </div>
+      ) : status === 'signed-in' ? (
+        <form onSubmit={handleSetPassword} className="auth-form-card">
+          <div className="space-y-1.5">
+            <Label htmlFor="reset-password">Nueva clave</Label>
+            <PasswordInput
+              id="reset-password"
+              autoComplete="new-password"
+              required
+              minLength={6}
+              value={password}
+              onChange={setPassword}
+              showStrength
+              allowGenerate
+            />
           </div>
-        ) : status === 'loading' ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="size-5 animate-spin text-muted" />
+          <div className="space-y-1.5">
+            <Label htmlFor="reset-confirm">Confirmar clave</Label>
+            <Input
+              id="reset-confirm"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={6}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="••••••••"
+            />
           </div>
-        ) : status === 'signed-in' ? (
-          <form
-            onSubmit={handleSetPassword}
-            className="space-y-4 rounded-xl border border-border bg-surface p-5"
+          {error && (
+            <p role="alert" className={errorBox}>
+              {error}
+            </p>
+          )}
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={busy}
+            className="w-full"
           >
-            <div className="space-y-1.5">
-              <Label htmlFor="reset-password">Nueva clave</Label>
-              <PasswordInput
-                id="reset-password"
-                autoComplete="new-password"
-                required
-                minLength={6}
-                value={password}
-                onChange={setPassword}
-                showStrength
-                allowGenerate
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="reset-confirm">Confirmar clave</Label>
-              <Input
-                id="reset-confirm"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={6}
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                placeholder="••••••••"
-              />
-            </div>
-            {error && (
-              <p role="alert" className={errorBox}>
-                {error}
-              </p>
+            {busy ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <KeyRound className="size-4" />
             )}
-            <Button type="submit" variant="primary" disabled={busy} className="w-full">
-              {busy ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <KeyRound className="size-4" />
-              )}
-              Guardar clave
-            </Button>
-          </form>
-        ) : (
-          <form
-            onSubmit={handleResend}
-            className="space-y-4 rounded-xl border border-border bg-surface p-5"
+            Guardar clave
+          </Button>
+        </form>
+      ) : (
+        <form onSubmit={handleResend} className="auth-form-card">
+          <div className="space-y-1.5">
+            <Label htmlFor="reset-email">Correo</Label>
+            <Input
+              id="reset-email"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="tu@correo.com"
+            />
+          </div>
+          {error && (
+            <p role="alert" className={errorBox}>
+              {error}
+            </p>
+          )}
+          {sent && !error && (
+            <p className="rounded-xl border border-success/30 bg-success/10 px-3 py-2.5 text-xs text-success">
+              ¡Listo! Te enviamos un nuevo enlace a tu correo (revisa también la
+              carpeta spam).
+            </p>
+          )}
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={busy}
+            className="w-full"
           >
-            <div className="space-y-1.5">
-              <Label htmlFor="reset-email">Correo</Label>
-              <Input
-                id="reset-email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="tu@correo.com"
-              />
-            </div>
-            {error && (
-              <p role="alert" className={errorBox}>
-                {error}
-              </p>
+            {busy ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Mail className="size-4" />
             )}
-            {sent && !error && (
-              <p className="rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs text-green-300">
-                ¡Listo! Te enviamos un nuevo enlace a tu correo (revisa también la
-                carpeta spam).
-              </p>
-            )}
-            <Button type="submit" variant="primary" disabled={busy} className="w-full">
-              {busy ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Mail className="size-4" />
-              )}
-              Enviar enlace
-            </Button>
-          </form>
+            Enviar enlace
+          </Button>
+        </form>
       )}
     </AuthLayout>
   )

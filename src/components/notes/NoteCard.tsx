@@ -1,4 +1,12 @@
-import { Copy, MoreVertical, NotebookPen, Pencil, Star, StarOff, Trash2 } from 'lucide-react'
+import {
+  Copy,
+  MoreVertical,
+  NotebookPen,
+  Pencil,
+  Star,
+  StarOff,
+  Trash2,
+} from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { CategoryBadge } from '@/components/ui/CategoryBadge'
 import {
@@ -45,14 +53,17 @@ export function NoteCard({ note, onEdit, onDelete }: NoteCardProps) {
     : updated.toLocaleDateString('es', {
         day: 'numeric',
         month: 'short',
-        year: updated.getFullYear() === new Date().getFullYear() ? undefined : 'numeric',
+        year:
+          updated.getFullYear() === new Date().getFullYear()
+            ? undefined
+            : 'numeric',
       })
 
   return (
-    <Card className="flex h-full flex-col p-4 transition-colors duration-150 hover:border-primary/40 hover:shadow-md">
+    <Card className="surface-card-hover flex h-full flex-col p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-2.5">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
             <NotebookPen className="size-4" />
           </span>
           <div className="min-w-0">
@@ -65,7 +76,9 @@ export function NoteCard({ note, onEdit, onDelete }: NoteCardProps) {
               )}
             </div>
             {dateLabel && (
-              <p className="truncate text-[11px] text-muted">Actualizada {dateLabel}</p>
+              <p className="truncate text-[11px] text-muted">
+                Actualizada {dateLabel}
+              </p>
             )}
           </div>
         </div>
@@ -109,7 +122,7 @@ export function NoteCard({ note, onEdit, onDelete }: NoteCardProps) {
         <button
           type="button"
           onClick={() => onEdit(note)}
-          className="w-full rounded-md border border-border px-2 py-1.5 text-xs text-muted transition-colors hover:border-primary/40 hover:text-foreground"
+          className="w-full rounded-xl border border-border bg-elevated/40 px-3 py-2 text-xs text-muted transition-colors hover:border-primary/35 hover:bg-primary-soft hover:text-primary"
         >
           Ver / editar
         </button>

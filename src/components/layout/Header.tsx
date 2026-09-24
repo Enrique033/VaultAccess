@@ -45,17 +45,17 @@ export function Header() {
   }, [])
 
   return (
-    <header className="flex h-[var(--header-height)] shrink-0 items-center justify-between gap-2 border-b border-border bg-surface/80 px-4 transition-colors duration-300 sm:gap-3 sm:px-6 backdrop-blur-md dark:border-border dark:bg-surface/50">
+    <header className="app-header flex h-[var(--header-height)] shrink-0 items-center justify-between gap-2 border-b px-4 transition-colors duration-300 sm:gap-3 sm:px-6 lg:px-8">
       <button
         type="button"
         onClick={toggleMobileNav}
-        className="-ml-1 rounded-md p-2 text-muted transition-colors duration-150 hover:bg-elevated hover:text-foreground lg:hidden"
+        className="-ml-1 rounded-xl p-2 text-muted transition-colors hover:bg-elevated hover:text-foreground lg:hidden"
         aria-label="Abrir menú de navegación"
       >
         <Menu className="size-5" />
       </button>
 
-      <div className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-elevated px-3 text-[13px] text-muted transition-all duration-200 focus-within:border-violet-500 focus-within:ring-2 focus-within:ring-violet-500/20 sm:max-w-sm dark:border-border dark:bg-elevated dark:text-muted dark:focus-within:border-violet-400 dark:focus-within:ring-violet-400/20">
+      <div className="flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-xl border border-border bg-surface/70 px-3.5 text-[13px] text-muted shadow-sm transition-all duration-200 focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10 sm:max-w-md">
         <Search className="size-3.5 shrink-0" />
         <input
           ref={inputRef}
@@ -76,7 +76,7 @@ export function Header() {
         {isGlobalOwner && globalOnline !== null && (
           <span
             className={cn(
-              'flex items-center gap-1.5 rounded-full border border-violet-500/20 bg-violet-600/10 px-3 py-1 text-xs font-medium text-violet-600 dark:border-violet-500/30 dark:text-violet-400',
+              'flex items-center gap-2 rounded-full border border-primary/20 bg-primary-soft px-3 py-1.5 text-xs font-semibold text-primary',
             )}
             title="Usuarios conectados globalmente"
           >

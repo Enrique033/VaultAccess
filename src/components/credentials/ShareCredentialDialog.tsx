@@ -94,8 +94,10 @@ export function ShareCredentialDialog({
               workspaceName={workspace.name}
               role={
                 members.find(
-                  (m) => m.workspaceId === workspace.id && m.userId === user?.id,
-                )?.role ?? (workspace.ownerId === user?.id ? 'owner' : undefined)
+                  (m) =>
+                    m.workspaceId === workspace.id && m.userId === user?.id,
+                )?.role ??
+                (workspace.ownerId === user?.id ? 'owner' : undefined)
               }
               shared={Boolean(
                 items.find(
@@ -176,7 +178,7 @@ function WorkspaceShareRow({
   const canEdit = role === 'owner' || role === 'editor'
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-background p-3">
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface/70 p-3">
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13px] font-medium text-foreground">
           {workspaceName}
@@ -187,12 +189,12 @@ function WorkspaceShareRow({
       </div>
 
       {!canEdit && !shared ? (
-        <span className="rounded-md border border-border bg-elevated px-2 py-1 text-[11px] text-muted">
+        <span className="rounded-xl border border-primary/15 bg-primary-soft px-2.5 py-1 text-[11px] text-primary">
           Sin permiso para compartir
         </span>
       ) : shared ? (
         <>
-          <span className="inline-flex items-center gap-1 rounded-md border border-green-500/30 bg-green-500/10 px-2 py-1 text-[11px] text-green-500">
+          <span className="inline-flex items-center gap-1 rounded-full border border-success/30 bg-success/10 px-2.5 py-1 text-[11px] font-medium text-success">
             <Check className="size-3" /> Compartida
           </span>
           <Button
@@ -208,7 +210,7 @@ function WorkspaceShareRow({
             title="Dejar de compartir"
             disabled={busy || !canEdit}
             onClick={onRemove}
-            className="rounded p-1.5 text-muted transition-colors duration-150 hover:bg-elevated hover:text-red-400 disabled:opacity-50"
+            className="rounded-lg p-1.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
           >
             <X className="size-3.5" />
           </button>

@@ -23,16 +23,16 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center rounded-lg border border-dashed border-border px-6 py-12 text-center',
+        'flex min-h-56 flex-col items-center justify-center rounded-3xl border border-dashed border-primary/25 bg-surface/70 px-6 py-14 text-center',
         className,
       )}
     >
-      <div className="relative flex size-11 items-center justify-center rounded-xl border border-border bg-elevated">
+      <div className="relative flex size-14 items-center justify-center rounded-2xl border border-primary/15 bg-primary-soft shadow-[0_12px_24px_-18px_color-mix(in_srgb,var(--c-primary)_70%,transparent)]">
         <span
           aria-hidden="true"
-          className="absolute inset-0 rounded-xl bg-primary/15 blur-md"
+          className="absolute inset-0 rounded-2xl bg-primary/15 blur-md"
         />
-        <Icon className="relative size-5 text-primary" />
+        <Icon className="relative size-6 text-primary" />
       </div>
       <p className="mt-3 text-sm font-medium text-foreground">{title}</p>
       {description && (

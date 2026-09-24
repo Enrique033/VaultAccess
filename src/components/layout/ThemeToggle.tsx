@@ -11,14 +11,22 @@ export function ThemeToggle({ className }: { className?: string }) {
     <button
       type="button"
       onClick={toggleTheme}
-      title={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
-      aria-label={theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
+      title={
+        theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'
+      }
+      aria-label={
+        theme === 'dark' ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'
+      }
       className={cn(
-        'flex size-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors duration-150 hover:bg-elevated hover:text-foreground',
+        'flex size-9 shrink-0 items-center justify-center rounded-xl text-muted transition-all hover:bg-primary-soft hover:text-primary',
         className,
       )}
     >
-      {theme === 'dark' ? <Moon className="size-4" /> : <Sun className="size-4" />}
+      {theme === 'dark' ? (
+        <Moon className="size-4" />
+      ) : (
+        <Sun className="size-4" />
+      )}
     </button>
   )
 }

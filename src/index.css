@@ -1,42 +1,70 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-/* Paleta CLARA (por defecto) — se aplica con variables para poder alternar en runtime. */
+/* ============================================================
+   WorkVault · sistema visual "calm security"
+   El modo claro es el estado inicial; el oscuro se activa manualmente.
+   ============================================================ */
 :root {
-  --c-background: #f8fafc; /* Slate 50 - Fondo más suave */
-  --c-surface: #ffffff;    /* Blanco puro para tarjetas/paneles */
-  --c-elevated: #f1f5f9;   /* Slate 100 - Para inputs o elementos secundarios */
-  --c-border: #e2e8f0;     /* Slate 200 - Bordes más definidos */
-  --c-foreground: #0f172a;  /* Slate 900 - Texto principal más fuerte */
-  --c-muted: #64748b;       /* Slate 500 - Texto secundario */
-  --c-primary: #6366f1;
+  color-scheme: light;
+  --c-background: #f5f7fb;
+  --c-surface: #ffffff;
+  --c-surface-strong: #ffffff;
+  --c-elevated: #eef3f8;
+  --c-border: #dce5ef;
+  --c-foreground: #14243b;
+  --c-muted: #6b7b90;
+  --c-primary: #315efb;
+  --c-primary-hover: #244bd4;
+  --c-primary-soft: #e9edff;
+  --c-accent: #0aa996;
+  --c-accent-soft: #e3f8f4;
+  --c-success: #159b73;
+  --c-warning: #c98216;
+  --c-danger: #d6535c;
+  --c-header: rgba(255, 255, 255, 0.84);
+  --header-height: 72px;
 
-  --header-height: 57px;
-
-  --animate-fade-in: fade-in 0.15s ease-out;
-  --animate-slide-in: slide-in 0.2s ease-out;
+  --animate-fade-in: fade-in 0.18s ease-out;
+  --animate-slide-in: slide-in 0.22s ease-out;
 }
 
-/* Paleta OSCURA — activa añadiendo .dark a <html>. */
 .dark {
-  --c-background: #09090b;
-  --c-surface: #121217;    /* Ligeramente más claro que el fondo para dar profundidad */
-  --c-elevated: #1c1c24;    /* Para resaltar elementos sobre la superficie */
-  --c-border: #27272a;     /* Zinc 800 */
-  --c-foreground: #f4f4f5;
-  --c-muted: #a1a1aa;
-  --c-primary: #818cf8;    /* Un tono más brillante para modo oscuro */
+  color-scheme: dark;
+  --c-background: #0b1423;
+  --c-surface: #111d30;
+  --c-surface-strong: #16253a;
+  --c-elevated: #1a2a40;
+  --c-border: #2a3c55;
+  --c-foreground: #f1f5fb;
+  --c-muted: #9aabc0;
+  --c-primary: #8198ff;
+  --c-primary-hover: #9aadff;
+  --c-primary-soft: #202d58;
+  --c-accent: #38d2bb;
+  --c-accent-soft: #123c3b;
+  --c-success: #49d4a7;
+  --c-warning: #f3bd61;
+  --c-danger: #ff858b;
+  --c-header: rgba(11, 20, 35, 0.86);
 }
 
-/* `inline` para que las utilidades de Tailwind lean la variable en runtime
-   y el cambio de tema no requiera recompilar clases. */
+/* Las utilidades leen las variables en runtime para que el toggle sea instantáneo. */
 @theme inline {
   --color-background: var(--c-background);
   --color-surface: var(--c-surface);
+  --color-surface-strong: var(--c-surface-strong);
   --color-elevated: var(--c-elevated);
   --color-border: var(--c-border);
   --color-foreground: var(--c-foreground);
   --color-muted: var(--c-muted);
   --color-primary: var(--c-primary);
+  --color-primary-hover: var(--c-primary-hover);
+  --color-primary-soft: var(--c-primary-soft);
+  --color-accent: var(--c-accent);
+  --color-accent-soft: var(--c-accent-soft);
+  --color-success: var(--c-success);
+  --color-warning: var(--c-warning);
+  --color-danger: var(--c-danger);
 }
 
 @keyframes fade-in {
@@ -62,23 +90,40 @@
 html,
 body,
 #root {
-  height: 100%;
+  min-height: 100%;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
 }
 
 body {
+  margin: 0;
+  min-width: 320px;
   background-color: var(--c-background);
   color: var(--c-foreground);
   font-family:
+    Inter,
     ui-sans-serif,
     system-ui,
     -apple-system,
-    "Segoe UI",
-    Roboto,
+    BlinkMacSystemFont,
+    'Segoe UI',
     sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar propio acorde al diseño (fino, redondeado, con la paleta del tema). */
+#root {
+  isolation: isolate;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--c-primary) 22%, transparent);
+  color: var(--c-foreground);
+}
+
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--c-border) transparent;
@@ -95,19 +140,248 @@ body {
 
 *::-webkit-scrollbar-thumb {
   background-color: var(--c-border);
-  border-radius: 999px;
   border: 2px solid transparent;
+  border-radius: 999px;
   background-clip: padding-box;
 }
 
 *::-webkit-scrollbar-thumb:hover {
   background-color: var(--c-muted);
-  border: 2px solid transparent;
-  background-clip: padding-box;
 }
 
 *::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* ============================================================
+   Composición compartida
+   ============================================================ */
+.app-canvas {
+  background:
+    radial-gradient(
+      circle at 92% -10%,
+      color-mix(in srgb, var(--c-primary) 9%, transparent),
+      transparent 28rem
+    ),
+    radial-gradient(
+      circle at 5% 105%,
+      color-mix(in srgb, var(--c-accent) 6%, transparent),
+      transparent 24rem
+    ),
+    var(--c-background);
+}
+
+.app-header {
+  background: var(--c-header);
+  border-color: color-mix(in srgb, var(--c-border) 82%, transparent);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--c-foreground) 4%, transparent);
+  backdrop-filter: blur(18px) saturate(135%);
+}
+
+.page-wrap {
+  width: 100%;
+  max-width: 90rem;
+  margin-inline: auto;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.page-title {
+  color: var(--c-foreground);
+  font-size: clamp(1.65rem, 2.2vw, 2.15rem);
+  font-weight: 760;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+}
+
+.page-description {
+  margin-top: 0.55rem;
+  color: var(--c-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.page-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.content-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  border: 1px solid color-mix(in srgb, var(--c-border) 82%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--c-surface) 76%, transparent);
+  padding: 0.75rem;
+  box-shadow: 0 10px 30px -24px
+    color-mix(in srgb, var(--c-foreground) 30%, transparent);
+}
+
+.surface-card {
+  border: 1px solid var(--c-border);
+  background: var(--c-surface);
+  box-shadow: 0 12px 30px -24px
+    color-mix(in srgb, var(--c-foreground) 38%, transparent);
+}
+
+.surface-card-hover {
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.surface-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--c-primary) 36%, var(--c-border));
+  box-shadow: 0 20px 38px -26px
+    color-mix(in srgb, var(--c-primary) 48%, transparent);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--c-primary);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.gradient-text {
+  background: linear-gradient(
+    115deg,
+    var(--c-foreground) 10%,
+    var(--c-primary) 52%,
+    var(--c-accent) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.grid-paper {
+  background-image:
+    linear-gradient(
+      color-mix(in srgb, var(--c-foreground) 4%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--c-foreground) 4%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, black, transparent 78%);
+}
+
+.auth-shell {
+  min-height: 100dvh;
+  background:
+    radial-gradient(
+      circle at 12% 10%,
+      color-mix(in srgb, var(--c-primary) 11%, transparent),
+      transparent 30rem
+    ),
+    radial-gradient(
+      circle at 92% 88%,
+      color-mix(in srgb, var(--c-accent) 9%, transparent),
+      transparent 28rem
+    ),
+    var(--c-background);
+}
+
+.auth-main {
+  background: color-mix(in srgb, var(--c-surface) 72%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+.auth-form-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border: 1px solid var(--c-border);
+  border-radius: 1.35rem;
+  background: color-mix(in srgb, var(--c-surface) 96%, transparent);
+  padding: 1.35rem;
+  box-shadow: 0 24px 60px -38px
+    color-mix(in srgb, var(--c-foreground) 44%, transparent);
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--c-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  height: 1px;
+  flex: 1;
+  background: var(--c-border);
+  content: '';
+}
+
+.chat-panel {
+  border-left: 1px solid var(--c-border);
+  background: var(--c-surface);
+  box-shadow: -24px 0 60px -42px
+    color-mix(in srgb, var(--c-foreground) 55%, transparent);
+}
+
+.chat-tab {
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  color: var(--c-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition: all 160ms ease;
+}
+
+.chat-tab:hover {
+  color: var(--c-foreground);
+  background: var(--c-elevated);
+}
+
+.chat-tab-active {
+  border-color: color-mix(in srgb, var(--c-primary) 18%, var(--c-border));
+  background: var(--c-primary-soft);
+  color: var(--c-primary);
+}
+
+.chat-bubble {
+  border-radius: 1.15rem;
+  padding: 0.7rem 0.85rem;
+  box-shadow: 0 8px 18px -16px
+    color-mix(in srgb, var(--c-foreground) 55%, transparent);
+}
+
+.chat-bubble-incoming {
+  border: 1px solid var(--c-border);
+  background: var(--c-elevated);
+  color: var(--c-foreground);
+}
+
+.chat-bubble-own {
+  background: var(--c-primary);
+  color: #fff;
 }
 
 /* Drawer móvil: entra desde la izquierda. */
@@ -219,4 +493,3 @@ html {
     background-position: 100% 50%;
   }
 }
-

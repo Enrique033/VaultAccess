@@ -154,11 +154,9 @@ export function Workspaces() {
   }
 
   const pageHeader = (
-    <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="page-header">
       <div>
-        <h1 className="text-lg font-semibold text-foreground sm:text-xl">
-          Equipos
-        </h1>
+        <h1 className="page-title">Equipos</h1>
         <p className="mt-1 text-sm text-muted">
           {workspaces.length === 0
             ? 'Comparte credenciales concretas con tu equipo sin exponer el resto de tu espacio personal.'
@@ -173,7 +171,7 @@ export function Workspaces() {
 
   if (!isSupabaseConfigured) {
     return (
-      <div className="space-y-5">
+      <div className="page-wrap space-y-6 lg:space-y-7">
         {pageHeader}
         <EmptyState
           icon={Users2}
@@ -185,7 +183,7 @@ export function Workspaces() {
   }
 
   const membersPanel = active && (
-    <Card className="p-4">
+    <Card className="surface-card-hover p-5">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-sm font-semibold text-foreground">Miembros</h2>
         {isOwner && (
@@ -202,7 +200,7 @@ export function Workspaces() {
               variant="ghost"
               size="icon"
               title="Eliminar espacio"
-              className="hover:text-red-400"
+              className="hover:text-danger"
               onClick={() => setDeleteTarget(active.id)}
             >
               <Trash2 className="size-3.5" />
@@ -217,7 +215,7 @@ export function Workspaces() {
           return (
             <li
               key={member.id}
-              className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-background p-2"
+              className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface/70 p-3"
             >
               <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">
                 <span className="block truncate">{member.displayName}</span>
@@ -253,7 +251,7 @@ export function Workspaces() {
                   }))}
                 />
               ) : (
-                <span className="rounded-md border border-border bg-elevated px-2 py-1 text-[11px] text-muted">
+                <span className="rounded-xl border border-primary/15 bg-primary-soft px-3 py-1.5 text-[11px] font-medium text-primary">
                   {ROLE_LABELS[member.role]}
                 </span>
               )}
@@ -265,7 +263,7 @@ export function Workspaces() {
                   onClick={() =>
                     void run(() => removeMember(member.id), 'Miembro eliminado')
                   }
-                  className="rounded p-1.5 text-muted transition-colors duration-150 hover:bg-elevated hover:text-red-400"
+                  className="rounded-lg p-1.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
                 >
                   <UserMinus className="size-3.5" />
                 </button>
@@ -322,7 +320,7 @@ export function Workspaces() {
   )
 
   const sharedPanel = active && (
-    <Card className="p-4">
+    <Card className="surface-card-hover p-5">
       <h2 className="text-sm font-semibold text-foreground">
         Credenciales compartidas
       </h2>
@@ -356,7 +354,7 @@ export function Workspaces() {
             return (
               <li
                 key={item.id}
-                className="rounded-md border border-border bg-background p-3"
+                className="rounded-xl border border-border bg-surface/70 p-3"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-foreground">
@@ -397,7 +395,7 @@ export function Workspaces() {
                     type="button"
                     title="Quitar del espacio"
                     onClick={() => setRemoveItemTarget(item.id)}
-                    className="rounded p-1.5 text-muted transition-colors duration-150 hover:bg-elevated hover:text-red-400"
+                    className="rounded-lg p-1.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
                   >
                     <Trash2 className="size-3.5" />
                   </button>
@@ -497,7 +495,7 @@ export function Workspaces() {
   )
 
   return (
-    <div className="space-y-5">
+    <div className="page-wrap space-y-6 lg:space-y-7">
       {pageHeader}
 
       {status === 'loading' && workspaces.length === 0 ? (
@@ -543,14 +541,14 @@ export function Workspaces() {
                   type="button"
                   onClick={() => setActive(workspace.id)}
                   className={cn(
-                    'flex flex-col gap-2 rounded-lg border bg-surface p-4 text-left transition-colors duration-150',
+                    'surface-card surface-card-hover flex flex-col gap-2 rounded-2xl p-4 text-left',
                     selected
                       ? 'border-primary/50 ring-1 ring-primary/20'
                       : 'border-border hover:border-primary/40',
                   )}
                 >
                   <span className="flex w-full items-center gap-2">
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-[0_8px_18px_-12px_color-mix(in_srgb,var(--c-primary)_80%,transparent)]">
                       <Users2 className="size-4" />
                     </span>
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">

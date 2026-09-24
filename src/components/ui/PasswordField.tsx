@@ -29,7 +29,10 @@ export function PasswordField({
   useEffect(() => {
     if (!revealed) return
 
-    timerRef.current = window.setTimeout(() => setRevealed(false), autoHideDelay)
+    timerRef.current = window.setTimeout(
+      () => setRevealed(false),
+      autoHideDelay,
+    )
 
     return () => {
       if (timerRef.current !== null) window.clearTimeout(timerRef.current)
@@ -52,7 +55,7 @@ export function PasswordField({
   return (
     <div
       className={cn(
-        'flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1',
+        'flex items-center gap-1.5 rounded-xl border border-border bg-elevated/50 px-3 py-2 shadow-sm',
         className,
       )}
     >
@@ -63,7 +66,7 @@ export function PasswordField({
       <button
         type="button"
         onClick={() => setRevealed((p) => !p)}
-        className="rounded p-1 text-muted transition-colors duration-150 hover:bg-elevated hover:text-foreground"
+        className="rounded-lg p-1 text-muted transition-colors hover:bg-elevated hover:text-foreground"
         aria-label={revealed ? 'Ocultar' : 'Revelar'}
         title={revealed ? 'Ocultar' : 'Revelar'}
       >
@@ -77,12 +80,12 @@ export function PasswordField({
       <button
         type="button"
         onClick={handleCopy}
-        className="rounded p-1 text-muted transition-colors duration-150 hover:bg-elevated hover:text-foreground"
+        className="rounded-lg p-1 text-muted transition-colors hover:bg-elevated hover:text-foreground"
         aria-label="Copiar al portapapeles"
         title="Copiar"
       >
         {copied ? (
-          <Check className="size-3.5 text-green-500" />
+          <Check className="size-3.5 text-success" />
         ) : (
           <Copy className="size-3.5" />
         )}

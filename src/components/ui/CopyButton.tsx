@@ -31,14 +31,14 @@ export function CopyButton({
       type="button"
       onClick={handleClick}
       className={cn(
-        'rounded p-1 text-muted transition-colors duration-150 hover:bg-elevated hover:text-foreground',
+        'rounded-lg p-1 text-muted transition-colors hover:bg-elevated hover:text-foreground',
         className,
       )}
       aria-label={label}
       title={label}
     >
       {copied ? (
-        <Check className="size-3.5 text-green-500" />
+        <Check className="size-3.5 text-success" />
       ) : (
         <Copy className="size-3.5" />
       )}

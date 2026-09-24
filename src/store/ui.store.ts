@@ -80,11 +80,14 @@ export const useUIStore = create<UIState>()(
       name: STORAGE_KEYS.ui,
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
-        theme: state.theme,
       }),
       onRehydrateStorage: () => (state) => {
-        // Aplica la clase .dark en el arranque (antes de pintar) según la preferencia guardada.
-        if (state) applyTheme(state.theme)
+        // El producto es light-first: una preferencia oscura antigua no debe
+        // impedir que el primer inicio se vea en claro.
+        if (state) {
+          state.theme = 'light'
+          applyTheme('light')
+        }
       },
     },
   ),

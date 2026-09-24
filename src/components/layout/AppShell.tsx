@@ -54,13 +54,13 @@ export function AppShell() {
 
   return (
     <PresenceProvider>
-      <div className="flex h-dvh overflow-hidden bg-background text-foreground transition-colors duration-300">
+      <div className="flex h-dvh overflow-hidden bg-background text-foreground transition-colors duration-300 app-canvas">
         <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
         <MobileSidebar open={mobileNavOpen} />
         <div className="flex flex-1 flex-col overflow-hidden">
           <Header />
           {!isSupabaseConfigured && (
-            <div className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs leading-relaxed text-amber-600 sm:px-5 lg:px-6 dark:text-amber-300">
+            <div className="border-b border-warning/30 bg-warning/10 px-4 py-2.5 text-xs leading-relaxed text-warning sm:px-5 lg:px-6">
               Supabase no está configurado (falta{' '}
               <code className="font-mono">VITE_SUPABASE_URL</code> /{' '}
               <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>): la app
@@ -70,9 +70,9 @@ export function AppShell() {
           )}
           <main
             onClick={handleContentClick}
-            className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8"
+            className="flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8"
           >
-            <div className="mx-auto max-w-7xl">
+            <div className="page-wrap">
               <Outlet />
             </div>
           </main>

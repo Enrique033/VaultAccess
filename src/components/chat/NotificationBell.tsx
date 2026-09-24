@@ -62,7 +62,7 @@ export function NotificationBell() {
         <span className="relative inline-flex size-5 items-center justify-center">
           <Bell className="size-4" />
           {unreadCount > 0 && (
-            <span className="absolute -right-2 -top-2 flex min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-4 text-white">
+            <span className="absolute -right-2 -top-2 flex min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold leading-4 text-white shadow-[0_5px_12px_-6px_color-mix(in_srgb,var(--c-danger)_80%,transparent)]">
               {unreadCount > 99 ? '99+' : unreadCount}
             </span>
           )}
@@ -119,11 +119,11 @@ export function NotificationBell() {
                     )
                   }
                   className={cn(
-                    'flex w-full gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-colors hover:bg-elevated',
+                    'flex w-full gap-2.5 rounded-xl px-3 py-3 text-left transition-colors hover:bg-elevated',
                     !notification.read_at && 'bg-primary/5',
                   )}
                 >
-                  <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
                     <Icon className="size-3.5" />
                   </span>
                   <span className="min-w-0 flex-1">

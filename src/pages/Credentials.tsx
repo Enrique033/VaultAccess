@@ -97,12 +97,25 @@ export function Credentials() {
     const list = credentials.filter(
       (c) => byCategory(c) && byQuery(c) && byStrength(c),
     )
-    if (sort === 'az') return [...list].sort((a, b) => a.title.localeCompare(b.title, 'es'))
+    if (sort === 'az')
+      return [...list].sort((a, b) => a.title.localeCompare(b.title, 'es'))
     if (sort === 'favorites') {
-      return [...list].sort((a, b) => Number(b.favorite) - Number(a.favorite) || b.updatedAt.localeCompare(a.updatedAt))
+      return [...list].sort(
+        (a, b) =>
+          Number(b.favorite) - Number(a.favorite) ||
+          b.updatedAt.localeCompare(a.updatedAt),
+      )
     }
     return [...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-  }, [credentials, categories, query, categoryFilter, sectionId, sort, weakOnly])
+  }, [
+    credentials,
+    categories,
+    query,
+    categoryFilter,
+    sectionId,
+    sort,
+    weakOnly,
+  ])
 
   const handleOpenCreate = () => {
     setEditing(null)
@@ -166,13 +179,11 @@ export function Credentials() {
   )
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5">
+    <div className="mx-auto w-full max-w-7xl space-y-6 lg:space-y-7">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="page-header">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">
-            Access
-          </h1>
+          <h1 className="page-title">Access</h1>
           <p className="mt-1 text-sm text-muted">
             {credentials.length === 0
               ? 'Gestiona tus credenciales y accesos.'
@@ -180,7 +191,7 @@ export function Credentials() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="page-actions">
           {isSupabaseConfigured && (
             <Button variant="outline" onClick={() => setImportOpen(true)}>
               <Upload className="size-3.5" />
@@ -236,7 +247,9 @@ export function Credentials() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-elevated/50 p-3 rounded-xl border border-border/50">
           <FilterChips sections={sections} categories={categories} />
           <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs text-muted hidden sm:inline">Ordenar por:</span>
+            <span className="text-xs text-muted hidden sm:inline">
+              Ordenar por:
+            </span>
             <CredentialSortSelect value={sort} onChange={setSort} />
           </div>
         </div>

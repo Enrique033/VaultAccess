@@ -75,7 +75,7 @@ export function CredentialHistory({
 
   if (error) {
     return (
-      <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-200">
+      <p className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs leading-relaxed text-warning">
         {error}
       </p>
     )
@@ -102,7 +102,7 @@ export function CredentialHistory({
         {history.map((entry) => (
           <li
             key={entry.id}
-            className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-background p-2"
+            className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface/70 p-3"
           >
             <span className="w-full text-[11px] text-muted sm:w-auto sm:flex-1">
               {formatDate(entry.changedAt)}
@@ -125,7 +125,7 @@ export function CredentialHistory({
               type="button"
               title="Eliminar versión"
               onClick={() => void handleDelete(entry.id)}
-              className="rounded p-1.5 text-muted transition-colors duration-150 hover:bg-elevated hover:text-red-400"
+              className="rounded-lg p-1.5 text-muted transition-colors hover:bg-danger/10 hover:text-danger"
             >
               <Trash2 className="size-3.5" />
             </button>

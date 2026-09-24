@@ -30,7 +30,12 @@ function unlockBodyScroll() {
   if (openDialogs === 0) document.body.style.overflow = lockedOverflow
 }
 
-export function Dialog({ open, onOpenChange, children, className }: DialogProps) {
+export function Dialog({
+  open,
+  onOpenChange,
+  children,
+  className,
+}: DialogProps) {
   const onOpenChangeRef = useRef(onOpenChange)
   onOpenChangeRef.current = onOpenChange
 
@@ -63,8 +68,8 @@ export function Dialog({ open, onOpenChange, children, className }: DialogProps)
         role="dialog"
         aria-modal="true"
         className={cn(
-          'animate-fade-in relative z-10 max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-surface dark:bg-surface shadow-2xl',
-          'sm:max-h-[85dvh] sm:rounded-lg',
+          'animate-fade-in relative z-10 max-h-[92dvh] w-full overflow-y-auto rounded-t-3xl border border-border bg-surface shadow-[0_28px_80px_-30px_color-mix(in_srgb,var(--c-foreground)_55%,transparent)]',
+          'sm:max-h-[85dvh] sm:rounded-3xl',
           className,
         )}
       >
@@ -84,7 +89,7 @@ export function DialogHeader({ children, className }: DialogSectionProps) {
   return (
     <div
       className={cn(
-        'flex items-start justify-between gap-4 border-b border-border px-4 py-3.5 sm:px-5 sm:py-4',
+        'flex items-start justify-between gap-4 border-b border-border/80 px-5 py-4 sm:px-6 sm:py-5',
         className,
       )}
     >
@@ -95,7 +100,12 @@ export function DialogHeader({ children, className }: DialogSectionProps) {
 
 export function DialogTitle({ children, className }: DialogSectionProps) {
   return (
-    <h2 className={cn('text-sm font-semibold text-foreground', className)}>
+    <h2
+      className={cn(
+        'text-base font-bold tracking-tight text-foreground',
+        className,
+      )}
+    >
       {children}
     </h2>
   )
@@ -103,19 +113,21 @@ export function DialogTitle({ children, className }: DialogSectionProps) {
 
 export function DialogDescription({ children, className }: DialogSectionProps) {
   return (
-    <p className={cn('mt-0.5 text-xs text-muted', className)}>{children}</p>
+    <p className={cn('mt-1 text-[13px] leading-relaxed text-muted', className)}>
+      {children}
+    </p>
   )
 }
 
 export function DialogContent({ children, className }: DialogSectionProps) {
-  return <div className={cn('px-4 py-4 sm:px-5', className)}>{children}</div>
+  return <div className={cn('px-5 py-5 sm:px-6', className)}>{children}</div>
 }
 
 export function DialogFooter({ children, className }: DialogSectionProps) {
   return (
     <div
       className={cn(
-        'flex items-center justify-end gap-2 border-t border-border px-4 py-3 sm:px-5',
+        'flex items-center justify-end gap-2 border-t border-border/80 bg-elevated/40 px-5 py-3.5 sm:px-6',
         className,
       )}
     >
@@ -129,7 +141,7 @@ export function DialogCloseButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="rounded-md p-1 text-muted transition-colors duration-150 hover:bg-elevated hover:text-foreground"
+      className="rounded-lg p-1.5 text-muted transition-colors hover:bg-elevated hover:text-foreground"
       aria-label="Cerrar"
     >
       <X className="size-4" />

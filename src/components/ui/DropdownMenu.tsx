@@ -71,7 +71,7 @@ export function DropdownMenu({
               return next
             })
           }
-          className="inline-flex items-center justify-center rounded-md p-1.5 text-muted transition-colors duration-150 hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 sm:p-1"
+          className="inline-flex items-center justify-center rounded-xl p-1.5 text-muted transition-colors hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
           aria-haspopup="menu"
           aria-expanded={open}
         >
@@ -82,7 +82,7 @@ export function DropdownMenu({
           <div
             role="menu"
             className={cn(
-              'animate-fade-in absolute top-full z-50 mt-1 min-w-[160px] max-w-[calc(100vw-1.5rem)] rounded-md border border-border bg-surface py-1 shadow-xl',
+              'animate-fade-in absolute top-full z-50 mt-2 min-w-[180px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-border bg-surface p-1.5 shadow-[0_18px_45px_-24px_color-mix(in_srgb,var(--c-foreground)_55%,transparent)]',
               align === 'end' ? 'right-0' : 'left-0',
             )}
           >
@@ -118,9 +118,9 @@ export function DropdownMenuItem({
       role="menuitem"
       onClick={handleClick}
       className={cn(
-        'flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] transition-colors duration-150 sm:py-1.5',
+        'flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors',
         variant === 'danger'
-          ? 'text-red-400 hover:bg-red-500/10 hover:text-red-300'
+          ? 'text-danger hover:bg-danger/10 hover:text-danger'
           : 'text-foreground hover:bg-surface',
       )}
     >
@@ -130,5 +130,5 @@ export function DropdownMenuItem({
 }
 
 export function DropdownMenuSeparator() {
-  return <div className="my-1 h-px bg-border" role="separator" />
+  return <div className="my-1.5 h-px bg-border" role="separator" />
 }

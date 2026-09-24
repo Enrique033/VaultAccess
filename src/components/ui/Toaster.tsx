@@ -9,7 +9,10 @@ function ToastItem({ toast }: { toast: Toast }) {
   const removeToast = useUIStore((s) => s.removeToast)
 
   useEffect(() => {
-    const timer = window.setTimeout(() => removeToast(toast.id), AUTO_DISMISS_MS)
+    const timer = window.setTimeout(
+      () => removeToast(toast.id),
+      AUTO_DISMISS_MS,
+    )
     return () => window.clearTimeout(timer)
   }, [toast.id, removeToast])
 
@@ -23,9 +26,9 @@ function ToastItem({ toast }: { toast: Toast }) {
   return (
     <div
       className={cn(
-        'animate-slide-in pointer-events-auto flex w-full items-start gap-3 rounded-lg border bg-surface p-3 shadow-lg',
-        toast.variant === 'success' && 'border-green-500/30',
-        toast.variant === 'error' && 'border-red-500/30',
+        'animate-slide-in pointer-events-auto flex w-full items-start gap-3 rounded-2xl border bg-surface p-4 shadow-[0_18px_40px_-24px_color-mix(in_srgb,var(--c-foreground)_55%,transparent)]',
+        toast.variant === 'success' && 'border-success/30',
+        toast.variant === 'error' && 'border-danger/30',
         toast.variant === 'default' && 'border-border',
       )}
     >
@@ -33,8 +36,8 @@ function ToastItem({ toast }: { toast: Toast }) {
         <Icon
           className={cn(
             'mt-0.5 size-4 shrink-0',
-            toast.variant === 'success' && 'text-green-500',
-            toast.variant === 'error' && 'text-red-500',
+            toast.variant === 'success' && 'text-success',
+            toast.variant === 'error' && 'text-danger',
           )}
         />
       )}

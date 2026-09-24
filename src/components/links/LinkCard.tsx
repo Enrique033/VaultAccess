@@ -1,4 +1,12 @@
-import { ExternalLink, Link2, MoreVertical, Pencil, Star, StarOff, Trash2 } from 'lucide-react'
+import {
+  ExternalLink,
+  Link2,
+  MoreVertical,
+  Pencil,
+  Star,
+  StarOff,
+  Trash2,
+} from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { CategoryBadge } from '@/components/ui/CategoryBadge'
 import { CopyButton } from '@/components/ui/CopyButton'
@@ -47,7 +55,7 @@ export function LinkCard({ link, onEdit, onDelete }: LinkCardProps) {
   }
 
   return (
-    <Card className="flex h-full flex-col p-4 transition-colors duration-150 hover:border-primary/40 hover:shadow-md">
+    <Card className="surface-card-hover flex h-full flex-col p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <span
@@ -101,7 +109,9 @@ export function LinkCard({ link, onEdit, onDelete }: LinkCardProps) {
       )}
 
       {link.description && (
-        <p className="mt-3 line-clamp-2 text-xs text-muted">{link.description}</p>
+        <p className="mt-3 line-clamp-2 text-xs text-muted">
+          {link.description}
+        </p>
       )}
 
       <div className="mt-auto flex items-center gap-2 pt-4">

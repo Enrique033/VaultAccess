@@ -48,7 +48,11 @@ export function CredentialCard({
   const [shareOpen, setShareOpen] = useState(false)
 
   const category = categories.find((c) => c.id === credential.categoryId)
-  const sharedIn = workspacesOfCredential(sharedItems, workspaces, credential.id)
+  const sharedIn = workspacesOfCredential(
+    sharedItems,
+    workspaces,
+    credential.id,
+  )
 
   const handleOpenLogin = () => {
     if (!credential.url) return
@@ -68,106 +72,108 @@ export function CredentialCard({
 
   return (
     <>
-      <Card className="group flex h-full flex-col p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl hover:shadow-violet-500/10 dark:hover:shadow-black/40 hover:border-slate-300 dark:hover:border-zinc-700/80">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h3 className="truncate text-sm font-bold tracking-tight text-slate-900 dark:text-zinc-100 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
-              {credential.title}
-            </h3>
-            {credential.favorite && (
-              <Star className="size-3.5 shrink-0 fill-primary text-primary" />
+      <Card className="surface-card-hover group flex h-full flex-col p-5">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h3 className="truncate text-sm font-bold tracking-tight text-foreground transition-colors group-hover:text-primary">
+                {credential.title}
+              </h3>
+              {credential.favorite && (
+                <Star className="size-3.5 shrink-0 fill-primary text-primary" />
+              )}
+            </div>
+            {category && (
+              <div className="mt-1.5">
+                <CategoryBadge category={category} />
+              </div>
+            )}
+            {sharedIn.length > 0 && (
+              <Link
+                to="/workspaces"
+                title={sharedIn.map((w) => w.name).join(', ')}
+                className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-border bg-elevated px-2 py-1 text-[10px] text-muted transition-colors hover:border-primary/35 hover:bg-primary-soft hover:text-primary"
+              >
+                <Users2 className="size-3" />
+                Compartida en {sharedIn.length}{' '}
+                {sharedIn.length === 1 ? 'espacio' : 'espacios'}
+              </Link>
             )}
           </div>
-          {category && (
-            <div className="mt-1.5">
-              <CategoryBadge category={category} />
-            </div>
-          )}
-          {sharedIn.length > 0 && (
-            <Link
-              to="/workspaces"
-              title={sharedIn.map((w) => w.name).join(', ')}
-              className="mt-1.5 inline-flex items-center gap-1 rounded-md border border-border bg-elevated px-1.5 py-0.5 text-[10px] text-muted transition-colors duration-150 hover:border-primary/40 hover:text-foreground"
+
+          <DropdownMenu trigger={<MoreVertical className="size-4" />}>
+            <DropdownMenuItem onClick={() => onEdit(credential)}>
+              <Pencil className="size-3.5" />
+              Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleToggleFavorite}>
+              {credential.favorite ? (
+                <>
+                  <StarOff className="size-3.5" />
+                  Quitar de favoritos
+                </>
+              ) : (
+                <>
+                  <Star className="size-3.5" />
+                  Marcar favorito
+                </>
+              )}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => setShareOpen(true)}>
+              <Share2 className="size-3.5" />
+              Compartir en equipo
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="danger"
+              onClick={() => onDelete(credential)}
             >
-              <Users2 className="size-3" />
-              Compartida en {sharedIn.length}{' '}
-              {sharedIn.length === 1 ? 'espacio' : 'espacios'}
-            </Link>
-          )}
+              <Trash2 className="size-3.5" />
+              Eliminar
+            </DropdownMenuItem>
+          </DropdownMenu>
         </div>
 
-        <DropdownMenu trigger={<MoreVertical className="size-4" />}>
-          <DropdownMenuItem onClick={() => onEdit(credential)}>
-            <Pencil className="size-3.5" />
-            Editar
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleToggleFavorite}>
-            {credential.favorite ? (
-              <>
-                <StarOff className="size-3.5" />
-                Quitar de favoritos
-              </>
-            ) : (
-              <>
-                <Star className="size-3.5" />
-                Marcar favorito
-              </>
-            )}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setShareOpen(true)}>
-            <Share2 className="size-3.5" />
-            Compartir en equipo
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            variant="danger"
-            onClick={() => onDelete(credential)}
+        {/* Username */}
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center gap-2 rounded-xl border border-border bg-elevated px-3 py-2 shadow-sm">
+            <User className="size-3.5 shrink-0 text-muted" />
+            <span className="flex-1 truncate text-xs text-foreground">
+              {credential.username}
+            </span>
+            <CopyButton
+              value={credential.username}
+              label="Copiar usuario"
+              successMessage="Usuario copiado"
+            />
+          </div>
+
+          <PasswordField value={credential.password} />
+        </div>
+
+        {/* Notes preview */}
+        {credential.notes && (
+          <p className="mt-3 line-clamp-2 text-xs text-muted">
+            {credential.notes}
+          </p>
+        )}
+
+        {/* Footer */}
+        <div className="mt-auto pt-4">
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            disabled={!credential.url}
+            onClick={handleOpenLogin}
           >
-            <Trash2 className="size-3.5" />
-            Eliminar
-          </DropdownMenuItem>
-        </DropdownMenu>
-      </div>
-
-      {/* Username */}
-      <div className="mt-4 space-y-2">
-        <div className="flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1">
-          <User className="size-3.5 shrink-0 text-muted" />
-          <span className="flex-1 truncate text-xs text-foreground">
-            {credential.username}
-          </span>
-          <CopyButton
-            value={credential.username}
-            label="Copiar usuario"
-            successMessage="Usuario copiado"
-          />
+            <ExternalLink className="size-3.5" />
+            Abrir login
+          </Button>
         </div>
-
-        <PasswordField value={credential.password} />
-      </div>
-
-      {/* Notes preview */}
-      {credential.notes && (
-        <p className="mt-3 line-clamp-2 text-xs text-muted">{credential.notes}</p>
-      )}
-
-      {/* Footer */}
-      <div className="mt-auto pt-4">
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          disabled={!credential.url}
-          onClick={handleOpenLogin}
-        >
-          <ExternalLink className="size-3.5" />
-          Abrir login
-        </Button>
-      </div>
-    </Card>
+      </Card>
 
       <ShareCredentialDialog
         open={shareOpen}

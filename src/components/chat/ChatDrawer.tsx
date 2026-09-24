@@ -96,7 +96,7 @@ function PersonRow({
           {initials(name)}
         </span>
         <span
-          className={`absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-surface ${online ? 'bg-emerald-500' : 'bg-zinc-400'}`}
+          className={`absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-surface ${online ? 'bg-emerald-500' : 'bg-muted'}`}
           aria-label={online ? 'Activo' : 'Desconectado'}
         />
       </span>
@@ -380,16 +380,16 @@ export function ChatDrawer() {
         role="dialog"
         aria-modal="true"
         aria-labelledby="chat-drawer-title"
-        className="animate-fade-in absolute inset-y-0 right-0 flex w-full max-w-md flex-col border-l border-border bg-surface shadow-2xl sm:max-w-lg"
+        className="chat-panel animate-fade-in absolute inset-y-0 right-0 flex w-full max-w-md flex-col sm:max-w-lg"
       >
-        <header className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3.5">
-          <span className="flex size-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
+        <header className="flex shrink-0 items-center gap-3 border-b border-border/80 bg-surface/80 px-5 py-4">
+          <span className="flex size-10 items-center justify-center rounded-xl bg-primary-soft text-primary">
             <MessageCircle className="size-4.5" />
           </span>
           <div className="min-w-0 flex-1">
             <h2
               id="chat-drawer-title"
-              className="text-sm font-semibold text-foreground"
+              className="text-base font-bold tracking-[-0.02em] text-foreground"
             >
               Chat interno
             </h2>
@@ -400,7 +400,7 @@ export function ChatDrawer() {
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="rounded-md p-1.5 text-muted transition-colors hover:bg-elevated hover:text-foreground"
+            className="rounded-lg p-1.5 text-muted transition-colors hover:bg-elevated hover:text-foreground"
             aria-label="Cerrar chat"
           >
             <X className="size-4" />
@@ -411,14 +411,14 @@ export function ChatDrawer() {
           <button
             type="button"
             onClick={() => setTab('team')}
-            className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${tab === 'team' ? 'bg-elevated text-foreground' : 'text-muted hover:text-foreground'}`}
+            className={`chat-tab flex items-center justify-center gap-2 px-3 py-2 ${tab === 'team' ? 'chat-tab-active' : ''}`}
           >
             <Users className="size-3.5" /> Equipo
           </button>
           <button
             type="button"
             onClick={() => setTab('search')}
-            className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${tab === 'search' ? 'bg-elevated text-foreground' : 'text-muted hover:text-foreground'}`}
+            className={`chat-tab flex items-center justify-center gap-2 px-3 py-2 ${tab === 'search' ? 'chat-tab-active' : ''}`}
           >
             <Search className="size-3.5" /> Búsqueda
           </button>
@@ -437,7 +437,7 @@ export function ChatDrawer() {
                   </p>
                 </div>
                 {isTeamOwner && activeWorkspace && (
-                  <span className="shrink-0 rounded-full bg-emerald-500/10 px-2 py-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">
+                  <span className="rounded-full border border-success/25 bg-success/10 px-2.5 py-1 text-[10px] font-semibold text-success">
                     [Equipo Online: {teamOnline}/{teamMembers.length}]
                   </span>
                 )}
@@ -487,7 +487,7 @@ export function ChatDrawer() {
               {searchError && (
                 <p
                   role="alert"
-                  className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-[11px] text-red-500"
+                  className="mt-2 rounded-xl bg-danger/10 px-3 py-2.5 text-[11px] text-danger"
                 >
                   {searchError}
                 </p>
@@ -558,7 +558,7 @@ export function ChatDrawer() {
                 <Loader2 className="size-3.5 animate-spin text-muted" />
               )}
             </div>
-            <div className="min-h-40 space-y-3 p-4">
+            <div className="min-h-40 space-y-3 bg-elevated/20 p-4">
               {activeMessages.length === 0 ? (
                 <div className="flex min-h-36 flex-col items-center justify-center text-center">
                   <MessageCircle className="size-7 text-muted/60" />
@@ -587,7 +587,7 @@ export function ChatDrawer() {
                       className={`flex ${own ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-[88%] rounded-2xl px-3 py-2 ${own ? 'rounded-br-md bg-primary text-white' : 'rounded-bl-md bg-elevated text-foreground'}`}
+                        className={`chat-bubble max-w-[88%] ${own ? 'chat-bubble-own rounded-br-md' : 'chat-bubble-incoming rounded-bl-md'}`}
                       >
                         {!own && (
                           <p className="mb-0.5 text-[10px] font-semibold opacity-70">
@@ -698,7 +698,7 @@ export function ChatDrawer() {
             {chatError && (
               <p
                 role="alert"
-                className="mx-4 mb-3 rounded-lg bg-red-500/10 px-3 py-2 text-[11px] text-red-500"
+                className="mx-4 mb-3 rounded-xl bg-danger/10 px-3 py-2.5 text-[11px] text-danger"
               >
                 {chatError}
               </p>
@@ -706,7 +706,7 @@ export function ChatDrawer() {
             {activeConversationId && (
               <form
                 onSubmit={submitMessage}
-                className="border-t border-border p-3"
+                className="border-t border-border/80 bg-surface/80 p-3"
               >
                 <Textarea
                   value={message}

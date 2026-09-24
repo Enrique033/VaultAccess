@@ -12,7 +12,7 @@ export function CategoryBadge({ category, className }: CategoryBadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-md bg-elevated px-1.5 py-0.5 text-[11px] font-medium text-muted',
+        'inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-medium text-muted',
         className,
       )}
     >

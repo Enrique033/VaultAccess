@@ -131,13 +131,11 @@ export function Notes() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-5">
+    <div className="mx-auto w-full max-w-7xl space-y-6 lg:space-y-7">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="page-header">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">
-            Notas
-          </h1>
+          <h1 className="page-title">Notas</h1>
           <p className="mt-1 text-sm text-muted">
             {notes.length === 0
               ? 'Apunta ideas, pasos y recordatorios.'

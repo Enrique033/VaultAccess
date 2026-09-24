@@ -34,19 +34,22 @@ function SidebarPanel({ collapsed, onToggle, onClose }: SidebarPanelProps) {
     <>
       <div
         className={cn(
-          'flex h-[var(--header-height)] items-center gap-2 border-b border-border bg-surface transition-colors duration-300 dark:border-border dark:bg-surface/50',
+          'flex h-[var(--header-height)] items-center gap-2 border-b border-border/80 bg-surface/80 transition-colors duration-300',
           collapsed ? 'justify-center px-2' : 'px-4',
         )}
       >
         <Link
           to="/credentials"
-          className={cn('flex min-w-0 items-center gap-2', collapsed ? '' : 'flex-1')}
+          className={cn(
+            'flex min-w-0 items-center gap-2',
+            collapsed ? '' : 'flex-1',
+          )}
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-lg shadow-violet-500/20">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-white shadow-[0_10px_20px_-12px_color-mix(in_srgb,var(--c-primary)_80%,transparent)]">
             <Vault className="size-4.5" />
           </span>
           {!collapsed && (
-            <span className="truncate text-sm font-bold tracking-tight text-foreground dark:text-zinc-100">
+            <span className="truncate text-sm font-bold tracking-[-0.02em] text-foreground">
               WorkVault
             </span>
           )}
@@ -68,17 +71,18 @@ function SidebarPanel({ collapsed, onToggle, onClose }: SidebarPanelProps) {
           const Icon = item.icon
           const active =
             location.pathname === item.to ||
-            (item.to !== '/credentials' && location.pathname.startsWith(item.to))
+            (item.to !== '/credentials' &&
+              location.pathname.startsWith(item.to))
 
           return (
             <NavLink
               key={item.to}
               to={item.to}
               className={cn(
-                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-200 sm:py-2',
+                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-semibold transition-all duration-200 sm:py-2',
                 active
-                  ? 'bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400'
-                  : 'text-muted hover:bg-elevated hover:text-foreground dark:text-muted dark:hover:bg-elevated dark:hover:text-foreground',
+                  ? 'bg-primary-soft text-primary shadow-[inset_3px_0_0_var(--c-primary)]'
+                  : 'text-muted hover:bg-elevated hover:text-foreground',
                 collapsed && 'justify-center px-2',
               )}
               title={collapsed ? item.label : undefined}
@@ -102,7 +106,7 @@ function SidebarPanel({ collapsed, onToggle, onClose }: SidebarPanelProps) {
             type="button"
             onClick={onToggle}
             className={cn(
-              'flex w-full items-center justify-center gap-2 rounded-md p-2 text-muted transition-colors duration-150 hover:bg-elevated hover:text-foreground',
+              'flex w-full items-center justify-center gap-2 rounded-xl p-2 text-muted transition-colors hover:bg-elevated hover:text-foreground',
               !collapsed && 'justify-end',
             )}
             aria-label={collapsed ? 'Expandir sidebar' : 'Colapsar sidebar'}
@@ -131,7 +135,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'hidden shrink-0 flex-col border-r border-border bg-surface transition-all duration-200 lg:flex dark:backdrop-blur-xl',
+        'hidden shrink-0 flex-col border-r border-border/80 bg-surface/75 transition-all duration-200 lg:flex',
         collapsed ? 'w-16' : 'w-60',
       )}
     >
@@ -174,7 +178,7 @@ export function MobileSidebar({ open }: MobileSidebarProps) {
         onClick={close}
         aria-hidden="true"
       />
-      <aside className="animate-slide-in-left absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r border-border bg-surface shadow-2xl">
+      <aside className="animate-slide-in-left absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r border-border bg-surface shadow-[18px_0_50px_-30px_color-mix(in_srgb,var(--c-foreground)_55%,transparent)]">
         <SidebarPanel collapsed={false} onClose={close} />
       </aside>
     </div>

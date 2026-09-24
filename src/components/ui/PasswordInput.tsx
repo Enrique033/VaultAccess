@@ -54,7 +54,8 @@ export function PasswordInput({
 }: PasswordInputProps) {
   const [revealed, setRevealed] = useState(false)
   const [optionsOpen, setOptionsOpen] = useState(false)
-  const [options, setOptions] = useState<PasswordGenOptions>(DEFAULT_GEN_OPTIONS)
+  const [options, setOptions] =
+    useState<PasswordGenOptions>(DEFAULT_GEN_OPTIONS)
   /** Última clave creada por el generador (para regenerar sin pisar texto manual). */
   const [lastGenerated, setLastGenerated] = useState<string | null>(null)
 
@@ -94,8 +95,8 @@ export function PasswordInput({
           minLength={minLength}
           disabled={disabled}
           className={cn(
-            'flex h-10 w-full rounded-md border border-border bg-elevated px-3 text-base text-foreground placeholder:text-muted transition-colors duration-150',
-            'focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20',
+            'flex h-10 w-full rounded-xl border border-border bg-surface px-3.5 text-base text-foreground shadow-sm placeholder:text-muted transition-all duration-150',
+            'focus:border-primary/60 focus:outline-none focus:ring-4 focus:ring-primary/10',
             'disabled:cursor-not-allowed disabled:opacity-50',
             'lg:h-9 lg:text-[13px]',
             allowGenerate ? 'pr-[4.75rem]' : 'pr-10',
@@ -139,7 +140,11 @@ export function PasswordInput({
             title={revealed ? 'Ocultar' : 'Mostrar'}
             disabled={disabled}
           >
-            {revealed ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+            {revealed ? (
+              <EyeOff className="size-4" />
+            ) : (
+              <Eye className="size-4" />
+            )}
           </button>
         </div>
       </div>
@@ -166,7 +171,7 @@ export function PasswordInput({
 
       {/* Panel de opciones del generador */}
       {allowGenerate && optionsOpen && (
-        <div className="animate-fade-in space-y-3 rounded-md border border-border bg-elevated p-3">
+        <div className="animate-fade-in space-y-3 rounded-xl border border-border bg-surface p-3 shadow-lg">
           <div className="flex items-center justify-between gap-3">
             <label
               htmlFor={`${id ?? 'pw'}-length`}
@@ -190,27 +195,31 @@ export function PasswordInput({
           />
 
           <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-            {(Object.keys(SET_LABELS) as (keyof typeof SET_LABELS)[]).map((key) => (
-              <label
-                key={key}
-                className="flex cursor-pointer items-center gap-2 text-xs text-muted"
-              >
-                <input
-                  type="checkbox"
-                  checked={options[key]}
-                  onChange={(e) => applyOptions({ [key]: e.target.checked })}
-                  className="size-3.5 accent-primary"
-                />
-                <span className="font-mono">{SET_LABELS[key]}</span>
-              </label>
-            ))}
+            {(Object.keys(SET_LABELS) as (keyof typeof SET_LABELS)[]).map(
+              (key) => (
+                <label
+                  key={key}
+                  className="flex cursor-pointer items-center gap-2 text-xs text-muted"
+                >
+                  <input
+                    type="checkbox"
+                    checked={options[key]}
+                    onChange={(e) => applyOptions({ [key]: e.target.checked })}
+                    className="size-3.5 accent-primary"
+                  />
+                  <span className="font-mono">{SET_LABELS[key]}</span>
+                </label>
+              ),
+            )}
           </div>
 
           <label className="flex cursor-pointer items-center gap-2 text-xs text-muted">
             <input
               type="checkbox"
               checked={options.excludeAmbiguous}
-              onChange={(e) => applyOptions({ excludeAmbiguous: e.target.checked })}
+              onChange={(e) =>
+                applyOptions({ excludeAmbiguous: e.target.checked })
+              }
               className="size-3.5 accent-primary"
             />
             Excluir ambiguos (I, l, 1, O, 0)
@@ -226,4 +235,3 @@ export function PasswordInput({
     </div>
   )
 }
-

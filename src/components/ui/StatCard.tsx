@@ -16,9 +16,9 @@ interface StatCardProps {
 }
 
 const TONES: Record<StatTone, string> = {
-  default: 'bg-violet-100 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400',
-  warning: 'bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-500',
-  success: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500',
+  default: 'bg-primary-soft text-primary',
+  warning: 'bg-amber-100 text-amber-700',
+  success: 'bg-emerald-100 text-emerald-700',
 }
 
 /** Tarjeta compacta de KPI para la cabecera de los listados. */
@@ -35,14 +35,14 @@ export function StatCard({
     <>
       <span
         className={cn(
-          'flex size-9 shrink-0 items-center justify-center rounded-xl border transition-all duration-200',
+          'flex size-10 shrink-0 items-center justify-center rounded-xl border transition-all duration-200',
           TONES[tone],
         )}
       >
         <Icon className="size-4.5" />
       </span>
       <span className="min-w-0">
-        <span className="block text-3xl font-extrabold tracking-tight leading-none text-foreground">
+        <span className="block text-3xl font-extrabold tracking-[-0.05em] leading-none text-foreground">
           {value}
         </span>
         <span className="mt-1 block truncate text-[11px] font-bold uppercase tracking-wider text-muted">
@@ -53,9 +53,10 @@ export function StatCard({
   )
 
   const className = cn(
-    'flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 text-left transition-all duration-200 shadow-sm',
+    'surface-card surface-card-hover flex items-center gap-4 rounded-2xl p-4 text-left',
     onClick && 'hover:border-border hover:bg-elevated cursor-pointer',
-    active && 'border-violet-500 bg-violet-50/50 shadow-md dark:border-violet-500/50 dark:bg-violet-500/10',
+    active &&
+      'border-primary/45 bg-primary-soft shadow-[0_14px_28px_-22px_color-mix(in_srgb,var(--c-primary)_60%,transparent)]',
   )
 
   if (onClick) {

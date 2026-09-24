@@ -178,11 +178,10 @@ export function Select({
         aria-controls={open ? 'select-panel' : undefined}
         aria-label={ariaLabel}
         className={cn(
-          'flex h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-md border border-border bg-elevated px-3 text-left text-base text-foreground lg:h-9 lg:text-[13px]',
-          'transition-colors duration-150',
-          'focus-visible:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20',
-          'hover:border-primary/40',
-          open && 'border-primary/50 ring-1 ring-primary/20',
+          'flex h-10 w-full cursor-pointer items-center justify-between gap-2 rounded-xl border border-border bg-surface px-3.5 text-left text-base text-foreground shadow-sm',
+          'transition-all duration-150',
+          'hover:border-primary/30 focus-visible:border-primary/60 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-primary/10',
+          open && 'border-primary/60 ring-4 ring-primary/10',
         )}
         onClick={() =>
           open ? close() : openAt(selectedIndex >= 0 ? selectedIndex : 0)
@@ -215,7 +214,7 @@ export function Select({
             aria-activedescendant={`select-option-${activeIndex}`}
             onKeyDown={onPanelKeyDown}
             className={cn(
-              'animate-fade-in pointer-events-auto z-30 flex flex-col gap-0.5 overflow-auto rounded-lg border border-border bg-elevated p-1 shadow-2xl',
+              'animate-fade-in pointer-events-auto z-30 flex flex-col gap-0.5 overflow-auto rounded-2xl border border-border bg-surface p-1 shadow-[0_18px_40px_-24px_color-mix(in_srgb,var(--c-foreground)_55%,transparent)]',
             )}
             style={{
               position: 'fixed',

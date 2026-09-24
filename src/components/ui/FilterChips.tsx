@@ -35,7 +35,7 @@ export function FilterChips({ sections, categories }: FilterChipsProps) {
   if (!hasFilters) return null
 
   const chip =
-    'inline-flex items-center gap-1.5 rounded-md border border-border bg-elevated px-2 py-1 text-foreground transition-colors hover:border-primary/40'
+    'inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-2.5 py-1.5 text-foreground shadow-sm transition-colors hover:border-primary/35 hover:bg-primary-soft hover:text-primary'
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 text-xs">
@@ -43,7 +43,11 @@ export function FilterChips({ sections, categories }: FilterChipsProps) {
         <SlidersHorizontal className="size-3.5" /> Filtros:
       </span>
       {activeSection && (
-        <button type="button" onClick={() => setSectionId(null)} className={chip}>
+        <button
+          type="button"
+          onClick={() => setSectionId(null)}
+          className={chip}
+        >
           Sección: {activeSection.name}
           <X className="size-3 text-muted" />
         </button>

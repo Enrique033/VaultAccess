@@ -87,165 +87,174 @@ export function Login() {
             : 'Escribe tu correo y te enviaremos un enlace para recuperar tu acceso.'
       }
     >
-        {status === 'unconfigured' && (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
-            Supabase no está configurado. Copia <code className="font-mono">.env.example</code> a{' '}
-            <code className="font-mono">.env</code> y completa{' '}
-            <code className="font-mono">VITE_SUPABASE_URL</code> y{' '}
-            <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>. Mientras tanto puedes
-            entrar en modo local (tus datos no saldrán de este navegador).
+      {status === 'unconfigured' && (
+        <div className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs leading-relaxed text-warning">
+          Supabase no está configurado. Copia{' '}
+          <code className="font-mono">.env.example</code> a{' '}
+          <code className="font-mono">.env</code> y completa{' '}
+          <code className="font-mono">VITE_SUPABASE_URL</code> y{' '}
+          <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>. Mientras
+          tanto puedes entrar en modo local (tus datos no saldrán de este
+          navegador).
+        </div>
+      )}
+
+      <form onSubmit={submit} className="auth-form-card">
+        {mode === 'signup' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="login-firstname">Nombre</Label>
+              <Input
+                id="login-firstname"
+                type="text"
+                autoComplete="given-name"
+                required
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Ana"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="login-lastname">Apellido</Label>
+              <Input
+                id="login-lastname"
+                type="text"
+                autoComplete="family-name"
+                required
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Pérez"
+              />
+            </div>
+          </div>
+        )}
+        <div className="space-y-1.5">
+          <Label htmlFor="login-email">Correo</Label>
+          <Input
+            id="login-email"
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="tu@correo.com"
+          />
+        </div>
+        {mode !== 'forgot' && (
+          <div className="space-y-1.5">
+            <Label htmlFor="login-password">Clave de acceso</Label>
+            {mode === 'signup' ? (
+              <PasswordInput
+                id="login-password"
+                autoComplete="new-password"
+                required
+                minLength={6}
+                value={password}
+                onChange={setPassword}
+                showStrength
+                allowGenerate
+              />
+            ) : (
+              <Input
+                id="login-password"
+                type="password"
+                autoComplete="current-password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            )}
+            {mode === 'signin' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('forgot')
+                  setError(null)
+                  setSent(false)
+                }}
+                className="block w-full text-right text-[11px] text-muted transition-colors hover:text-foreground"
+              >
+                ¿Olvidaste tu clave?
+              </button>
+            )}
           </div>
         )}
 
-        <form onSubmit={submit} className="space-y-4 rounded-xl border border-border bg-surface p-5">
-          {mode === 'signup' && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="login-firstname">Nombre</Label>
-                <Input
-                  id="login-firstname"
-                  type="text"
-                  autoComplete="given-name"
-                  required
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="Ana"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="login-lastname">Apellido</Label>
-                <Input
-                  id="login-lastname"
-                  type="text"
-                  autoComplete="family-name"
-                  required
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Pérez"
-                />
-              </div>
-            </div>
-          )}
-          <div className="space-y-1.5">
-            <Label htmlFor="login-email">Correo</Label>
-            <Input
-              id="login-email"
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="tu@correo.com"
-            />
-          </div>
-          {mode !== 'forgot' && (
-            <div className="space-y-1.5">
-              <Label htmlFor="login-password">Clave de acceso</Label>
-              {mode === 'signup' ? (
-                <PasswordInput
-                  id="login-password"
-                  autoComplete="new-password"
-                  required
-                  minLength={6}
-                  value={password}
-                  onChange={setPassword}
-                  showStrength
-                  allowGenerate
-                />
-              ) : (
-                <Input
-                  id="login-password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                />
-              )}
-              {mode === 'signin' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('forgot')
-                    setError(null)
-                    setSent(false)
-                  }}
-                  className="block w-full text-right text-[11px] text-muted transition-colors hover:text-foreground"
-                >
-                  ¿Olvidaste tu clave?
-                </button>
-              )}
-            </div>
-          )}
-
-          {error && (
-            <p role="alert" className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
-              {error}
-            </p>
-          )}
-          {sent && !error && (
-            <p className="rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs text-green-300">
-              {mode === 'forgot'
-                ? '¡Listo! Te enviamos un enlace a tu correo para recuperar el acceso (revisa también la carpeta spam).'
-                : 'Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.'}
-            </p>
-          )}
-
-          <Button type="submit" variant="primary" disabled={busy} className="w-full">
-            {busy ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : mode === 'forgot' ? (
-              <Mail className="size-4" />
-            ) : (
-              <KeyRound className="size-4" />
-            )}
-            {mode === 'signin'
-              ? 'Entrar'
-              : mode === 'signup'
-                ? 'Crear cuenta'
-                : 'Enviar enlace'}
-          </Button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setMode(mode === 'signin' ? 'signup' : 'signin')
-              setError(null)
-              setSent(false)
-            }}
-            className="w-full text-center text-xs text-muted transition-colors hover:text-foreground"
+        {error && (
+          <p
+            role="alert"
+            className="rounded-xl border border-danger/30 bg-danger/10 px-3 py-2.5 text-xs text-danger"
           >
-            {mode === 'signin'
-              ? '¿No tienes cuenta? Crear una'
-              : '¿Ya tienes cuenta? Iniciar sesión'}
-          </button>
+            {error}
+          </p>
+        )}
+        {sent && !error && (
+          <p className="rounded-xl border border-success/30 bg-success/10 px-3 py-2.5 text-xs text-success">
+            {mode === 'forgot'
+              ? '¡Listo! Te enviamos un enlace a tu correo para recuperar el acceso (revisa también la carpeta spam).'
+              : 'Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.'}
+          </p>
+        )}
 
-          {mode !== 'forgot' && (
-            <>
-              <div className="relative py-1 text-center">
-                <span className="absolute inset-x-0 top-1/2 h-px bg-border" />
-                <span className="relative bg-surface px-2.5 text-[11px] text-muted">o</span>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full"
-                onClick={handleGoogle}
-                disabled={busy || status === 'unconfigured'}
-                title={
-                  status === 'unconfigured'
-                    ? 'Configura Supabase para habilitar Google'
-                    : undefined
-                }
-              >
-                <GoogleIcon className="size-4" />
-                Continuar con Google
-              </Button>
-            </>
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={busy}
+          className="w-full"
+        >
+          {busy ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : mode === 'forgot' ? (
+            <Mail className="size-4" />
+          ) : (
+            <KeyRound className="size-4" />
           )}
-        </form>
+          {mode === 'signin'
+            ? 'Entrar'
+            : mode === 'signup'
+              ? 'Crear cuenta'
+              : 'Enviar enlace'}
+        </Button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setMode(mode === 'signin' ? 'signup' : 'signin')
+            setError(null)
+            setSent(false)
+          }}
+          className="w-full text-center text-xs text-muted transition-colors hover:text-foreground"
+        >
+          {mode === 'signin'
+            ? '¿No tienes cuenta? Crear una'
+            : '¿Ya tienes cuenta? Iniciar sesión'}
+        </button>
+
+        {mode !== 'forgot' && (
+          <>
+            <div className="auth-divider my-1">
+              <span>o continúa con</span>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              onClick={handleGoogle}
+              disabled={busy || status === 'unconfigured'}
+              title={
+                status === 'unconfigured'
+                  ? 'Configura Supabase para habilitar Google'
+                  : undefined
+              }
+            >
+              <GoogleIcon className="size-4" />
+              Continuar con Google
+            </Button>
+          </>
+        )}
+      </form>
     </AuthLayout>
   )
 }

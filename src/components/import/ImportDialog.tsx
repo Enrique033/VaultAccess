@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
-import { AlertCircle, CheckCircle2, FileSpreadsheet, Upload } from 'lucide-react'
+import {
+  AlertCircle,
+  CheckCircle2,
+  FileSpreadsheet,
+  Upload,
+} from 'lucide-react'
 import {
   Dialog,
   DialogCloseButton,
@@ -30,8 +35,7 @@ interface ImportDialogProps {
 
 type FormatChoice = 'auto' | ImportFormat
 
-const optionRow =
-  'flex cursor-pointer items-center gap-2 text-xs text-muted'
+const optionRow = 'flex cursor-pointer items-center gap-2 text-xs text-muted'
 
 /**
  * Importa credenciales desde un respaldo (Bitwarden, Chrome, 1Password,
@@ -53,9 +57,10 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
   const [createCategories, setCreateCategories] = useState(true)
   const [skipDuplicates, setSkipDuplicates] = useState(true)
   const [importing, setImporting] = useState(false)
-  const [result, setResult] = useState<{ created: number; skipped: number } | null>(
-    null,
-  )
+  const [result, setResult] = useState<{
+    created: number
+    skipped: number
+  } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   // Cada vez que se cierra, el diálogo vuelve a nacer limpio.
@@ -89,7 +94,9 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
       })
       .catch(() => {
         if (cancelled) return
-        setError('No se pudo leer el archivo. Revisa el formato e inténtalo de nuevo.')
+        setError(
+          'No se pudo leer el archivo. Revisa el formato e inténtalo de nuevo.',
+        )
       })
       .finally(() => {
         if (!cancelled) setReading(false)
@@ -201,7 +208,9 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
                 {file.name}
               </span>
               <span className="text-[11px] text-muted">
-                {reading ? 'Leyendo archivo…' : 'Pulsa para elegir otro archivo'}
+                {reading
+                  ? 'Leyendo archivo…'
+                  : 'Pulsa para elegir otro archivo'}
               </span>
             </>
           ) : (
@@ -238,7 +247,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
         {error && (
           <p
             role="alert"
-            className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-200"
+            className="flex items-start gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs leading-relaxed text-warning"
           >
             <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
             {error}
@@ -254,7 +263,8 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
               </span>
               {parsed.skipped > 0 && (
                 <span className="rounded-md border border-border bg-elevated px-2 py-1">
-                  {parsed.skipped} fila{parsed.skipped === 1 ? '' : 's'} sin clave
+                  {parsed.skipped} fila{parsed.skipped === 1 ? '' : 's'} sin
+                  clave
                 </span>
               )}
               {parsed.folders.length > 0 && (
@@ -265,7 +275,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
               )}
             </div>
 
-            <ul className="max-h-40 overflow-y-auto rounded-md border border-border">
+            <ul className="max-h-40 overflow-y-auto rounded-xl border border-border">
               {parsed.entries.slice(0, 8).map((entry, index) => (
                 <li
                   key={`${entry.title}-${index}`}
@@ -330,7 +340,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
 
         {/* Resumen final */}
         {result && (
-          <div className="flex items-start gap-2 rounded-md border border-green-500/30 bg-green-500/10 px-3 py-2 text-xs leading-relaxed text-green-400">
+          <div className="flex items-start gap-2 rounded-xl border border-success/30 bg-success/10 px-3 py-2.5 text-xs leading-relaxed text-success">
             <CheckCircle2 className="mt-0.5 size-3.5 shrink-0" />
             <span>
               {result.created} credencial

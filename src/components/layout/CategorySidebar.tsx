@@ -1,5 +1,13 @@
 import { useState } from 'react'
-import { FolderOpen, LayoutGrid, Pencil, Plus, Star, Tag, Trash2 } from 'lucide-react'
+import {
+  FolderOpen,
+  LayoutGrid,
+  Pencil,
+  Plus,
+  Star,
+  Tag,
+  Trash2,
+} from 'lucide-react'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -29,9 +37,14 @@ export function CategorySidebar() {
   const [editingSectionName, setEditingSectionName] = useState('')
   const [editingCat, setEditingCat] = useState<string | null>(null)
   const [editingCatName, setEditingCatName] = useState('')
-  const [confirm, setConfirm] = useState<{ kind: 'section' | 'category'; id: string; label: string } | null>(null)
+  const [confirm, setConfirm] = useState<{
+    kind: 'section' | 'category'
+    id: string
+    label: string
+  } | null>(null)
 
-  const countFor = (catId: string) => credentials.filter((c) => c.categoryId === catId).length
+  const countFor = (catId: string) =>
+    credentials.filter((c) => c.categoryId === catId).length
   const uncategorized = credentials.filter((c) => !c.categoryId).length
   const favorites = credentials.filter((c) => c.favorite).length
 
@@ -64,28 +77,57 @@ export function CategorySidebar() {
 
   const row = (active: boolean) =>
     cn(
-      'flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[13px] font-medium transition-colors',
-      active ? 'bg-elevated text-foreground' : 'text-muted hover:bg-elevated hover:text-foreground',
+      'flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors',
+      active
+        ? 'bg-primary-soft text-primary'
+        : 'text-muted hover:bg-elevated hover:text-foreground',
     )
   const iconBtn =
-    'rounded p-1 text-muted transition-colors hover:bg-elevated hover:text-foreground'
+    'rounded-lg p-1 text-muted transition-colors hover:bg-elevated hover:text-foreground'
 
   return (
     <div className="space-y-4">
-      <button type="button" onClick={() => { setSectionId(null); setCategoryFilter(null) }} className={row(allActive)}>
+      <button
+        type="button"
+        onClick={() => {
+          setSectionId(null)
+          setCategoryFilter(null)
+        }}
+        className={row(allActive)}
+      >
         <LayoutGrid className="size-4 shrink-0" />
         <span className="flex-1">Todas</span>
-        <span className="rounded bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-muted">{credentials.length}</span>
+        <span className="rounded bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-muted">
+          {credentials.length}
+        </span>
       </button>
-      <button type="button" onClick={() => { setSectionId(null); setCategoryFilter(categoryFilter === 'favorites' ? null : 'favorites') }} className={row(categoryFilter === 'favorites')}>
+      <button
+        type="button"
+        onClick={() => {
+          setSectionId(null)
+          setCategoryFilter(categoryFilter === 'favorites' ? null : 'favorites')
+        }}
+        className={row(categoryFilter === 'favorites')}
+      >
         <Star className="size-4 shrink-0" />
         <span className="flex-1">Favoritas</span>
-        <span className="rounded bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-muted">{favorites}</span>
+        <span className="rounded bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-muted">
+          {favorites}
+        </span>
       </button>
-      <button type="button" onClick={() => { setSectionId(null); setCategoryFilter(categoryFilter === 'none' ? null : 'none') }} className={row(categoryFilter === 'none')}>
+      <button
+        type="button"
+        onClick={() => {
+          setSectionId(null)
+          setCategoryFilter(categoryFilter === 'none' ? null : 'none')
+        }}
+        className={row(categoryFilter === 'none')}
+      >
         <FolderOpen className="size-4 shrink-0" />
         <span className="flex-1">Sin categoría</span>
-        <span className="rounded bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-muted">{uncategorized}</span>
+        <span className="rounded bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-muted">
+          {uncategorized}
+        </span>
       </button>
       {sections.map((sec) => {
         const cats = categories.filter((c) => c.sectionId === sec.id)
@@ -107,7 +149,11 @@ export function CategorySidebar() {
                           await renameSection(sec.id, editingSectionName)
                           setEditingSection(null)
                         } catch (err) {
-                          toast.error(err instanceof Error ? err.message : 'No se pudo renombrar')
+                          toast.error(
+                            err instanceof Error
+                              ? err.message
+                              : 'No se pudo renombrar',
+                          )
                         }
                       })()
                     }
@@ -118,18 +164,49 @@ export function CategorySidebar() {
               ) : (
                 <button
                   type="button"
-                  onClick={() => { setSectionId(secActive ? null : sec.id); setCategoryFilter(null) }}
-                  className={cn('flex min-w-0 flex-1 items-center rounded-md px-2.5 py-1.5 text-left transition-colors', secActive ? 'bg-elevated' : 'hover:bg-elevated')}
+                  onClick={() => {
+                    setSectionId(secActive ? null : sec.id)
+                    setCategoryFilter(null)
+                  }}
+                  className={cn(
+                    'flex min-w-0 flex-1 items-center rounded-md px-2.5 py-1.5 text-left transition-colors',
+                    secActive ? 'bg-elevated' : 'hover:bg-elevated',
+                  )}
                   title="Filtrar por sección"
                 >
-                  <span className={cn('truncate text-[11px] font-semibold uppercase tracking-wider', secActive ? 'text-foreground' : 'text-muted')}>{sec.name}</span>
+                  <span
+                    className={cn(
+                      'truncate text-[11px] font-semibold uppercase tracking-wider',
+                      secActive ? 'text-foreground' : 'text-muted',
+                    )}
+                  >
+                    {sec.name}
+                  </span>
                 </button>
               )}
               <span className="hidden items-center gap-0.5 group-hover:flex">
-                <button type="button" title="Renombrar sección" onClick={() => { setEditingSection(sec.id); setEditingSectionName(sec.name) }} className={iconBtn}>
+                <button
+                  type="button"
+                  title="Renombrar sección"
+                  onClick={() => {
+                    setEditingSection(sec.id)
+                    setEditingSectionName(sec.name)
+                  }}
+                  className={iconBtn}
+                >
                   <Pencil className="size-3" />
                 </button>
-                <button type="button" title="Eliminar sección" onClick={() => setConfirm({ kind: 'section', id: sec.id, label: sec.name })} className={cn(iconBtn, 'hover:text-red-400')}>
+                <button
+                  type="button"
+                  title="Eliminar sección"
+                  onClick={() =>
+                    setConfirm({ kind: 'section', id: sec.id, label: sec.name })
+                  }
+                  className={cn(
+                    iconBtn,
+                    'hover:bg-danger/10 hover:text-danger',
+                  )}
+                >
                   <Trash2 className="size-3" />
                 </button>
               </span>
@@ -146,21 +223,33 @@ export function CategorySidebar() {
                 onEditChange={setEditingCatName}
                 onSelect={() => {
                   if (categoryFilter === cat.id) setCategoryFilter(null)
-                  else { setSectionId(null); setCategoryFilter(cat.id) }
+                  else {
+                    setSectionId(null)
+                    setCategoryFilter(cat.id)
+                  }
                 }}
-                onStartEdit={() => { setEditingCat(cat.id); setEditingCatName(cat.name) }}
+                onStartEdit={() => {
+                  setEditingCat(cat.id)
+                  setEditingCatName(cat.name)
+                }}
                 onCommitEdit={() => {
                   void (async () => {
                     try {
                       await renameCategory(cat.id, editingCatName)
                       setEditingCat(null)
                     } catch (err) {
-                      toast.error(err instanceof Error ? err.message : 'No se pudo renombrar')
+                      toast.error(
+                        err instanceof Error
+                          ? err.message
+                          : 'No se pudo renombrar',
+                      )
                     }
                   })()
                 }}
                 onCancelEdit={() => setEditingCat(null)}
-                onDelete={() => setConfirm({ kind: 'category', id: cat.id, label: cat.name })}
+                onDelete={() =>
+                  setConfirm({ kind: 'category', id: cat.id, label: cat.name })
+                }
                 iconBtn={iconBtn}
               />
             ))}
@@ -168,7 +257,9 @@ export function CategorySidebar() {
               <div
                 className="flex items-center gap-1.5 pl-2.5"
                 onBlur={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  if (
+                    !e.currentTarget.contains(e.relatedTarget as Node | null)
+                  ) {
                     setAddingCatFor(null)
                     setNewCat('')
                   }
@@ -181,19 +272,29 @@ export function CategorySidebar() {
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') void submitCategory(sec.id)
-                    if (e.key === 'Escape') { setAddingCatFor(null); setNewCat('') }
+                    if (e.key === 'Escape') {
+                      setAddingCatFor(null)
+                      setNewCat('')
+                    }
                   }}
                   className="h-7 flex-1 rounded border border-primary/50 bg-elevated px-2 text-xs text-foreground placeholder:text-muted focus:outline-none"
                 />
-                <button type="button" onClick={() => void submitCategory(sec.id)} disabled={!newCat.trim()}
-                  className="rounded bg-primary px-2 py-1 text-xs font-medium text-white disabled:opacity-50">
+                <button
+                  type="button"
+                  onClick={() => void submitCategory(sec.id)}
+                  disabled={!newCat.trim()}
+                  className="rounded bg-primary px-2 py-1 text-xs font-medium text-white disabled:opacity-50"
+                >
                   Añadir
                 </button>
               </div>
             ) : (
               <button
                 type="button"
-                onClick={() => { setAddingCatFor(sec.id); setNewCat('') }}
+                onClick={() => {
+                  setAddingCatFor(sec.id)
+                  setNewCat('')
+                }}
                 className="flex w-full items-center gap-1.5 rounded-md px-2.5 py-1.5 text-left text-xs text-muted transition-colors hover:bg-elevated hover:text-foreground"
               >
                 <Plus className="size-3" /> Nueva categoría
@@ -214,9 +315,19 @@ export function CategorySidebar() {
 
       <ConfirmDialog
         open={confirm !== null}
-        onOpenChange={(o) => { if (!o) setConfirm(null) }}
-        title={confirm?.kind === 'section' ? 'Eliminar sección' : 'Eliminar categoría'}
-        description={confirm ? `¿Eliminar “${confirm.label}”? Las credenciales no se borran.` : undefined}
+        onOpenChange={(o) => {
+          if (!o) setConfirm(null)
+        }}
+        title={
+          confirm?.kind === 'section'
+            ? 'Eliminar sección'
+            : 'Eliminar categoría'
+        }
+        description={
+          confirm
+            ? `¿Eliminar “${confirm.label}”? Las credenciales no se borran.`
+            : undefined
+        }
         confirmLabel="Eliminar"
         variant="danger"
         onConfirm={() => {
@@ -235,7 +346,9 @@ export function CategorySidebar() {
               }
               setConfirm(null)
             } catch (err) {
-              toast.error(err instanceof Error ? err.message : 'No se pudo eliminar')
+              toast.error(
+                err instanceof Error ? err.message : 'No se pudo eliminar',
+              )
             }
           })()
         }}
@@ -279,23 +392,41 @@ function CategoryRow(props: {
       <button
         type="button"
         onClick={props.onSelect}
-        className={cn('flex min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors',
-          props.active ? 'bg-elevated text-foreground' : 'text-muted hover:bg-elevated hover:text-foreground')}
+        className={cn(
+          'flex min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 py-1.5 text-left text-[13px] transition-colors',
+          props.active
+            ? 'bg-elevated text-foreground'
+            : 'text-muted hover:bg-elevated hover:text-foreground',
+        )}
       >
-        <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: props.color }} />
+        <span
+          className="size-2 shrink-0 rounded-full"
+          style={{ backgroundColor: props.color }}
+        />
         <Tag className="size-3 shrink-0 opacity-60" />
         <span className="flex-1 truncate">{props.name}</span>
-        <span className="rounded bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-muted">{props.count}</span>
+        <span className="rounded bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-muted">
+          {props.count}
+        </span>
       </button>
       <span className="hidden items-center gap-0.5 group-hover:flex">
-        <button type="button" title="Renombrar" onClick={props.onStartEdit} className={props.iconBtn}>
+        <button
+          type="button"
+          title="Renombrar"
+          onClick={props.onStartEdit}
+          className={props.iconBtn}
+        >
           <Pencil className="size-3" />
         </button>
-        <button type="button" title="Eliminar" onClick={props.onDelete} className={cn(props.iconBtn, 'hover:text-red-400')}>
+        <button
+          type="button"
+          title="Eliminar"
+          onClick={props.onDelete}
+          className={cn(props.iconBtn, 'hover:bg-danger/10 hover:text-danger')}
+        >
           <Trash2 className="size-3" />
         </button>
       </span>
     </div>
   )
 }
-
