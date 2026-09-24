@@ -93,7 +93,8 @@ export function Workspaces() {
 
   const countMembers = (id: string) =>
     members.filter((m) => m.workspaceId === id).length
-  const countItems = (id: string) => items.filter((i) => i.workspaceId === id).length
+  const countItems = (id: string) =>
+    items.filter((i) => i.workspaceId === id).length
 
   /** Ejecuta una acción del store con toast de error unificado. */
   const run = async (action: () => Promise<void>, ok?: string) => {
@@ -219,7 +220,12 @@ export function Workspaces() {
               className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-background p-2"
             >
               <span className="min-w-0 flex-1 truncate text-[13px] text-foreground">
-                {member.email}
+                <span className="block truncate">{member.displayName}</span>
+                {member.email && member.email !== member.displayName && (
+                  <span className="block truncate text-[11px] text-muted">
+                    {member.email}
+                  </span>
+                )}
                 {isMe && (
                   <span className="ml-2 text-[11px] text-primary">Tú</span>
                 )}
@@ -233,7 +239,7 @@ export function Workspaces() {
               {isOwner && !isMe ? (
                 <Select
                   value={member.role}
-                  ariaLabel={`Rol de ${member.email}`}
+                  ariaLabel={`Rol de ${member.displayName}`}
                   className="h-8 w-36 text-xs"
                   onChange={(v) =>
                     void run(
@@ -257,10 +263,7 @@ export function Workspaces() {
                   type="button"
                   title="Quitar del espacio"
                   onClick={() =>
-                    void run(
-                      () => removeMember(member.id),
-                      'Miembro eliminado',
-                    )
+                    void run(() => removeMember(member.id), 'Miembro eliminado')
                   }
                   className="rounded p-1.5 text-muted transition-colors duration-150 hover:bg-elevated hover:text-red-400"
                 >
@@ -347,7 +350,9 @@ export function Workspaces() {
             const source = item.credentialId
               ? credentials.find((c) => c.id === item.credentialId)
               : undefined
-            const creator = activeMembers.find((m) => m.userId === item.createdBy)
+            const creator = activeMembers.find(
+              (m) => m.userId === item.createdBy,
+            )
             return (
               <li
                 key={item.id}

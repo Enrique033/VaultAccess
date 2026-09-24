@@ -11,7 +11,7 @@ export function Card({ children, className }: CardProps) {
     <div
       data-card="true"
       className={cn(
-        'rounded-lg border border-border bg-surface shadow-sm',
+        'rounded-2xl border border-border bg-surface transition-all duration-200 hover:border-border dark:border-border dark:bg-surface dark:backdrop-blur-sm dark:hover:border-border',
         className,
       )}
     >

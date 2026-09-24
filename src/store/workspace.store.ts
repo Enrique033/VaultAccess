@@ -23,6 +23,8 @@ export type WorkspaceStatus = 'idle' | 'loading' | 'ready' | 'error' | 'local'
 
 /** Error de equipos con la pista de qué script SQL falta. */
 function friendlyWorkspaceError(message: string): string {
+  if (/list_workspace_members|schema-chat-v2/i.test(message))
+    return 'Falta la privacidad de miembros. Ejecuta supabase/schema-chat-v2.sql en Supabase.'
   if (/relation .* does not exist|schema cache/i.test(message))
     return 'Faltan las tablas de equipos. Ejecuta supabase/schema-sharing.sql en el SQL Editor de Supabase.'
   if (/row-level security/i.test(message))
@@ -72,7 +74,10 @@ interface WorkspaceState {
   removeMember: (memberId: string) => Promise<void>
 
   /** Comparte una credencial (crea o actualiza su copia en el espacio). */
-  shareCredential: (workspaceId: string, credential: Credential) => Promise<void>
+  shareCredential: (
+    workspaceId: string,
+    credential: Credential,
+  ) => Promise<void>
   /** Vuelve a subir los datos actuales de la credencial a la copia. */
   updateSharedItem: (itemId: string, credential: Credential) => Promise<void>
   removeSharedItem: (itemId: string) => Promise<void>
@@ -99,22 +104,23 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
 
       const [wsRes, memRes, itemRes] = await Promise.all([
         supabase.from('vault_workspaces').select('*').order('created_at'),
-        supabase.from('vault_workspace_members').select('*').order('created_at'),
+        supabase.rpc('list_workspace_members'),
         supabase
           .from('vault_workspace_items')
           .select('*')
           .order('updated_at', { ascending: false }),
       ])
       const firstError = wsRes.error ?? memRes.error ?? itemRes.error
-      if (firstError) throw new Error(friendlyWorkspaceError(firstError.message))
+      if (firstError)
+        throw new Error(friendlyWorkspaceError(firstError.message))
 
       const workspaces = (wsRes.data ?? []).map((row) =>
         toWorkspace(row as WorkspaceRow),
       )
       set((s) => ({
         workspaces,
-        members: (memRes.data ?? []).map((row) =>
-          toWorkspaceMember(row as WorkspaceMemberRow),
+        members: (memRes.data ?? []).map((row: WorkspaceMemberRow) =>
+          toWorkspaceMember(row),
         ),
         items: (itemRes.data ?? []).map((row) =>
           toWorkspaceItem(row as WorkspaceItemRow),
@@ -129,8 +135,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
     } catch (e) {
       set({
         status: 'error',
-        error:
-          e instanceof Error ? e.message : 'Error al cargar los espacios.',
+        error: e instanceof Error ? e.message : 'Error al cargar los espacios.',
       })
     }
   },
@@ -196,6 +201,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
               workspaceId: workspace.id,
               userId,
               email,
+              displayName: email,
               role: 'owner',
               createdAt: new Date().toISOString(),
             },
@@ -220,12 +226,17 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
       .eq('id', id)
     if (error) throw new Error(friendlyWorkspaceError(error.message))
     set((s) => ({
-      workspaces: s.workspaces.map((w) => (w.id === id ? { ...w, name: next } : w)),
+      workspaces: s.workspaces.map((w) =>
+        w.id === id ? { ...w, name: next } : w,
+      ),
     }))
   },
 
   deleteWorkspace: async (id) => {
-    const { error } = await supabase.from('vault_workspaces').delete().eq('id', id)
+    const { error } = await supabase
+      .from('vault_workspaces')
+      .delete()
+      .eq('id', id)
     if (error) throw new Error(friendlyWorkspaceError(error.message))
     set((s) => ({
       workspaces: s.workspaces.filter((w) => w.id !== id),
@@ -238,13 +249,22 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
   inviteMember: async (workspaceId, email, role) => {
     const clean = email.trim().toLowerCase()
 
-    const { data, error } = await supabase
-      .from('vault_workspace_members')
-      .insert({ workspace_id: workspaceId, email: clean, role })
-      .select()
-      .single()
+    const memberId = crypto.randomUUID()
+    const { error } = await supabase.from('vault_workspace_members').insert({
+      id: memberId,
+      workspace_id: workspaceId,
+      email: clean,
+      role,
+    })
     if (error) throw new Error(friendlyWorkspaceError(error.message))
-    const member = toWorkspaceMember(data as WorkspaceMemberRow)
+    const member: WorkspaceMember = {
+      id: memberId,
+      workspaceId,
+      email: clean,
+      displayName: clean,
+      role,
+      createdAt: new Date().toISOString(),
+    }
     set((s) => ({
       members: [...s.members, member],
     }))
@@ -357,11 +377,13 @@ export function workspacesOfCredential(
 export function useWorkspaceSync() {
   useEffect(() => {
     let cancelled = false
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (cancelled) return
-      if (session) void useWorkspaceStore.getState().load()
-      else useWorkspaceStore.getState().reset()
-    })
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (cancelled) return
+        if (session) void useWorkspaceStore.getState().load()
+        else useWorkspaceStore.getState().reset()
+      },
+    )
     supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return
       if (data.session) void useWorkspaceStore.getState().load()

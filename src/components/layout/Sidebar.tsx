@@ -34,7 +34,7 @@ function SidebarPanel({ collapsed, onToggle, onClose }: SidebarPanelProps) {
     <>
       <div
         className={cn(
-          'flex h-[var(--header-height)] items-center gap-2 border-b border-border',
+          'flex h-[var(--header-height)] items-center gap-2 border-b border-border bg-surface transition-colors duration-300 dark:border-border dark:bg-surface/50',
           collapsed ? 'justify-center px-2' : 'px-4',
         )}
       >
@@ -42,11 +42,11 @@ function SidebarPanel({ collapsed, onToggle, onClose }: SidebarPanelProps) {
           to="/credentials"
           className={cn('flex min-w-0 items-center gap-2', collapsed ? '' : 'flex-1')}
         >
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-white">
-            <Vault className="size-4" />
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-lg shadow-violet-500/20">
+            <Vault className="size-4.5" />
           </span>
           {!collapsed && (
-            <span className="truncate text-sm font-semibold text-foreground">
+            <span className="truncate text-sm font-bold tracking-tight text-foreground dark:text-zinc-100">
               WorkVault
             </span>
           )}
@@ -75,10 +75,10 @@ function SidebarPanel({ collapsed, onToggle, onClose }: SidebarPanelProps) {
               key={item.to}
               to={item.to}
               className={cn(
-                'flex items-center gap-2 rounded-md px-3 py-2.5 text-[13px] font-medium transition-colors duration-150 sm:py-2',
+                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-all duration-200 sm:py-2',
                 active
-                  ? 'bg-elevated text-foreground'
-                  : 'text-muted hover:bg-elevated hover:text-foreground',
+                  ? 'bg-violet-50 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400'
+                  : 'text-muted hover:bg-elevated hover:text-foreground dark:text-muted dark:hover:bg-elevated dark:hover:text-foreground',
                 collapsed && 'justify-center px-2',
               )}
               title={collapsed ? item.label : undefined}
@@ -131,7 +131,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'hidden shrink-0 flex-col border-r border-border bg-surface transition-all duration-200 lg:flex',
+        'hidden shrink-0 flex-col border-r border-border bg-surface transition-all duration-200 lg:flex dark:backdrop-blur-xl',
         collapsed ? 'w-16' : 'w-60',
       )}
     >

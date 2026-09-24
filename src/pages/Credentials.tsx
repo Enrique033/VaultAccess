@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { KeyRound, Plus, ShieldAlert, Star, Upload, Users2 } from 'lucide-react'
+import { KeyRound, Plus, Star, Upload, Users2, ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FilterChips } from '@/components/ui/FilterChips'
@@ -37,7 +36,6 @@ export function Credentials() {
   const sharedItems = useWorkspaceStore((s) => s.items)
 
   const query = useSearchStore((s) => s.query)
-  const setQuery = useSearchStore((s) => s.setQuery)
   const sectionId = useSearchStore((s) => s.sectionId)
   const categoryFilter = useSearchStore((s) => s.categoryFilter)
   const setCategoryFilter = useSearchStore((s) => s.setCategoryFilter)
@@ -233,22 +231,15 @@ export function Credentials() {
         </div>
       )}
 
-      {/* Search + sort */}
+      {/* Toolbar: Sort & Filters */}
       {credentials.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <SearchInput
-            ref={searchRef}
-            value={query}
-            onChange={setQuery}
-            placeholder="Buscar por título, usuario, URL o categoría..."
-            className="w-full sm:min-w-52 sm:max-w-md sm:flex-1"
-          />
-          <CredentialSortSelect value={sort} onChange={setSort} />
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-elevated/50 p-3 rounded-xl border border-border/50">
+          <FilterChips sections={sections} categories={categories} />
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs text-muted hidden sm:inline">Ordenar por:</span>
+            <CredentialSortSelect value={sort} onChange={setSort} />
+          </div>
         </div>
-      )}
-
-      {credentials.length > 0 && (
-        <FilterChips sections={sections} categories={categories} />
       )}
 
       {/* Content */}

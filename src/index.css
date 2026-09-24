@@ -2,12 +2,12 @@
 
 /* Paleta CLARA (por defecto) — se aplica con variables para poder alternar en runtime. */
 :root {
-  --c-background: #fafafa;
-  --c-surface: #ffffff;
-  --c-elevated: #f4f4f5;
-  --c-border: #e4e4e7;
-  --c-foreground: #18181b;
-  --c-muted: #71717a;
+  --c-background: #f8fafc; /* Slate 50 - Fondo más suave */
+  --c-surface: #ffffff;    /* Blanco puro para tarjetas/paneles */
+  --c-elevated: #f1f5f9;   /* Slate 100 - Para inputs o elementos secundarios */
+  --c-border: #e2e8f0;     /* Slate 200 - Bordes más definidos */
+  --c-foreground: #0f172a;  /* Slate 900 - Texto principal más fuerte */
+  --c-muted: #64748b;       /* Slate 500 - Texto secundario */
   --c-primary: #6366f1;
 
   --header-height: 57px;
@@ -19,12 +19,12 @@
 /* Paleta OSCURA — activa añadiendo .dark a <html>. */
 .dark {
   --c-background: #09090b;
-  --c-surface: #101013;
-  --c-elevated: #18181c;
-  --c-border: #26262c;
-  --c-foreground: #fafafa;
+  --c-surface: #121217;    /* Ligeramente más claro que el fondo para dar profundidad */
+  --c-elevated: #1c1c24;    /* Para resaltar elementos sobre la superficie */
+  --c-border: #27272a;     /* Zinc 800 */
+  --c-foreground: #f4f4f5;
   --c-muted: #a1a1aa;
-  --c-primary: #6366f1;
+  --c-primary: #818cf8;    /* Un tono más brillante para modo oscuro */
 }
 
 /* `inline` para que las utilidades de Tailwind lean la variable en runtime

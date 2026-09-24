@@ -18,6 +18,8 @@ interface UIState {
   sidebarCollapsed: boolean
   /** Drawer de navegación en móvil/tablet. */
   mobileNavOpen: boolean
+  /** Drawer de chat interno. No se persiste entre sesiones. */
+  chatOpen: boolean
   theme: Theme
   toasts: Toast[]
 
@@ -25,6 +27,8 @@ interface UIState {
   setSidebarCollapsed: (collapsed: boolean) => void
   toggleMobileNav: () => void
   setMobileNavOpen: (open: boolean) => void
+  toggleChat: () => void
+  setChatOpen: (open: boolean) => void
   toggleTheme: () => void
 
   addToast: (toast: Omit<Toast, 'id'>) => void
@@ -40,7 +44,8 @@ export const useUIStore = create<UIState>()(
     (set) => ({
       sidebarCollapsed: false,
       mobileNavOpen: false,
-      theme: 'dark' as Theme,
+      chatOpen: false,
+      theme: 'light' as Theme,
       toasts: [],
 
       toggleSidebar: () =>
@@ -51,6 +56,10 @@ export const useUIStore = create<UIState>()(
       toggleMobileNav: () => set((s) => ({ mobileNavOpen: !s.mobileNavOpen })),
 
       setMobileNavOpen: (mobileNavOpen) => set({ mobileNavOpen }),
+
+      toggleChat: () => set((s) => ({ chatOpen: !s.chatOpen })),
+
+      setChatOpen: (chatOpen) => set({ chatOpen }),
 
       toggleTheme: () =>
         set((s) => {

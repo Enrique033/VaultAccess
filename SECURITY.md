@@ -7,9 +7,10 @@ modelo evita falsos positivos al reportar vulnerabilidades:
 
 - **La `anon key` es pública por diseño.** Va embebida en el bundle
   (`VITE_SUPABASE_ANON_KEY`). No es una filtración: la protección real es
-  **Row Level Security (RLS)** en cada tabla (`auth.uid() = user_id`,
-  ver `supabase/schema.sql`). Solo el dueño de las filas puede leerlas o
-  escribirlas.
+  **Row Level Security (RLS)** en cada tabla (las políticas del Vault usan
+  `auth.uid() = user_id`; las de chat usan participación explícita). Ver
+  `supabase/schema.sql` y `supabase/schema-chat.sql`. En el Vault solo el dueño de
+  las filas puede leerlas o escribirlas; en chat, solo los participantes.
 - **No hay backend propio.** Toda la lógica de servidor vive en Supabase
   (Auth, Postgres + RLS).
 - **Las claves de las cuentas se guardan en texto plano en la base**
@@ -26,7 +27,12 @@ modelo evita falsos positivos al reportar vulnerabilidades:
 
 | Capa | Control |
 | --- | --- |
-| Datos | RLS activo en `vault_sections`, `vault_categories`, `vault_credentials`, `vault_links`, `vault_notes`, `vault_password_history`, `vault_workspaces`, `vault_workspace_members`, `vault_workspace_items` |
+| Datos | RLS activo en las tablas del Vault, sharing, historial y `chat_conversations`, `chat_conversation_participants`, `chat_messages` |
+| Privacidad | `list_workspace_members()` y `get_chat_user_profiles()` ocultan el email a usuarios no globales cuando existe un nombre registrado; solo `elvissebas39@gmail.com` ve nombre + correo |
+| Chat | Las tablas `chat_*` están aisladas de credenciales; lectura y envío exigen ser participante. La creación de chats directos usa una RPC `SECURITY DEFINER` validada y el contenido se sanea antes de persistirse |
+| Notificaciones | `chat_notifications` solo es legible por su destinatario; un registro por mensaje y avisos genéricos de cambios del equipo, sin copiar credenciales |
+| Mensajes | Editar/eliminar para todos requiere ser el emisor; “eliminar para mí” se registra en `chat_message_deletions` sin modificar el mensaje de los demás |
+| Presencia | Canal Realtime `online-users`; el contador global solo se entrega tras `is_global_owner()` server-side para `elvissebas39@gmail.com`. Los owners de equipo solo ven su equipo |
 | Equipos | RLS por pertenencia: funciones `security definer` (`is_workspace_member`, `workspace_role`) evitan recursión y no exponen `auth.users`. Compartir **copia** el dato: nunca se da acceso al vault personal |
 | Invitaciones | Roles (`owner`/`editor`/`viewer`); la invitación se reclama por email al iniciar sesión (`claim_workspace_invites()`, que solo puede fijar el propio `user_id`) |
 | Importación | Los respaldos se leen en el navegador; el archivo no se sube a ningún servidor |

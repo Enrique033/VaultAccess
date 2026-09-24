@@ -224,11 +224,12 @@ create policy "ws_delete_owner"
   on public.vault_workspaces for delete
   using (owner_id = auth.uid());
 
--- Miembros: cada uno ve su propia fila (invitación pendiente) y las del
--- espacio; solo el propietario invita, cambia roles o expulsa.
+-- Miembros: el listado de otros miembros se hace por la RPC segura
+-- list_workspace_members(); la tabla cruda solo permite ver la propia fila.
+-- El propietario gestiona filas con las políticas de escritura de abajo.
 create policy "mem_select_own_or_member"
   on public.vault_workspace_members for select
-  using (user_id = auth.uid() or public.is_workspace_member(workspace_id));
+  using (user_id = auth.uid());
 
 create policy "mem_insert_owner"
   on public.vault_workspace_members for insert

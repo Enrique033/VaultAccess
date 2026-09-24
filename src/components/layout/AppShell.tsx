@@ -8,12 +8,18 @@ import { useSearchStore } from '@/store/search.store'
 import { useVaultSync } from '@/store/vault.store'
 import { useWorkspaceSync } from '@/store/workspace.store'
 import { useIdleSignOut } from '@/hooks/useIdleSignOut'
+import { PresenceProvider } from '@/hooks/usePresence'
+import { useChatSync } from '@/store/chat.store'
+import { useNotificationSync } from '@/store/notification.store'
+import { ChatDrawer } from '@/components/chat/ChatDrawer'
 import { isSupabaseConfigured } from '@/lib/supabase'
 
 export function AppShell() {
   useVaultSync()
   useWorkspaceSync()
   useIdleSignOut()
+  useChatSync()
+  useNotificationSync()
 
   const collapsed = useUIStore((s) => s.sidebarCollapsed)
   const toggleSidebar = useUIStore((s) => s.toggleSidebar)
@@ -47,28 +53,32 @@ export function AppShell() {
   }
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-background">
-      <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
-
-      <MobileSidebar open={mobileNavOpen} />
-
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <Header />
-        {!isSupabaseConfigured && (
-          <div className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs leading-relaxed text-amber-200 sm:px-5 lg:px-6">
-            Supabase no está configurado (falta{' '}
-            <code className="font-mono">VITE_SUPABASE_URL</code> /{' '}
-            <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>): la app
-            funciona en modo local y los datos <strong>no se sincronizan</strong>.
-          </div>
-        )}
-        <main
-          onClick={handleContentClick}
-          className="flex-1 overflow-y-auto p-4 sm:p-5 lg:p-6"
-        >
-          <Outlet />
-        </main>
+    <PresenceProvider>
+      <div className="flex h-dvh overflow-hidden bg-background text-foreground transition-colors duration-300">
+        <Sidebar collapsed={collapsed} onToggle={toggleSidebar} />
+        <MobileSidebar open={mobileNavOpen} />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <Header />
+          {!isSupabaseConfigured && (
+            <div className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs leading-relaxed text-amber-600 sm:px-5 lg:px-6 dark:text-amber-300">
+              Supabase no está configurado (falta{' '}
+              <code className="font-mono">VITE_SUPABASE_URL</code> /{' '}
+              <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>): la app
+              funciona en modo local y los datos{' '}
+              <strong>no se sincronizan</strong>.
+            </div>
+          )}
+          <main
+            onClick={handleContentClick}
+            className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8"
+          >
+            <div className="mx-auto max-w-7xl">
+              <Outlet />
+            </div>
+          </main>
+        </div>
+        <ChatDrawer />
       </div>
-    </div>
+    </PresenceProvider>
   )
 }

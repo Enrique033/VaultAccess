@@ -18,7 +18,8 @@ export interface WorkspaceMemberRow {
   id: string
   workspace_id: string
   user_id: string | null
-  email: string
+  email: string | null
+  display_name?: string | null
   role: WorkspaceRole
   created_at: string
 }
@@ -48,11 +49,13 @@ export function toWorkspace(row: WorkspaceRow): Workspace {
 }
 
 export function toWorkspaceMember(row: WorkspaceMemberRow): WorkspaceMember {
+  const displayName = row.display_name || row.email || 'Invitado'
   return {
     id: row.id,
     workspaceId: row.workspace_id,
     userId: row.user_id ?? undefined,
     email: row.email,
+    displayName,
     role: row.role,
     createdAt: row.created_at,
   }

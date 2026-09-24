@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react'
+﻿import type { LucideIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type StatTone = 'default' | 'warning' | 'success'
@@ -16,9 +16,9 @@ interface StatCardProps {
 }
 
 const TONES: Record<StatTone, string> = {
-  default: 'bg-primary/15 text-primary',
-  warning: 'bg-amber-500/15 text-amber-500',
-  success: 'bg-green-500/15 text-green-500',
+  default: 'bg-violet-100 text-violet-600 dark:bg-violet-500/10 dark:text-violet-400',
+  warning: 'bg-amber-100 text-amber-600 dark:bg-amber-500/10 dark:text-amber-500',
+  success: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-500',
 }
 
 /** Tarjeta compacta de KPI para la cabecera de los listados. */
@@ -35,17 +35,17 @@ export function StatCard({
     <>
       <span
         className={cn(
-          'flex size-8 shrink-0 items-center justify-center rounded-md',
+          'flex size-9 shrink-0 items-center justify-center rounded-xl border transition-all duration-200',
           TONES[tone],
         )}
       >
-        <Icon className="size-4" />
+        <Icon className="size-4.5" />
       </span>
       <span className="min-w-0">
-        <span className="block text-base font-semibold leading-none text-foreground">
+        <span className="block text-3xl font-extrabold tracking-tight leading-none text-foreground">
           {value}
         </span>
-        <span className="mt-1 block truncate text-[11px] text-muted">
+        <span className="mt-1 block truncate text-[11px] font-bold uppercase tracking-wider text-muted">
           {hint ?? label}
         </span>
       </span>
@@ -53,9 +53,9 @@ export function StatCard({
   )
 
   const className = cn(
-    'flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2.5 text-left transition-colors duration-150',
-    onClick && 'hover:border-primary/40 hover:bg-elevated',
-    active && 'border-primary/50 bg-primary/5',
+    'flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 text-left transition-all duration-200 shadow-sm',
+    onClick && 'hover:border-border hover:bg-elevated cursor-pointer',
+    active && 'border-violet-500 bg-violet-50/50 shadow-md dark:border-violet-500/50 dark:bg-violet-500/10',
   )
 
   if (onClick) {

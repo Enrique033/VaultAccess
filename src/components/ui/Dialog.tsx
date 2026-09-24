@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -10,23 +10,45 @@ interface DialogProps {
   className?: string
 }
 
+/**
+ * Cuenta de diálogos abiertos. Si uno se cierra mientras otro sigue abierto,
+ * no hay que restaurar el scroll todavía.
+ */
+let openDialogs = 0
+let lockedOverflow = ''
+
+function lockBodyScroll() {
+  if (openDialogs === 0) {
+    lockedOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+  }
+  openDialogs += 1
+}
+
+function unlockBodyScroll() {
+  openDialogs = Math.max(0, openDialogs - 1)
+  if (openDialogs === 0) document.body.style.overflow = lockedOverflow
+}
+
 export function Dialog({ open, onOpenChange, children, className }: DialogProps) {
+  const onOpenChangeRef = useRef(onOpenChange)
+  onOpenChangeRef.current = onOpenChange
+
   useEffect(() => {
     if (!open) return
 
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onOpenChange(false)
+      if (e.key === 'Escape') onOpenChangeRef.current(false)
     }
 
     document.addEventListener('keydown', onKeyDown)
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    lockBodyScroll()
 
     return () => {
       document.removeEventListener('keydown', onKeyDown)
-      document.body.style.overflow = previousOverflow
+      unlockBodyScroll()
     }
-  }, [open, onOpenChange])
+  }, [open])
 
   if (!open) return null
 
@@ -34,14 +56,14 @@ export function Dialog({ open, onOpenChange, children, className }: DialogProps)
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div
         className="animate-fade-in fixed inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={() => onOpenChange(false)}
+        onClick={() => onOpenChangeRef.current(false)}
         aria-hidden="true"
       />
       <div
         role="dialog"
         aria-modal="true"
         className={cn(
-          'animate-fade-in relative z-10 max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-surface shadow-2xl',
+          'animate-fade-in relative z-10 max-h-[92dvh] w-full overflow-y-auto rounded-t-2xl border border-border bg-surface dark:bg-surface shadow-2xl',
           'sm:max-h-[85dvh] sm:rounded-lg',
           className,
         )}

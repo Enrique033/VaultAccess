@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -18,15 +19,21 @@ interface DropdownMenuProps {
   trigger: ReactNode
   children: ReactNode
   align?: 'start' | 'end'
+  onOpenChange?: (open: boolean) => void
 }
 
 export function DropdownMenu({
   trigger,
   children,
   align = 'end',
+  onOpenChange,
 }: DropdownMenuProps) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const close = useCallback(() => {
+    setOpen(false)
+    onOpenChange?.(false)
+  }, [onOpenChange])
 
   useEffect(() => {
     if (!open) return
@@ -36,12 +43,12 @@ export function DropdownMenu({
         containerRef.current &&
         !containerRef.current.contains(e.target as Node)
       ) {
-        setOpen(false)
+        close()
       }
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') close()
     }
 
     document.addEventListener('mousedown', handleClickOutside)
@@ -50,14 +57,20 @@ export function DropdownMenu({
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [open])
+  }, [close, open])
 
   return (
-    <DropdownContext.Provider value={{ close: () => setOpen(false) }}>
+    <DropdownContext.Provider value={{ close }}>
       <div ref={containerRef} className="relative">
         <button
           type="button"
-          onClick={() => setOpen((p) => !p)}
+          onClick={() =>
+            setOpen((previous) => {
+              const next = !previous
+              onOpenChange?.(next)
+              return next
+            })
+          }
           className="inline-flex items-center justify-center rounded-md p-1.5 text-muted transition-colors duration-150 hover:bg-elevated hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 sm:p-1"
           aria-haspopup="menu"
           aria-expanded={open}
@@ -69,7 +82,7 @@ export function DropdownMenu({
           <div
             role="menu"
             className={cn(
-              'animate-fade-in absolute top-full z-20 mt-1 min-w-[160px] max-w-[calc(100vw-1.5rem)] rounded-md border border-border bg-elevated py-1 shadow-lg',
+              'animate-fade-in absolute top-full z-50 mt-1 min-w-[160px] max-w-[calc(100vw-1.5rem)] rounded-md border border-border bg-surface py-1 shadow-xl',
               align === 'end' ? 'right-0' : 'left-0',
             )}
           >

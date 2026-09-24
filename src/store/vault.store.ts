@@ -330,6 +330,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       .select()
       .single()
     if (error) throw new Error(friendlySyncError(error.message))
+    if (!data) throw new Error('No se pudo recuperar la credencial creada.')
     const credential = toCredential(
       data as {
         id: string; title: string; username: string; password: string
@@ -523,6 +524,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       .select()
       .single()
     if (error) throw new Error(friendlySyncError(error.message))
+    if (!data) throw new Error('No se pudo recuperar el enlace creado.')
     const link = toLink(data as LinkRow)
     set((s) => ({ links: [link, ...s.links] }))
     return link
@@ -578,6 +580,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       .select()
       .single()
     if (error) throw new Error(friendlySyncError(error.message))
+    if (!data) throw new Error('No se pudo recuperar la nota creada.')
     const note = toNote(data as NoteRow)
     set((s) => ({ notes: [note, ...s.notes] }))
     return note

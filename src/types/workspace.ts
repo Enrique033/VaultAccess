@@ -14,7 +14,10 @@ export interface WorkspaceMember {
   id: string
   workspaceId: string
   userId?: string
-  email: string
+  /** Puede estar oculto por privacidad para miembros no globales. */
+  email: string | null
+  /** Nombre visible; si no existe, la RPC devuelve el correo. */
+  displayName: string
   role: WorkspaceRole
   createdAt: string
 }

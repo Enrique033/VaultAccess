@@ -68,12 +68,12 @@ export function CredentialCard({
 
   return (
     <>
-      <Card className="flex h-full flex-col p-4 transition-colors duration-150 hover:border-primary/40 hover:shadow-md">
+      <Card className="group flex h-full flex-col p-5 transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl hover:shadow-violet-500/10 dark:hover:shadow-black/40 hover:border-slate-300 dark:hover:border-zinc-700/80">
       {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate text-sm font-semibold text-foreground">
+            <h3 className="truncate text-sm font-bold tracking-tight text-slate-900 dark:text-zinc-100 group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
               {credential.title}
             </h3>
             {credential.favorite && (

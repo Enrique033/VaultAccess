@@ -23,6 +23,18 @@ Auth** (email/password y Google OAuth) y protegida con **Row Level Security**.
   Al invitar se env�a al correo un enlace m�gico de acceso (requiere que el
   proveedor **Email** de Supabase est� activo) y, al abrirlo, el invitado reclama
   la invitaci�n autom�ticamente (`supabase/schema-sharing.sql`).
+- **Chat interno en tiempo real**: panel claro/oscuro con pestañas **Equipo** y
+  **Búsqueda**, conversaciones privadas, mensajes sanitizados y suscripción a
+  `chat_messages` mediante Supabase Realtime (`supabase/schema-chat.sql`).
+- **Presencia en tiempo real**: canal `online-users`, indicadores individual
+  verde/gris y contador de equipo solo para propietarios. El contador global
+  se habilita mediante una RPC server-side únicamente para
+  `elvissebas39@gmail.com`.
+- **Notificaciones de chat**: campana con contador persistente, avisos por
+  mensaje y cambios del equipo; al abrir la lista se marcan como leídos y al
+  hacer clic se abre la conversación relacionada.
+- **Mensajes editables**: edición y eliminación para mí o para todos, con
+  sincronización Realtime y marca `(editado)`.
 - **Importar respaldos**: CSV de Bitwarden / Chrome / Edge / 1Password /
   LastPass y el propio Excel de WorkVault, con detección automática de formato,
   vista previa, creación de categorías por carpeta y omisión de duplicados
@@ -38,8 +50,10 @@ Auth** (email/password y Google OAuth) y protegida con **Row Level Security**.
 - **Diseño 100 % responsivo**: drawer en móvil/tablet, grid de 1→4 columnas,
   bottom-sheets en móvil, inputs anti-zoom iOS y targets táctiles.
 - Tema claro/oscuro, toasts, formularios con `react-hook-form` + `zod`.
-- RLS: cada usuario solo ve **sus** filas (`supabase/schema.sql` +
-  `supabase/schema-content.sql`).
+- RLS: cada usuario solo ve sus filas del Vault y solo las conversaciones donde
+  participa; equipos y chat aplican políticas específicas (`supabase/schema.sql` +
+  `supabase/schema-content.sql` + `supabase/schema-sharing.sql` +
+  `supabase/schema-chat.sql`).
 
 ## 🛠 Stack
 
@@ -60,6 +74,8 @@ cp .env.example .env      # y completa VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KE
 #    2) supabase/schema-content.sql  (links y notas + RLS)
 #    3) supabase/schema-history.sql  (historial de claves + RLS)
 #    4) supabase/schema-sharing.sql  (equipos / espacios compartidos + RLS)
+#    5) supabase/schema-chat.sql     (chat + presencia + RLS + Realtime)
+#    6) supabase/schema-chat-v2.sql  (privacidad, notificaciones, editar/eliminar)
 
 # 4. Desarrollo
 npm run dev               # http://localhost:5173
@@ -78,7 +94,16 @@ npm run dev               # http://localhost:5173
 
 Ver **[SECURITY.md](./SECURITY.md)** para el modelo completo. Resumen:
 
-- **RLS activo** en las 5 tablas: `using`/`with check` con `auth.uid() = user_id`.
+- **RLS activo** en todas las tablas de Vault y chat: `using`/`with check` con
+  `auth.uid()` y la participación/rol que corresponda a cada tabla.
+- **Chat aislado**: `chat_conversations`, `chat_conversation_participants` y
+  `chat_messages` no contienen credenciales; cada lectura/escritura exige ser
+  participante y la creación de conversaciones directas pasa por una RPC
+  `SECURITY DEFINER` validada. El texto se sanea en cliente y servidor.
+- **Presencia**: el canal `online-users` solo muestra presencia; el badge global
+  se renderiza únicamente después de que `is_global_owner()` confirme en
+  Supabase el correo exacto `elvissebas39@gmail.com`. Los owners de equipo
+  ven únicamente su contador `[Equipo Online: X/Y]`.
 - La `anon key` es pública **por diseño**; la protección real es RLS.
 - Headers de seguridad en producción via `vercel.json`: CSP, HSTS,
   `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
@@ -151,6 +176,8 @@ Cuando ya tengas la URL de Vercel:
 - [x] Historial de versiones de claves.
 - [x] Espacios compartidos con roles: invitación por email con enlace mágico y
       reclamación automática al iniciar sesión.
+- [x] Chat interno en tiempo real con RLS, sanitización XSS y búsqueda de
+      usuarios; presencia individual y métricas con permisos.
 - [x] Medidor de fuerza de claves (implementación propia en
       `src/lib/password-strength.ts`).
 - [x] Limpieza automática del portapapeles al copiar una clave (30 s).
@@ -160,16 +187,18 @@ Cuando ya tengas la URL de Vercel:
 ```
 src/
 ├── app/          # App, rutas, AuthContext, RequireAuth
-├── components/   # layout/, credentials/, links/, notes/, import/, workspaces?, ui/
+├── components/   # layout/, chat/, credentials/, links/, notes/, import/, ui/
 ├── pages/        # Login, ResetPassword, Credentials, Links, Notes, Workspaces
-├── store/        # Zustand: vault, workspace, search, ui
-├── lib/          # supabase, auth-errors, generator, vault-excel, vault-import...
-├── hooks/        # useClipboard, useIdleSignOut
+├── store/        # Zustand: vault, workspace, chat, search, ui
+├── lib/          # supabase, sanitize, auth-errors, generator, vault-excel...
+├── hooks/        # useClipboard, useIdleSignOut, usePresence
 └── types/
 supabase/
 ├── schema.sql            # tablas principales + RLS
 ├── schema-content.sql    # links y notas + RLS
 ├── schema-history.sql    # historial de claves + RLS
-└── schema-sharing.sql    # equipos / espacios compartidos + RLS
+├── schema-sharing.sql    # equipos / espacios compartidos + RLS
+├── schema-chat.sql       # chat, presencia, RLS y publicación Realtime
+└── schema-chat-v2.sql   # privacidad, notificaciones y edición/eliminación
 ```
 
