@@ -42,7 +42,7 @@ export function Header() {
   }, [])
 
   return (
-    <header className="app-header flex h-[var(--header-height)] shrink-0 items-center justify-between gap-2 border-b px-4 transition-colors duration-300 sm:gap-3 sm:px-6 lg:px-8">
+    <header className="app-header relative z-30 flex h-[var(--header-height)] shrink-0 items-center justify-between gap-2 border-b px-4 transition-colors duration-300 sm:gap-3 sm:px-6 lg:px-8">
       <button
         type="button"
         onClick={toggleMobileNav}

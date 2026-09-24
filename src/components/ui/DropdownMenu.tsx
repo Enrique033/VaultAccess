@@ -19,6 +19,8 @@ interface DropdownMenuProps {
   trigger: ReactNode
   children: ReactNode
   align?: 'start' | 'end'
+  /** Clase adicional para limitar o posicionar únicamente este panel. */
+  contentClassName?: string
   onOpenChange?: (open: boolean) => void
 }
 
@@ -26,6 +28,7 @@ export function DropdownMenu({
   trigger,
   children,
   align = 'end',
+  contentClassName,
   onOpenChange,
 }: DropdownMenuProps) {
   const [open, setOpen] = useState(false)
@@ -84,6 +87,7 @@ export function DropdownMenu({
             className={cn(
               'animate-fade-in absolute top-full z-50 mt-2 min-w-[180px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-border bg-surface p-1.5 shadow-[0_18px_45px_-24px_color-mix(in_srgb,var(--c-foreground)_55%,transparent)]',
               align === 'end' ? 'right-0' : 'left-0',
+              contentClassName,
             )}
           >
             {children}

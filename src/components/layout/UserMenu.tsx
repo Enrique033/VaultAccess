@@ -78,6 +78,7 @@ export function UserMenu() {
   return (
     <>
       <DropdownMenu
+        contentClassName="max-h-[calc(100dvh-var(--header-height)-1rem)] w-[min(15rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain"
         trigger={
           <span
             title={user.email ?? 'Mi cuenta'}
@@ -92,7 +93,7 @@ export function UserMenu() {
           </span>
         }
       >
-        <div className="px-3 py-2">
+        <div className="px-3 py-1.5">
           <p className="truncate text-[13px] font-semibold text-foreground">
             {[meta?.first_name, meta?.last_name].filter(Boolean).join(' ') ||
               name}
@@ -104,19 +105,21 @@ export function UserMenu() {
           <>
             <div
               role="status"
-              className="mx-1 my-1.5 flex items-center gap-2.5 rounded-xl border border-primary/15 bg-primary-soft/70 px-3 py-2.5"
+              className="mx-1 my-1 flex items-center gap-2 rounded-xl border border-primary/15 bg-primary-soft/70 px-2.5 py-2"
             >
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-white shadow-sm">
-                <Users className="size-3.5" />
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-lg bg-primary text-white shadow-sm">
+                <Users className="size-3" />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-semibold text-foreground">
+                <p className="text-[11px] font-semibold leading-4 text-foreground">
                   Global Online
                 </p>
-                <p className="text-[10px] text-muted">Usuarios conectados</p>
+                <p className="text-[9px] leading-3 text-muted">
+                  Usuarios conectados
+                </p>
               </div>
               <span
-                className="min-w-6 rounded-full bg-primary px-2 py-0.5 text-center text-[11px] font-bold leading-5 text-white shadow-sm"
+                className="min-w-5 rounded-full bg-primary px-1.5 py-0.5 text-center text-[10px] font-bold leading-4 text-white shadow-sm"
                 aria-label={`${globalOnline} usuarios conectados`}
               >
                 {globalOnline}
