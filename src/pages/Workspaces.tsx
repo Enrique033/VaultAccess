@@ -47,8 +47,9 @@ const ROLE_LABELS: Record<WorkspaceRole, string> = {
 const ALL_ROLES: WorkspaceRole[] = ['owner', 'editor', 'viewer']
 
 /**
- * Espacios compartidos de trabajo: crear el espacio, invitar por email con
- * rol y gestionar las credenciales compartidas.
+ * Espacios compartidos de trabajo: crear el espacio, invitar por correo con
+ * rol y gestionar las credenciales compartidas. El invitado entra con Google
+ * usando el mismo correo.
  */
 export function Workspaces() {
   const { user } = useAuth()
@@ -153,8 +154,8 @@ export function Workspaces() {
       await inviteMember(active.id, inviteEmail, inviteRole)
       setInviteEmail('')
       toast.success(
-        'Invitación enviada',
-        'Se registró el miembro y se envió el email de acceso; al entrar se adjudica el espacio.',
+        'Invitación registrada',
+        'El invitado debe entrar con Google usando exactamente ese correo para reclamar el espacio.',
       )
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'No se pudo invitar')
@@ -289,7 +290,7 @@ export function Workspaces() {
           className="mt-4 flex flex-wrap items-end gap-2"
         >
           <div className="min-w-0 flex-1 space-y-1.5">
-            <Label htmlFor="invite-email">Invitar por email</Label>
+            <Label htmlFor="invite-email">Correo de Google</Label>
             <Input
               id="invite-email"
               type="email"
@@ -323,8 +324,8 @@ export function Workspaces() {
       )}
 
       <p className="mt-3 text-[11px] leading-relaxed text-muted">
-        “Puede editar” añade y actualiza credenciales del espacio; “Solo
-        lectura” las consulta sin modificarlas.
+        El acceso actual es únicamente con Google. Comparte con el invitado el
+        correo de su cuenta de Google para que pueda reclamar el espacio.
       </p>
     </Card>
   )

@@ -1,124 +1,35 @@
 import { useState } from 'react'
-import type { FormEvent } from 'react'
 import { Navigate } from 'react-router'
-import { KeyRound, Loader2, Mail } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/app/auth-context'
-import { Input } from '@/components/ui/Input'
-import { PasswordInput } from '@/components/ui/PasswordInput'
-import { Label } from '@/components/ui/Label'
 import { Button } from '@/components/ui/Button'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 
-type Mode = 'signin' | 'signup' | 'forgot'
-
+/** Acceso principal de WorkVault: por ahora, únicamente Google OAuth. */
 export function Login() {
-  const {
-    status,
-    signIn,
-    signUp,
-    resendSignupConfirmation,
-    signInWithGoogle,
-    resetPassword,
-  } = useAuth()
-  const [mode, setMode] = useState<Mode>('signin')
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const { status, signInWithGoogle } = useAuth()
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [resending, setResending] = useState(false)
-  const [sent, setSent] = useState(false)
-  const [confirmationRequired, setConfirmationRequired] = useState(false)
 
   if (status === 'signed-in') return <Navigate to="/credentials" replace />
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setSent(false)
-    setConfirmationRequired(false)
-    if (mode === 'forgot') {
-      setBusy(true)
-      try {
-        const { error: resetErr } = await resetPassword(email.trim())
-        if (resetErr) {
-          setError(resetErr)
-          return
-        }
-        setSent(true)
-      } finally {
-        setBusy(false)
-      }
-      return
-    }
-    if (mode === 'signup' && (!firstName.trim() || !lastName.trim())) {
-      setError('El nombre y el apellido son obligatorios.')
-      return
-    }
-    setBusy(true)
-    try {
-      if (mode === 'signin') {
-        const { error: authError } = await signIn(email.trim(), password)
-        if (authError) setError(authError)
-        return
-      }
-
-      const result = await signUp(firstName, lastName, email.trim(), password)
-      if (result.error) {
-        setError(result.error)
-        return
-      }
-      if (result.confirmationRequired) {
-        setSent(true)
-        setConfirmationRequired(true)
-      }
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const handleResendConfirmation = async () => {
-    const cleanEmail = email.trim()
-    if (!cleanEmail) {
-      setError('Escribe el correo con el que te registraste.')
-      return
-    }
-    setError(null)
-    setResending(true)
-    try {
-      const { error: resendError } = await resendSignupConfirmation(cleanEmail)
-      if (resendError) {
-        setError(resendError)
-        return
-      }
-      setSent(true)
-    } finally {
-      setResending(false)
-    }
-  }
 
   const handleGoogle = async () => {
     setError(null)
     setBusy(true)
     try {
-      const { error: oauthErr } = await signInWithGoogle()
-      if (oauthErr) setError(oauthErr)
+      const { error: oauthError } = await signInWithGoogle()
+      if (oauthError) setError(oauthError)
     } finally {
       setBusy(false)
     }
   }
 
+  const unavailable = status === 'unconfigured' || status === 'loading'
+
   return (
     <AuthLayout
       title="WorkVault"
-      subtitle={
-        mode === 'signin'
-          ? 'Inicia sesión para acceder a tu espacio privado.'
-          : mode === 'signup'
-            ? 'Crea tu cuenta. Tu espacio será solo tuyo.'
-            : 'Escribe tu correo y te enviaremos un enlace para recuperar tu acceso.'
-      }
+      subtitle="Accede con tu cuenta de Google para entrar a tu espacio privado."
     >
       {status === 'unconfigured' && (
         <div className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs leading-relaxed text-warning">
@@ -126,193 +37,58 @@ export function Login() {
           <code className="font-mono">.env.example</code> a{' '}
           <code className="font-mono">.env</code> y completa{' '}
           <code className="font-mono">VITE_SUPABASE_URL</code> y{' '}
-          <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>. Mientras
-          tanto puedes entrar en modo local (tus datos no saldrán de este
-          navegador).
+          <code className="font-mono">VITE_SUPABASE_ANON_KEY</code>.
         </div>
       )}
 
-      <form onSubmit={submit} className="auth-form-card">
-        {mode === 'signup' && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="login-firstname">Nombre</Label>
-              <Input
-                id="login-firstname"
-                type="text"
-                autoComplete="given-name"
-                required
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Ana"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="login-lastname">Apellido</Label>
-              <Input
-                id="login-lastname"
-                type="text"
-                autoComplete="family-name"
-                required
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="Pérez"
-              />
-            </div>
-          </div>
-        )}
-        <div className="space-y-1.5">
-          <Label htmlFor="login-email">Correo</Label>
-          <Input
-            id="login-email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="tu@correo.com"
-          />
-        </div>
-        {mode !== 'forgot' && (
-          <div className="space-y-1.5">
-            <Label htmlFor="login-password">Clave de acceso</Label>
-            {mode === 'signup' ? (
-              <PasswordInput
-                id="login-password"
-                autoComplete="new-password"
-                required
-                minLength={6}
-                value={password}
-                onChange={setPassword}
-                showStrength
-                allowGenerate
-              />
-            ) : (
-              <Input
-                id="login-password"
-                type="password"
-                autoComplete="current-password"
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-              />
-            )}
-            {mode === 'signin' && (
-              <button
-                type="button"
-                onClick={() => {
-                  setMode('forgot')
-                  setError(null)
-                  setSent(false)
-                }}
-                className="block w-full text-right text-[11px] text-muted transition-colors hover:text-foreground"
-              >
-                ¿Olvidaste tu clave?
-              </button>
-            )}
-          </div>
-        )}
+      {error && (
+        <p
+          role="alert"
+          className="rounded-xl border border-danger/30 bg-danger/10 px-3 py-2.5 text-xs text-danger"
+        >
+          {error}
+        </p>
+      )}
 
-        {error && (
-          <p
-            role="alert"
-            className="rounded-xl border border-danger/30 bg-danger/10 px-3 py-2.5 text-xs text-danger"
-          >
-            {error}
-          </p>
-        )}
-        {sent && !error && (
-          <div
-            role="status"
-            className="space-y-3 rounded-xl border border-success/30 bg-success/10 px-3 py-2.5 text-xs text-success"
-          >
-            <p>
-              {mode === 'forgot'
-                ? 'Si el correo está registrado, recibirás un enlace para recuperar el acceso. Revisa también la carpeta spam.'
-                : 'Cuenta registrada. Revisa tu correo y la carpeta spam para confirmarla. Si el mensaje no aparece, puedes reenviarlo.'}
+      <div className="auth-form-card space-y-4">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <span className="flex size-12 items-center justify-center rounded-2xl border border-border bg-surface text-primary shadow-sm">
+            <GoogleIcon className="size-6" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              Acceso con Google
             </p>
-            {mode === 'signup' && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleResendConfirmation}
-                disabled={resending}
-                className="w-full"
-              >
-                {resending ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Mail className="size-4" />
-                )}
-                {resending ? 'Reenviando…' : 'No llegó: reenviar confirmación'}
-              </Button>
-            )}
+            <p className="mt-1 text-xs leading-relaxed text-muted">
+              Usa el mismo correo con el que te invitaron a un equipo, si
+              corresponde.
+            </p>
           </div>
-        )}
+        </div>
 
         <Button
-          type="submit"
+          type="button"
           variant="primary"
-          disabled={busy || (mode === 'signup' && confirmationRequired)}
           className="w-full"
+          onClick={handleGoogle}
+          disabled={busy || unavailable}
+          title={
+            unavailable ? 'Configura Supabase para habilitar Google' : undefined
+          }
         >
           {busy ? (
             <Loader2 className="size-4 animate-spin" />
-          ) : mode === 'forgot' ? (
-            <Mail className="size-4" />
           ) : (
-            <KeyRound className="size-4" />
+            <GoogleIcon className="size-4" />
           )}
-          {mode === 'signin'
-            ? 'Entrar'
-            : mode === 'signup'
-              ? confirmationRequired
-                ? 'Cuenta registrada'
-                : 'Crear cuenta'
-              : 'Enviar enlace'}
+          {busy ? 'Conectando…' : 'Continuar con Google'}
         </Button>
 
-        <button
-          type="button"
-          onClick={() => {
-            setMode(mode === 'signin' ? 'signup' : 'signin')
-            setError(null)
-            setSent(false)
-            setConfirmationRequired(false)
-          }}
-          className="w-full text-center text-xs text-muted transition-colors hover:text-foreground"
-        >
-          {mode === 'signin'
-            ? '¿No tienes cuenta? Crear una'
-            : '¿Ya tienes cuenta? Iniciar sesión'}
-        </button>
-
-        {mode !== 'forgot' && (
-          <>
-            <div className="auth-divider my-1">
-              <span>o continúa con</span>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              className="w-full"
-              onClick={handleGoogle}
-              disabled={busy || status === 'unconfigured'}
-              title={
-                status === 'unconfigured'
-                  ? 'Configura Supabase para habilitar Google'
-                  : undefined
-              }
-            >
-              <GoogleIcon className="size-4" />
-              Continuar con Google
-            </Button>
-          </>
-        )}
-      </form>
+        <p className="text-center text-[11px] leading-relaxed text-muted">
+          Por ahora WorkVault no crea cuentas con correo y contraseña. La clave
+          y la recuperación de acceso se administran desde Google.
+        </p>
+      </div>
     </AuthLayout>
   )
 }
@@ -327,11 +103,11 @@ function GoogleIcon({ className }: { className?: string }) {
       />
       <path
         fill="#34A853"
-        d="M12 24c3.24 0 5.96-1.07 7.94-2.91l-3.88-3.01c-1.07.72-2.45 1.15-4.06 1.15-3.13 0-5.78-2.11-6.73-4.96H1.28v3.11C3.25 21.3 7.31 24 12 24z"
+        d="M12 24c3.24 0 5.98-1.07 7.94-2.91l-3.88-3.01c-1.07.72-2.45 1.15-4.06 1.15-3.13 0-5.78-2.11-6.73-4.96H1.28v3.11C3.25 21.3 7.31 24 12 24z"
       />
       <path
         fill="#FBBC05"
-        d="M5.27 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.62H1.28A11.86 11.86 0 0 0 0 12c0 1.93.46 3.75 1.28 5.38l3.99-3.11z"
+        d="M5.27 14.27c-.25-.72-.38-1.52-.38-2.27s.13-1.55.38-2.27V6.62H1.28A11.86 11.86 0 0 0 0 12c0 1.93.46 3.75 1.28 5.38l3.99-3.11z"
       />
       <path
         fill="#EA4335"

@@ -2,27 +2,26 @@
 
 Espacio privado para gestionar **accesos, enlaces y notas** en un solo
 lugar. SPA construida con React + Vite + Tailwind, autenticada con **Supabase
-Auth** (email/password y Google OAuth) y protegida con **Row Level Security**.
+Auth** (Google OAuth) y protegida con **Row Level Security**.
 
 ## ✨ Características
 
-- Auth completa: registro, login, **"¿Olvidaste tu clave?"** por email y
-  login con **Google**.
+- Acceso único con **Google OAuth**. No hay registro, login ni recuperación por
+  correo/contraseña en la interfaz actual.
 - **Secciones → categorías → credenciales**, con búsqueda (Ctrl+K), favoritos
   y orden.
 - **Links y Notas** completos: tarjetas, CRUD, favoritos, búsqueda y filtros
   (tablas `vault_links` / `vault_notes` con RLS).
 - **Generador de claves** (crypto.getRandomValues) con longitud 8–48,
   conjuntos de caracteres y exclusión de ambiguos.
-- **Medidor de fuerza** en registro, reset, cambio de clave y credenciales.
+- **Medidor de fuerza** de claves en las credenciales.
 - **Historial de claves**: cada cambio guarda la versión anterior (las 20
   últimas) y puedes restaurarla desde el diálogo de la credencial
   (`supabase/schema-history.sql`).
-- **Equipos (espacios compartidos)**: invita por email con rol (_propietario_,
+- **Equipos (espacios compartidos)**: invita por correo con rol (_propietario_,
   _puede editar_, _solo lectura_) y comparte solo las credenciales que decidas.
-  Al invitar se env�a al correo un enlace m�gico de acceso (requiere que el
-  proveedor **Email** de Supabase est� activo) y, al abrirlo, el invitado reclama
-  la invitaci�n autom�ticamente (`supabase/schema-sharing.sql`).
+  La persona invitada debe entrar con **Google usando exactamente ese correo**;
+  la invitación se reclama automáticamente al cargar el espacio.
 - **Chat interno en tiempo real**: panel claro/oscuro con pestañas **Equipo** y
   **Búsqueda**, conversaciones privadas, mensajes sanitizados y suscripción a
   `chat_messages` mediante Supabase Realtime (`supabase/schema-chat.sql`).
@@ -150,8 +149,8 @@ git push -u origin main
 > rompe la conexión. Compáralos con **Supabase → Project Settings → API** y
 > vuelve a desplegar después de cualquier corrección.
 
-> `vercel.json` incluye el rewrite SPA: `/login`, `/reset-password` y
-> `/workspaces` funcionan también al recargar o abrir un enlace de correo.
+> `vercel.json` incluye el rewrite SPA: `/login` y `/workspaces` funcionan también
+> al recargar o abrir la aplicación desde otro dispositivo.
 
 ### 3. Supabase: Google y URLs (corrige `localhost rechazado`)
 
@@ -160,7 +159,6 @@ En **Supabase → Authentication → URL Configuration**:
 - **Site URL**: `https://workvaul.vercel.app`
 - **Redirect URLs**:
   - `https://workvaul.vercel.app/login`
-  - `https://workvaul.vercel.app/reset-password`
   - `https://workvaul.vercel.app/workspaces`
 - Para desarrollo local: `http://localhost:5173/**`
 - Para previews de Vercel: `https://workvaul-*.vercel.app/**`
@@ -178,27 +176,19 @@ El callback de Google siempre apunta a Supabase; después Supabase vuelve a
 URL** sigue en `localhost:3000` o falta `/login` en **Redirect URLs**. No escribas
 `localhost` como destino público en producción.
 
-### 4. Supabase: confirmación de correo (corrige “nunca llega”)
+### 4. Supabase: solo Google por ahora
 
-El SMTP incluido por defecto **no es para producción**: según la documentación
-de Supabase, solo entrega a correos previamente autorizados del equipo y tiene
-un límite best-effort de **2 correos por hora**. Por eso `signUp` puede crear la
-cuenta aunque el correo de un usuario externo no llegue.
+El acceso público de WorkVault utiliza únicamente Google OAuth. No hay una interfaz
+para crear cuentas, iniciar sesión con correo/contraseña ni recuperar contraseñas.
 
-Para registro con correo a usuarios reales:
-
-1. Contrata un SMTP compatible (Resend, AWS SES, Postmark, SendGrid, Brevo, etc.).
-2. Verifica el dominio o el remitente que usarás.
-3. En **Supabase → Authentication → SMTP Settings**, activa el SMTP personalizado
-   y completa host, puerto, usuario, contraseña y remitente.
-4. Mantén **Authentication → Email → Confirm email** activado.
-5. Revisa **Authentication → Logs** y confirma que el remitente esté autorizado.
-6. Prueba con una dirección externa a la organización y un registro nuevo.
+En **Supabase → Authentication → Providers → Email**, desactiva el proveedor
+Email cuando quieras bloquear también el acceso directo por email desde cualquier
+cliente. Esto no elimina las cuentas existentes; solo deja de ofrecer ese método
+de acceso. La configuración SMTP queda reservada para una futura fase en la que
+se vuelva a habilitar correo, si se necesita.
 
 No pongas credenciales SMTP en `.env`, en VITE ni en Vercel: se configuran solo
-en el panel de Supabase. Mientras SMTP no esté configurado, **Continuar con
-Google** puede usarse si el alta de Google marca el correo como verificado; el
-registro por correo requiere un SMTP personalizado para producción.
+en el panel de Supabase. Para esta etapa no son necesarias.
 
 ## 📈 Escalabilidad Supabase
 
@@ -244,8 +234,8 @@ deployment y la migración pueden ordenarse sin dejar la app rota.
 - [x] Cierre de sesión por inactividad (15 min sin interacción).
 - [x] Importación de respaldos (Bitwarden, Chrome, 1Password, LastPass, .xlsx).
 - [x] Historial de versiones de claves.
-- [x] Espacios compartidos con roles: invitación por email con enlace mágico y
-      reclamación automática al iniciar sesión.
+- [x] Espacios compartidos con roles: invitación por correo y reclamación
+      automática al iniciar sesión con Google.
 - [x] Chat interno en tiempo real con RLS, sanitización XSS, búsqueda de
       usuarios, historial bajo demanda y presencia con permisos.
 - [x] Optimización de carga: snapshots atómicos, índices compuestos, carga
@@ -260,7 +250,7 @@ deployment y la migración pueden ordenarse sin dejar la app rota.
 src/
 ├── app/          # App, rutas, AuthContext, RequireAuth
 ├── components/   # layout/, chat/, credentials/, links/, notes/, import/, ui/
-├── pages/        # Login, ResetPassword, Credentials, Links, Notes, Workspaces
+├── pages/        # Login, Credentials, Links, Notes, Workspaces
 ├── store/        # Zustand: vault, workspace, chat, search, ui
 ├── lib/          # supabase, sanitize, auth-errors, generator, vault-excel...
 ├── hooks/        # useClipboard, useIdleSignOut, usePresence

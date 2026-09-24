@@ -1,12 +1,7 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
 import { useAuth } from '@/app/auth-context'
-import {
-  appUrl,
-  isSupabaseConfigured,
-  requireUserId,
-  supabase,
-} from '@/lib/supabase'
+import { isSupabaseConfigured, requireUserId, supabase } from '@/lib/supabase'
 import {
   toWorkspace,
   toWorkspaceItem,
@@ -400,22 +395,8 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
       members: [...s.members, member],
     }))
 
-    // Best effort: notifica al invitado por email con un enlace mágico. Al
-    // abrirlo crea/entra con ese correo y `claim_workspace_invites` le
-    // adjudica la invitación pendiente. No anula la invitación si falla.
-    const { error: otpError } = await supabase.auth.signInWithOtp({
-      email: clean,
-      options: {
-        shouldCreateUser: true,
-        emailRedirectTo: appUrl('/workspaces'),
-      },
-    })
-    if (otpError)
-      throw new Error(
-        'Invitación registrada, pero no se pudo enviar el email. Activa el ' +
-          'proveedor Email en Supabase Auth (SMTP o remitente por defecto) y ' +
-          `vuelve a invitar. Detalle: ${friendlyWorkspaceError(otpError.message)}`,
-      )
+    // La aplicación usa Google OAuth como único acceso. La invitación queda
+    // pendiente y se reclama al iniciar sesión con Google usando este correo.
   },
 
   setMemberRole: async (memberId, role) => {

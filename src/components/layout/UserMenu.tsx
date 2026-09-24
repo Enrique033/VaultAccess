@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { FileSpreadsheet, LogOut, ShieldCheck, User, Users } from 'lucide-react'
+import { FileSpreadsheet, LogOut, User, Users } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import {
@@ -18,7 +18,6 @@ import {
 } from '@/components/ui/Dialog'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
-import { PasswordInput } from '@/components/ui/PasswordInput'
 import { useAuth } from '@/app/auth-context'
 import { useVaultStore } from '@/store/vault.store'
 import { toast } from '@/store/ui.store'
@@ -33,7 +32,6 @@ export function UserMenu() {
   const { globalOnline, isGlobalOwner } = usePresenceContext()
   const [busy, setBusy] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [passwordOpen, setPasswordOpen] = useState(false)
 
   if (!user) return null
 
@@ -147,9 +145,6 @@ export function UserMenu() {
         <DropdownMenuItem onClick={() => setProfileOpen(true)}>
           <User className="size-3.5" /> Editar perfil
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setPasswordOpen(true)}>
-          <ShieldCheck className="size-3.5" /> Cambiar clave
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => void handleExport()}>
           <FileSpreadsheet className="size-3.5" /> Exportar a Excel…
@@ -161,7 +156,6 @@ export function UserMenu() {
       </DropdownMenu>
 
       {profileOpen && <ProfileDialog onOpenChange={setProfileOpen} />}
-      {passwordOpen && <PasswordDialog onOpenChange={setPasswordOpen} />}
     </>
   )
 }
@@ -245,115 +239,6 @@ function ProfileDialog({
           </Button>
           <Button type="submit" variant="primary" disabled={busy}>
             {busy ? 'Guardando…' : 'Guardar'}
-          </Button>
-        </DialogFooter>
-      </form>
-    </Dialog>
-  )
-}
-
-/** Dialog para cambiar clave: valida la actual y confirma la nueva. */
-function PasswordDialog({
-  onOpenChange,
-}: {
-  onOpenChange: (o: boolean) => void
-}) {
-  const { changePassword } = useAuth()
-  const [current, setCurrent] = useState('')
-  const [next, setNext] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const submit = async (e: FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    if (next.length < 6) {
-      setError('La nueva clave debe tener al menos 6 caracteres.')
-      return
-    }
-    if (next !== confirm) {
-      setError('La confirmación no coincide con la nueva clave.')
-      return
-    }
-    setBusy(true)
-    const { error: err } = await changePassword(current, next)
-    setBusy(false)
-    if (err) {
-      setError(err)
-      return
-    }
-    toast.success(
-      'Clave actualizada',
-      'Recibirás un correo de confirmación por seguridad.',
-    )
-    onOpenChange(false)
-  }
-
-  return (
-    <Dialog open onOpenChange={onOpenChange} className="max-w-md">
-      <form onSubmit={submit}>
-        <DialogHeader>
-          <DialogTitle>Cambiar clave</DialogTitle>
-          <DialogDescription>
-            Introduce tu clave actual y la nueva.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogContent className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="password-current">Clave actual</Label>
-            <Input
-              id="password-current"
-              type="password"
-              autoComplete="current-password"
-              required
-              value={current}
-              onChange={(e) => setCurrent(e.target.value)}
-              placeholder="••••••••"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="password-new">Nueva clave</Label>
-            <PasswordInput
-              id="password-new"
-              autoComplete="new-password"
-              required
-              minLength={6}
-              value={next}
-              onChange={setNext}
-              showStrength
-              allowGenerate
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="password-confirm">Confirmar nueva clave</Label>
-            <Input
-              id="password-confirm"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={6}
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              placeholder="••••••••"
-            />
-          </div>
-          {error && (
-            <p role="alert" className={errorBox}>
-              {error}
-            </p>
-          )}
-        </DialogContent>
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => onOpenChange(false)}
-          >
-            Cancelar
-          </Button>
-          <Button type="submit" variant="primary" disabled={busy}>
-            {busy ? 'Actualizando…' : 'Cambiar clave'}
           </Button>
         </DialogFooter>
       </form>

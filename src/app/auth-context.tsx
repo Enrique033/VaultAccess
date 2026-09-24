@@ -10,33 +10,26 @@ interface AuthContextValue {
   status: AuthStatus
   session: Session | null
   user: User | null
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>
-  signUp: (
-    firstName: string,
-    lastName: string,
-    email: string,
-    password: string,
-  ) => Promise<{ error: string | null; confirmationRequired: boolean }>
-  /** Reenvía el correo de confirmación de un registro todavía pendiente. */
-  resendSignupConfirmation: (email: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   /** Actualiza nombre y apellido en user_metadata. */
   updateProfile: (
     firstName: string,
     lastName: string,
   ) => Promise<{ error: string | null }>
-  /** Valida la clave actual y cambia por la nueva. */
-  changePassword: (
-    currentPassword: string,
-    newPassword: string,
-  ) => Promise<{ error: string | null }>
   /** Inicia sesión con Google (OAuth). */
   signInWithGoogle: () => Promise<{ error: string | null }>
-  /** Envía un enlace de recuperación de acceso al correo indicado. */
-  resetPassword: (email: string) => Promise<{ error: string | null }>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
+
+/** WorkVault está configurado temporalmente como Google-only. */
+function hasGoogleIdentity(user: User | null | undefined): boolean {
+  if (!user) return false
+  if (user.app_metadata?.provider === 'google') return true
+  return (
+    user.identities?.some((identity) => identity.provider === 'google') ?? false
+  )
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>(
@@ -47,15 +40,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isSupabaseConfigured) return
     let mounted = true
-    supabase.auth.getSession().then(({ data }) => {
+    let invalidSessionSignOutQueued = false
+    const applySession = (next: Session | null) => {
       if (!mounted) return
-      setSession(data.session)
-      setStatus(data.session ? 'signed-in' : 'signed-out')
+      if (next && !hasGoogleIdentity(next.user)) {
+        setSession(null)
+        setStatus('signed-out')
+        if (!invalidSessionSignOutQueued) {
+          invalidSessionSignOutQueued = true
+          setTimeout(() => {
+            void supabase.auth.signOut()
+          }, 0)
+        }
+        return
+      }
+      setSession(next)
+      setStatus(next ? 'signed-in' : 'signed-out')
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      applySession(data.session)
     })
     const { data: listener } = supabase.auth.onAuthStateChange(
       (_event, next) => {
-        setSession(next)
-        setStatus(next ? 'signed-in' : 'signed-out')
+        applySession(next)
       },
     )
     return () => {
@@ -63,48 +71,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       listener.subscription.unsubscribe()
     }
   }, [])
-
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    return { error: error ? friendlyError(error.message) : null }
-  }
-
-  const signUp = async (
-    firstName: string,
-    lastName: string,
-    email: string,
-    password: string,
-  ) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-        },
-        // No depender del Site URL de Supabase: si queda en localhost, el
-        // enlace de confirmación devolvería al usuario al dispositivo equivocado.
-        emailRedirectTo: appUrl('/login'),
-      },
-    })
-    return {
-      error: error ? friendlyError(error.message) : null,
-      confirmationRequired: !error && !data.session,
-    }
-  }
-
-  const resendSignupConfirmation = async (email: string) => {
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email,
-      options: { emailRedirectTo: appUrl('/login') },
-    })
-    return { error: error ? friendlyError(error.message) : null }
-  }
 
   const signOut = async () => {
     await supabase.auth.signOut()
@@ -114,22 +80,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.updateUser({
       data: { first_name: firstName.trim(), last_name: lastName.trim() },
     })
-    return { error: error ? friendlyError(error.message) : null }
-  }
-
-  const changePassword = async (
-    currentPassword: string,
-    newPassword: string,
-  ) => {
-    const email = session?.user.email
-    if (!email) return { error: 'Sin sesión activa. Vuelve a iniciar sesión.' }
-    // Supabase no valida la clave actual al actualizar: la verificamos primero.
-    const { error: verifyError } = await supabase.auth.signInWithPassword({
-      email,
-      password: currentPassword,
-    })
-    if (verifyError) return { error: 'La clave actual no es correcta.' }
-    const { error } = await supabase.auth.updateUser({ password: newPassword })
     return { error: error ? friendlyError(error.message) : null }
   }
 
@@ -143,27 +93,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? friendlyError(error.message) : null }
   }
 
-  const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: appUrl('/reset-password'),
-    })
-    return { error: error ? friendlyError(error.message) : null }
-  }
-
   return (
     <AuthContext.Provider
       value={{
         status,
         session,
         user: session?.user ?? null,
-        signIn,
-        signUp,
-        resendSignupConfirmation,
         signOut,
         updateProfile,
-        changePassword,
         signInWithGoogle,
-        resetPassword,
       }}
     >
       {children}

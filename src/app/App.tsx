@@ -22,11 +22,6 @@ const Workspaces = lazy(() =>
 const Login = lazy(() =>
   import('@/pages/Login').then((module) => ({ default: module.Login })),
 )
-const ResetPassword = lazy(() =>
-  import('@/pages/ResetPassword').then((module) => ({
-    default: module.ResetPassword,
-  })),
-)
 
 function RouteFallback() {
   return (
@@ -44,14 +39,6 @@ export function App() {
         element={
           <Suspense fallback={<RouteFallback />}>
             <Login />
-          </Suspense>
-        }
-      />
-      <Route
-        path="/reset-password"
-        element={
-          <Suspense fallback={<RouteFallback />}>
-            <ResetPassword />
           </Suspense>
         }
       />
