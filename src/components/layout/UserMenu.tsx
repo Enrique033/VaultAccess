@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { FileSpreadsheet, LogOut, ShieldCheck, User } from 'lucide-react'
+import { FileSpreadsheet, LogOut, ShieldCheck, User, Users } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import {
@@ -23,6 +23,7 @@ import { useAuth } from '@/app/auth-context'
 import { useVaultStore } from '@/store/vault.store'
 import { toast } from '@/store/ui.store'
 import { exportVaultToExcel } from '@/lib/vault-excel'
+import { usePresenceContext } from '@/hooks/usePresence'
 
 const errorBox =
   'rounded-xl border border-danger/30 bg-danger/10 px-3 py-2.5 text-xs text-danger'
@@ -30,6 +31,7 @@ const errorBox =
 export function UserMenu() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  const { globalOnline, isGlobalOwner } = usePresenceContext()
   const [busy, setBusy] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [passwordOpen, setPasswordOpen] = useState(false)
@@ -98,6 +100,31 @@ export function UserMenu() {
           <p className="truncate text-[11px] text-muted">{user.email}</p>
         </div>
         <DropdownMenuSeparator />
+        {isGlobalOwner && globalOnline !== null && (
+          <>
+            <div
+              role="status"
+              className="mx-1 my-1.5 flex items-center gap-2.5 rounded-xl border border-primary/15 bg-primary-soft/70 px-3 py-2.5"
+            >
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary text-white shadow-sm">
+                <Users className="size-3.5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[12px] font-semibold text-foreground">
+                  Global Online
+                </p>
+                <p className="text-[10px] text-muted">Usuarios conectados</p>
+              </div>
+              <span
+                className="min-w-6 rounded-full bg-primary px-2 py-0.5 text-center text-[11px] font-bold leading-5 text-white shadow-sm"
+                aria-label={`${globalOnline} usuarios conectados`}
+              >
+                {globalOnline}
+              </span>
+            </div>
+            <DropdownMenuSeparator />
+          </>
+        )}
         <DropdownMenuItem onClick={() => setProfileOpen(true)}>
           <User className="size-3.5" /> Editar perfil
         </DropdownMenuItem>

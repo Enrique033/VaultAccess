@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { Menu, MessageCircle, Plus, Search, Users } from 'lucide-react'
+import { Menu, MessageCircle, Plus, Search } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import { useSearchStore } from '@/store/search.store'
@@ -7,8 +7,6 @@ import { useUIStore } from '@/store/ui.store'
 import { UserMenu } from './UserMenu'
 import { ThemeToggle } from './ThemeToggle'
 import { NotificationBell } from '@/components/chat/NotificationBell'
-import { usePresenceContext } from '@/hooks/usePresence'
-import { cn } from '@/lib/utils'
 
 /** Rutas que tienen su propio buscador y botón "Nuevo". */
 const SEARCHABLE_ROUTES = ['/credentials', '/links', '/notes']
@@ -21,7 +19,6 @@ export function Header() {
   const toggleMobileNav = useUIStore((s) => s.toggleMobileNav)
   const toggleChat = useUIStore((s) => s.toggleChat)
   const inputRef = useRef<HTMLInputElement>(null)
-  const { globalOnline, isGlobalOwner } = usePresenceContext()
 
   /** Ruta actual si tiene buscador propio; si no, /credentials. */
   const searchRoute = SEARCHABLE_ROUTES.find((r) =>
@@ -72,19 +69,6 @@ export function Header() {
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-        {/* Badge global online - SOLO para elvissebas39@gmail.com */}
-        {isGlobalOwner && globalOnline !== null && (
-          <span
-            className={cn(
-              'flex items-center gap-2 rounded-full border border-primary/20 bg-primary-soft px-3 py-1.5 text-xs font-semibold text-primary',
-            )}
-            title="Usuarios conectados globalmente"
-          >
-            <Users className="size-3.5" />
-            <span>Global Online: {globalOnline}</span>
-          </span>
-        )}
-
         <NotificationBell />
         <Button
           variant="ghost"

@@ -29,7 +29,7 @@ Auth** (email/password y Google OAuth) y protegida con **Row Level Security**.
 - **Presencia en tiempo real**: canal `online-users`, indicadores individual
   verde/gris y contador de equipo solo para propietarios. El contador global
   se habilita mediante una RPC server-side únicamente para
-  `elvissebas39@gmail.com`.
+  `elvissebas39@gmail.com` y se muestra dentro del menú de cuenta.
 - **Notificaciones de chat**: campana con contador persistente, avisos por
   mensaje y cambios del equipo; al abrir la lista se marcan como leídos y al
   hacer clic se abre la conversación relacionada.
@@ -98,10 +98,11 @@ Ver **[SECURITY.md](./SECURITY.md)** para el modelo completo. Resumen:
   `chat_messages` no contienen credenciales; cada lectura/escritura exige ser
   participante y la creación de conversaciones directas pasa por una RPC
   `SECURITY DEFINER` validada. El texto se sanea en cliente y servidor.
-- **Presencia**: el canal `online-users` solo muestra presencia; el badge global
-  se renderiza únicamente después de que `is_global_owner()` confirme en
-  Supabase el correo exacto `elvissebas39@gmail.com`. Los owners de equipo
-  ven únicamente su contador `[Equipo Online: X/Y]`.
+- **Presencia**: el canal `online-users` solo muestra presencia; el indicador global
+  se muestra dentro del menú de cuenta únicamente después de que
+  `is_global_owner()` confirme en Supabase el correo exacto
+  `elvissebas39@gmail.com`. Los owners de equipo ven únicamente su contador
+  `[Equipo Online: X/Y]`.
 - La `anon key` es pública **por diseño**; la protección real es RLS.
 - Headers de seguridad en producción via `vercel.json`: CSP, HSTS,
   `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.

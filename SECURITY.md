@@ -32,7 +32,7 @@ modelo evita falsos positivos al reportar vulnerabilidades:
 | Chat | Las tablas `chat_*` están aisladas de credenciales; lectura y envío exigen ser participante. La creación de chats directos usa una RPC `SECURITY DEFINER` validada y el contenido se sanea antes de persistirse |
 | Notificaciones | `chat_notifications` solo es legible por su destinatario; un registro por mensaje y avisos genéricos de cambios del equipo, sin copiar credenciales |
 | Mensajes | Editar/eliminar para todos requiere ser el emisor; “eliminar para mí” se registra en `chat_message_deletions` sin modificar el mensaje de los demás |
-| Presencia | Canal Realtime `online-users`; el contador global solo se entrega tras `is_global_owner()` server-side para `elvissebas39@gmail.com`. Los owners de equipo solo ven su equipo |
+| Presencia | Canal Realtime `online-users`; el contador global se muestra en el menú de cuenta solo tras `is_global_owner()` server-side para `elvissebas39@gmail.com`. Los owners de equipo solo ven su equipo |
 | Equipos | RLS por pertenencia: funciones `security definer` (`is_workspace_member`, `workspace_role`) evitan recursión y no exponen `auth.users`. Compartir **copia** el dato: nunca se da acceso al vault personal |
 | Invitaciones | Roles (`owner`/`editor`/`viewer`); la invitación se reclama por email al iniciar sesión (`claim_workspace_invites()`, que solo puede fijar el propio `user_id`) |
 | Importación | Los respaldos se leen en el navegador; el archivo no se sube a ningún servidor |
