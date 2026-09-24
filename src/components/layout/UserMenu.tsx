@@ -1,12 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import {
-  FileSpreadsheet,
-  LogOut,
-  ShieldCheck,
-  Upload,
-  User,
-} from 'lucide-react'
+import { FileSpreadsheet, LogOut, ShieldCheck, User } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import {
@@ -29,7 +23,6 @@ import { useAuth } from '@/app/auth-context'
 import { useVaultStore } from '@/store/vault.store'
 import { toast } from '@/store/ui.store'
 import { exportVaultToExcel } from '@/lib/vault-excel'
-import { ImportDialog } from '@/components/import/ImportDialog'
 
 const errorBox =
   'rounded-xl border border-danger/30 bg-danger/10 px-3 py-2.5 text-xs text-danger'
@@ -40,7 +33,6 @@ export function UserMenu() {
   const [busy, setBusy] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [passwordOpen, setPasswordOpen] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
 
   if (!user) return null
 
@@ -113,9 +105,6 @@ export function UserMenu() {
           <ShieldCheck className="size-3.5" /> Cambiar clave
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => setImportOpen(true)}>
-          <Upload className="size-3.5" /> Importar respaldo…
-        </DropdownMenuItem>
         <DropdownMenuItem onClick={() => void handleExport()}>
           <FileSpreadsheet className="size-3.5" /> Exportar a Excel…
         </DropdownMenuItem>
@@ -127,7 +116,6 @@ export function UserMenu() {
 
       {profileOpen && <ProfileDialog onOpenChange={setProfileOpen} />}
       {passwordOpen && <PasswordDialog onOpenChange={setPasswordOpen} />}
-      {importOpen && <ImportDialog open onOpenChange={setImportOpen} />}
     </>
   )
 }

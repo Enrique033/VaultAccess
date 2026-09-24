@@ -5,7 +5,13 @@
  */
 import ExcelJS from 'exceljs'
 import type { Row, Workbook } from 'exceljs'
-import type { Category, Credential, LinkItem, Note, VaultSection } from '@/types'
+import type {
+  Category,
+  Credential,
+  LinkItem,
+  Note,
+  VaultSection,
+} from '@/types'
 
 /** Datos necesarios para generar el .xlsx. */
 export interface VaultExcelInput {
@@ -58,7 +64,9 @@ function detailSheet(
 }
 
 /** Genera el .xlsx y lo descarga al instante. */
-export async function exportVaultToExcel(input: VaultExcelInput): Promise<void> {
+export async function exportVaultToExcel(
+  input: VaultExcelInput,
+): Promise<void> {
   const { sections, categories, credentials, links, notes } = input
 
   const wb = new ExcelJS.Workbook()
@@ -145,10 +153,12 @@ export async function exportVaultToExcel(input: VaultExcelInput): Promise<void> 
 
   const inSection = (items: { categoryId?: string }[], secId: string): number =>
     items.filter((it) => secIdOf(it.categoryId) === secId).length
-  const inCategory = (items: { categoryId?: string }[], catId: string): number =>
-    items.filter((it) => it.categoryId === catId).length
+  const inCategory = (
+    items: { categoryId?: string }[],
+    catId: string,
+  ): number => items.filter((it) => it.categoryId === catId).length
   const uncategorized = (items: { categoryId?: string }[]): number =>
-    items.filter((it) => !it.categoryId || !catById.has(it.categoryId)).length
+    items.filter((it) => !it.categoryId).length
 
   let cursor = 5
   const subtitle = (text: string): void => {

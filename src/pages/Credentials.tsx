@@ -1,6 +1,6 @@
 import { useEffect, useRef, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { KeyRound, Plus, Star, Upload, Users2, ShieldAlert } from 'lucide-react'
+import { KeyRound, Plus, Star, Users2, ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -10,18 +10,14 @@ import { CardGridSkeleton } from '@/components/ui/Skeleton'
 import { CredentialGrid } from '@/components/credentials/CredentialGrid'
 import { CredentialDialog } from '@/components/credentials/CredentialDialog'
 import { CredentialSortSelect } from '@/components/credentials/CredentialSortSelect'
-import { ImportDialog } from '@/components/import/ImportDialog'
 import type { CredentialFormValues } from '@/components/credentials/CredentialForm'
 import { evaluatePassword } from '@/lib/password-strength'
-import { isSupabaseConfigured } from '@/lib/supabase'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
 import { useWorkspaceStore } from '@/store/workspace.store'
 import { toast } from '@/store/ui.store'
+import { FAVORITES, matchesCategoryFilter } from '@/lib/vault-filters'
 import type { Credential } from '@/types'
-
-const FAVORITES = 'favorites'
-const NONE = 'none'
 
 export function Credentials() {
   const credentials = useVaultStore((s) => s.credentials)
@@ -49,7 +45,6 @@ export function Credentials() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Credential | null>(null)
   const [deleting, setDeleting] = useState<Credential | null>(null)
-  const [importOpen, setImportOpen] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -71,19 +66,8 @@ export function Credentials() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const byCategory = (credential: Credential) => {
-      if (categoryFilter === FAVORITES) return credential.favorite
-      if (categoryFilter === NONE) return !credential.categoryId
-      if (categoryFilter) return credential.categoryId === categoryFilter
-      if (sectionId) {
-        const cat = categories.find((c) => c.id === credential.categoryId)
-        return cat?.sectionId === sectionId
-      }
-      return true
-    }
     const byStrength = (credential: Credential) =>
       !weakOnly || evaluatePassword(credential.password).score <= 1
-
     const byQuery = (credential: Credential) => {
       if (!q) return true
       const category = categories.find((c) => c.id === credential.categoryId)
@@ -95,7 +79,15 @@ export function Credentials() {
       )
     }
     const list = credentials.filter(
-      (c) => byCategory(c) && byQuery(c) && byStrength(c),
+      (credential) =>
+        matchesCategoryFilter(
+          credential,
+          categoryFilter,
+          sectionId,
+          categories,
+        ) &&
+        byQuery(credential) &&
+        byStrength(credential),
     )
     if (sort === 'az')
       return [...list].sort((a, b) => a.title.localeCompare(b.title, 'es'))
@@ -192,12 +184,6 @@ export function Credentials() {
         </div>
 
         <div className="page-actions">
-          {isSupabaseConfigured && (
-            <Button variant="outline" onClick={() => setImportOpen(true)}>
-              <Upload className="size-3.5" />
-              Importar
-            </Button>
-          )}
           <Button variant="primary" onClick={handleOpenCreate}>
             <Plus className="size-3.5" />
             Nueva credencial
@@ -280,14 +266,6 @@ export function Credentials() {
               Nueva credencial
             </Button>
           }
-          secondaryAction={
-            isSupabaseConfigured ? (
-              <Button variant="ghost" onClick={() => setImportOpen(true)}>
-                <Upload className="size-3.5" />
-                Importar desde otro gestor
-              </Button>
-            ) : undefined
-          }
         />
       ) : filtered.length === 0 ? (
         <EmptyState
@@ -313,9 +291,6 @@ export function Credentials() {
         credential={editing ?? undefined}
         onSubmit={handleSubmit}
       />
-
-      {/* Import dialog (respaldos de otros gestores) */}
-      <ImportDialog open={importOpen} onOpenChange={setImportOpen} />
 
       {/* Delete confirmation */}
       <ConfirmDialog

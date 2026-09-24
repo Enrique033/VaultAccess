@@ -13,10 +13,8 @@ import { LinkDialog, type LinkFormValues } from '@/components/links/LinkDialog'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
 import { toast } from '@/store/ui.store'
+import { matchesCategoryFilter } from '@/lib/vault-filters'
 import type { LinkItem } from '@/types'
-
-const FAVORITES = 'favorites'
-const NONE = 'none'
 
 export function Links() {
   const links = useVaultStore((s) => s.links)
@@ -61,16 +59,6 @@ export function Links() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const byCategory = (link: LinkItem) => {
-      if (categoryFilter === FAVORITES) return link.favorite
-      if (categoryFilter === NONE) return !link.categoryId
-      if (categoryFilter) return link.categoryId === categoryFilter
-      if (sectionId) {
-        const cat = categories.find((c) => c.id === link.categoryId)
-        return cat?.sectionId === sectionId
-      }
-      return true
-    }
     const byQuery = (link: LinkItem) => {
       if (!q) return true
       const category = categories.find((c) => c.id === link.categoryId)
@@ -81,7 +69,11 @@ export function Links() {
         category?.name.toLowerCase().includes(q)
       )
     }
-    const list = links.filter((l) => byCategory(l) && byQuery(l))
+    const list = links.filter(
+      (link) =>
+        matchesCategoryFilter(link, categoryFilter, sectionId, categories) &&
+        byQuery(link),
+    )
     if (sort === 'az')
       return [...list].sort((a, b) => a.title.localeCompare(b.title, 'es'))
     if (sort === 'favorites') {

@@ -1,9 +1,7 @@
 import { ShieldAlert, SlidersHorizontal, X } from 'lucide-react'
 import { useSearchStore } from '@/store/search.store'
+import { FAVORITES, NONE } from '@/lib/vault-filters'
 import type { Category, VaultSection } from '@/types'
-
-const FAVORITES = 'favorites'
-const NONE = 'none'
 
 interface FilterChipsProps {
   sections: VaultSection[]

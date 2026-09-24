@@ -8,16 +8,33 @@ import {
   Tag,
   Trash2,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+import {
+  FAVORITES,
+  NONE,
+  countByCategory,
+  countFavorites,
+  countUncategorized,
+  isOrphanedCategoryItem,
+  type CategorizedItem,
+} from '@/lib/vault-filters'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { toast } from '@/store/ui.store'
-import { cn } from '@/lib/utils'
 
 export function CategorySidebar() {
   const sections = useVaultStore((s) => s.sections)
   const categories = useVaultStore((s) => s.categories)
   const credentials = useVaultStore((s) => s.credentials)
+  const links = useVaultStore((s) => s.links)
+  const notes = useVaultStore((s) => s.notes)
+  // Las categorías son compartidas por Access, Links y Notas. Los conteos
+  // deben representar el Vault completo para no cambiar al cambiar de módulo.
+  const vaultItems: CategorizedItem[] = [...credentials, ...links, ...notes]
+  const orphanedCount = vaultItems.filter((item) =>
+    isOrphanedCategoryItem(item, categories),
+  ).length
   const addSection = useVaultStore((s) => s.addSection)
   const renameSection = useVaultStore((s) => s.renameSection)
   const deleteSection = useVaultStore((s) => s.deleteSection)
@@ -43,10 +60,9 @@ export function CategorySidebar() {
     label: string
   } | null>(null)
 
-  const countFor = (catId: string) =>
-    credentials.filter((c) => c.categoryId === catId).length
-  const uncategorized = credentials.filter((c) => !c.categoryId).length
-  const favorites = credentials.filter((c) => c.favorite).length
+  const countFor = (catId: string) => countByCategory(vaultItems, catId)
+  const uncategorized = countUncategorized(vaultItems)
+  const favorites = countFavorites(vaultItems)
 
   const submitSection = async () => {
     const name = newSection.trim()
@@ -87,6 +103,13 @@ export function CategorySidebar() {
 
   return (
     <div className="space-y-4">
+      <span className="eyebrow">Categorías</span>
+      {orphanedCount > 0 && (
+        <p className="rounded-xl border border-warning/25 bg-warning/10 px-2.5 py-2 text-[10px] leading-relaxed text-warning">
+          Hay {orphanedCount} elementos con una categoría que ya no existe.
+          Actualiza esos elementos para asignarles una categoría válida.
+        </p>
+      )}
       <button
         type="button"
         onClick={() => {
@@ -98,16 +121,16 @@ export function CategorySidebar() {
         <LayoutGrid className="size-4 shrink-0" />
         <span className="flex-1">Todas</span>
         <span className="rounded bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-muted">
-          {credentials.length}
+          {vaultItems.length}
         </span>
       </button>
       <button
         type="button"
         onClick={() => {
           setSectionId(null)
-          setCategoryFilter(categoryFilter === 'favorites' ? null : 'favorites')
+          setCategoryFilter(categoryFilter === FAVORITES ? null : FAVORITES)
         }}
-        className={row(categoryFilter === 'favorites')}
+        className={row(categoryFilter === FAVORITES)}
       >
         <Star className="size-4 shrink-0" />
         <span className="flex-1">Favoritas</span>
@@ -119,9 +142,9 @@ export function CategorySidebar() {
         type="button"
         onClick={() => {
           setSectionId(null)
-          setCategoryFilter(categoryFilter === 'none' ? null : 'none')
+          setCategoryFilter(categoryFilter === NONE ? null : NONE)
         }}
-        className={row(categoryFilter === 'none')}
+        className={row(categoryFilter === NONE)}
       >
         <FolderOpen className="size-4 shrink-0" />
         <span className="flex-1">Sin categoría</span>

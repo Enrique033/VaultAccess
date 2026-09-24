@@ -44,7 +44,10 @@ function friendlySyncError(message: string): string {
   return message
 }
 
-export type CredentialInput = Omit<Credential, 'id' | 'createdAt' | 'updatedAt' | 'favorite'>
+export type CredentialInput = Omit<
+  Credential,
+  'id' | 'createdAt' | 'updatedAt' | 'favorite'
+>
 
 /** Resultado de una importación masiva. */
 export interface ImportResult {
@@ -98,7 +101,10 @@ interface VaultState {
   reset: () => void
 
   addCredential: (input: CredentialInput) => Promise<Credential>
-  updateCredential: (id: string, input: Partial<CredentialInput>) => Promise<void>
+  updateCredential: (
+    id: string,
+    input: Partial<CredentialInput>,
+  ) => Promise<void>
   deleteCredential: (id: string) => Promise<void>
   toggleCredentialFavorite: (id: string) => Promise<void>
   /** Importación masiva desde un respaldo (Bitwarden, Chrome, 1Password…). */
@@ -137,6 +143,27 @@ function nextColor(categories: Category[]): string {
   const free = CATEGORY_COLORS.find((color) => !used.has(color.toLowerCase()))
   if (free) return free
   return CATEGORY_COLORS[categories.length % CATEGORY_COLORS.length]!
+}
+
+/** Evita guardar una referencia a una categoría que no pertenece al Vault actual. */
+function categoryIdForVault(
+  categories: Category[],
+  categoryId: string | undefined | null,
+): string | null {
+  if (
+    categoryId === undefined ||
+    categoryId === null ||
+    categoryId.trim() === ''
+  ) {
+    return null
+  }
+  const normalized = categoryId.trim()
+  if (categories.some((category) => category.id === normalized)) {
+    return normalized
+  }
+  throw new Error(
+    'La categoría seleccionada ya no existe o no pertenece a este Vault. Recarga y elige una categoría válida.',
+  )
 }
 
 /** Versiones anteriores que se conservan por credencial. */
@@ -217,7 +244,6 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
   status: isSupabaseConfigured ? 'idle' : 'local',
   error: null,
 
-
   load: async () => {
     if (!isSupabaseConfigured) {
       set({ status: 'local', error: null })
@@ -229,7 +255,10 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       const [secRes, catRes, credRes] = await Promise.all([
         supabase.from('vault_sections').select('*').order('created_at'),
         supabase.from('vault_categories').select('*').order('created_at'),
-        supabase.from('vault_credentials').select('*').order('updated_at', { ascending: false }),
+        supabase
+          .from('vault_credentials')
+          .select('*')
+          .order('updated_at', { ascending: false }),
       ])
       const firstError = secRes.error ?? catRes.error ?? credRes.error
       if (firstError) throw new Error(friendlySyncError(firstError.message))
@@ -238,14 +267,23 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         toSection(r as { id: string; name: string }),
       )
       let categories = (catRes.data ?? []).map((r) =>
-        toCategory(r as { id: string; name: string; color: string; section_id: string }),
+        toCategory(
+          r as { id: string; name: string; color: string; section_id: string },
+        ),
       )
       const credentials = (credRes.data ?? []).map((r) =>
         toCredential(
           r as {
-            id: string; title: string; username: string; password: string
-            url: string | null; category_id: string | null; notes: string | null
-            favorite: boolean; created_at: string; updated_at: string
+            id: string
+            title: string
+            username: string
+            password: string
+            url: string | null
+            category_id: string | null
+            notes: string | null
+            favorite: boolean
+            created_at: string
+            updated_at: string
           },
         ),
       )
@@ -269,12 +307,24 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
           if (!sectionId) continue
           const { data, error } = await supabase
             .from('vault_categories')
-            .insert({ user_id: userId, section_id: sectionId, name: seed.name, color: seed.color })
+            .insert({
+              user_id: userId,
+              section_id: sectionId,
+              name: seed.name,
+              color: seed.color,
+            })
             .select()
             .single()
           if (error) throw new Error(friendlySyncError(error.message))
           seeded.push(
-            toCategory(data as { id: string; name: string; color: string; section_id: string }),
+            toCategory(
+              data as {
+                id: string
+                name: string
+                color: string
+                section_id: string
+              },
+            ),
           )
         }
         categories = seeded
@@ -284,8 +334,14 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
 
       // Links/Notas: carga best-effort; si aún no existe la tabla, no bloquea.
       const [linkRes, noteRes] = await Promise.all([
-        supabase.from('vault_links').select('*').order('updated_at', { ascending: false }),
-        supabase.from('vault_notes').select('*').order('updated_at', { ascending: false }),
+        supabase
+          .from('vault_links')
+          .select('*')
+          .order('updated_at', { ascending: false }),
+        supabase
+          .from('vault_notes')
+          .select('*')
+          .order('updated_at', { ascending: false }),
       ])
       if (!linkRes.error && linkRes.data) {
         set({ links: linkRes.data.map((r) => toLink(r as LinkRow)) })
@@ -294,7 +350,8 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         set({ notes: noteRes.data.map((r) => toNote(r as NoteRow)) })
       }
     } catch (e) {
-      const message = e instanceof Error ? e.message : 'Error al cargar tus datos.'
+      const message =
+        e instanceof Error ? e.message : 'Error al cargar tus datos.'
       set({ status: 'error', error: message })
     }
   },
@@ -316,6 +373,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
 
   addCredential: async (input) => {
     const userId = await requireUserId()
+    const categoryId = categoryIdForVault(get().categories, input.categoryId)
     const { data, error } = await supabase
       .from('vault_credentials')
       .insert({
@@ -324,7 +382,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         username: input.username,
         password: input.password,
         url: input.url ?? null,
-        category_id: input.categoryId ?? null,
+        category_id: categoryId,
         notes: input.notes ?? null,
       })
       .select()
@@ -333,9 +391,16 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     if (!data) throw new Error('No se pudo recuperar la credencial creada.')
     const credential = toCredential(
       data as {
-        id: string; title: string; username: string; password: string
-        url: string | null; category_id: string | null; notes: string | null
-        favorite: boolean; created_at: string; updated_at: string
+        id: string
+        title: string
+        username: string
+        password: string
+        url: string | null
+        category_id: string | null
+        notes: string | null
+        favorite: boolean
+        created_at: string
+        updated_at: string
       },
     )
     set((s) => ({ credentials: [credential, ...s.credentials] }))
@@ -352,7 +417,9 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     if (input.username !== undefined) patch.username = input.username
     if (input.password !== undefined) patch.password = input.password
     if (input.url !== undefined) patch.url = input.url ?? null
-    if (input.categoryId !== undefined) patch.category_id = input.categoryId ?? null
+    if ('categoryId' in input) {
+      patch.category_id = categoryIdForVault(get().categories, input.categoryId)
+    }
     if (input.notes !== undefined) patch.notes = input.notes ?? null
     const { data, error } = await supabase
       .from('vault_credentials')
@@ -363,19 +430,31 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     if (error) throw new Error(friendlySyncError(error.message))
     const updated = toCredential(
       data as {
-        id: string; title: string; username: string; password: string
-        url: string | null; category_id: string | null; notes: string | null
-        favorite: boolean; created_at: string; updated_at: string
+        id: string
+        title: string
+        username: string
+        password: string
+        url: string | null
+        category_id: string | null
+        notes: string | null
+        favorite: boolean
+        created_at: string
+        updated_at: string
       },
     )
-    set((s) => ({ credentials: s.credentials.map((c) => (c.id === id ? updated : c)) }))
+    set((s) => ({
+      credentials: s.credentials.map((c) => (c.id === id ? updated : c)),
+    }))
 
     // Guarda la clave reemplazada (best-effort: no interrumpe el guardado).
     if (passwordChanged && previous) await recordPasswordChange(previous)
   },
 
   deleteCredential: async (id) => {
-    const { error } = await supabase.from('vault_credentials').delete().eq('id', id)
+    const { error } = await supabase
+      .from('vault_credentials')
+      .delete()
+      .eq('id', id)
     if (error) throw new Error(friendlySyncError(error.message))
     set((s) => ({
       credentials: s.credentials.filter((c) => c.id !== id),
@@ -384,10 +463,10 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         s.historyCredentialId === id
           ? []
           : s.history.filter((h) => h.credentialId !== id),
-      historyCredentialId: s.historyCredentialId === id ? null : s.historyCredentialId,
+      historyCredentialId:
+        s.historyCredentialId === id ? null : s.historyCredentialId,
     }))
   },
-
 
   toggleCredentialFavorite: async (id) => {
     const current = get().credentials.find((c) => c.id === id)
@@ -401,12 +480,21 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     if (error) throw new Error(friendlySyncError(error.message))
     const updated = toCredential(
       data as {
-        id: string; title: string; username: string; password: string
-        url: string | null; category_id: string | null; notes: string | null
-        favorite: boolean; created_at: string; updated_at: string
+        id: string
+        title: string
+        username: string
+        password: string
+        url: string | null
+        category_id: string | null
+        notes: string | null
+        favorite: boolean
+        created_at: string
+        updated_at: string
       },
     )
-    set((s) => ({ credentials: s.credentials.map((c) => (c.id === id ? updated : c)) }))
+    set((s) => ({
+      credentials: s.credentials.map((c) => (c.id === id ? updated : c)),
+    }))
   },
 
   importCredentials: async (items, options) => {
@@ -434,7 +522,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         username,
         password: item.password,
         url: item.url?.trim() || null,
-        category_id: item.categoryId || null,
+        category_id: categoryIdForVault(get().categories, item.categoryId),
         notes: item.notes?.trim() || null,
       })
     }
@@ -512,13 +600,14 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
 
   addLink: async (input) => {
     const userId = await requireUserId()
+    const categoryId = categoryIdForVault(get().categories, input.categoryId)
     const { data, error } = await supabase
       .from('vault_links')
       .insert({
         user_id: userId,
         title: input.title,
         url: input.url,
-        category_id: input.categoryId ?? null,
+        category_id: categoryId,
         description: input.description ?? null,
       })
       .select()
@@ -534,8 +623,11 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     const patch: Record<string, unknown> = {}
     if (input.title !== undefined) patch.title = input.title
     if (input.url !== undefined) patch.url = input.url
-    if (input.categoryId !== undefined) patch.category_id = input.categoryId ?? null
-    if (input.description !== undefined) patch.description = input.description ?? null
+    if ('categoryId' in input) {
+      patch.category_id = categoryIdForVault(get().categories, input.categoryId)
+    }
+    if (input.description !== undefined)
+      patch.description = input.description ?? null
     const { data, error } = await supabase
       .from('vault_links')
       .update(patch)
@@ -569,13 +661,14 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
 
   addNote: async (input) => {
     const userId = await requireUserId()
+    const categoryId = categoryIdForVault(get().categories, input.categoryId)
     const { data, error } = await supabase
       .from('vault_notes')
       .insert({
         user_id: userId,
         title: input.title,
         content: input.content,
-        category_id: input.categoryId ?? null,
+        category_id: categoryId,
       })
       .select()
       .single()
@@ -590,7 +683,9 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     const patch: Record<string, unknown> = {}
     if (input.title !== undefined) patch.title = input.title
     if (input.content !== undefined) patch.content = input.content
-    if (input.categoryId !== undefined) patch.category_id = input.categoryId ?? null
+    if ('categoryId' in input) {
+      patch.category_id = categoryIdForVault(get().categories, input.categoryId)
+    }
     const { data, error } = await supabase
       .from('vault_notes')
       .update(patch)
@@ -638,9 +733,16 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
   renameSection: async (id, name) => {
     const next = name.trim()
     if (!next) return
-    const { error } = await supabase.from('vault_sections').update({ name: next }).eq('id', id)
+    const { error } = await supabase
+      .from('vault_sections')
+      .update({ name: next })
+      .eq('id', id)
     if (error) throw new Error(friendlySyncError(error.message))
-    set((s) => ({ sections: s.sections.map((sec) => (sec.id === id ? { ...sec, name: next } : sec)) }))
+    set((s) => ({
+      sections: s.sections.map((sec) =>
+        sec.id === id ? { ...sec, name: next } : sec,
+      ),
+    }))
   },
 
   deleteSection: async (id) => {
@@ -655,7 +757,10 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         .eq('section_id', id)
       if (error) throw new Error(friendlySyncError(error.message))
     }
-    const { error } = await supabase.from('vault_sections').delete().eq('id', id)
+    const { error } = await supabase
+      .from('vault_sections')
+      .delete()
+      .eq('id', id)
     if (error) throw new Error(friendlySyncError(error.message))
     await get().load()
   },
@@ -683,9 +788,16 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
   renameCategory: async (id, name) => {
     const next = name.trim()
     if (!next) return
-    const { error } = await supabase.from('vault_categories').update({ name: next }).eq('id', id)
+    const { error } = await supabase
+      .from('vault_categories')
+      .update({ name: next })
+      .eq('id', id)
     if (error) throw new Error(friendlySyncError(error.message))
-    set((s) => ({ categories: s.categories.map((c) => (c.id === id ? { ...c, name: next } : c)) }))
+    set((s) => ({
+      categories: s.categories.map((c) =>
+        c.id === id ? { ...c, name: next } : c,
+      ),
+    }))
   },
 
   moveCategory: async (id, sectionId) => {
@@ -694,11 +806,18 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       .update({ section_id: sectionId })
       .eq('id', id)
     if (error) throw new Error(friendlySyncError(error.message))
-    set((s) => ({ categories: s.categories.map((c) => (c.id === id ? { ...c, sectionId } : c)) }))
+    set((s) => ({
+      categories: s.categories.map((c) =>
+        c.id === id ? { ...c, sectionId } : c,
+      ),
+    }))
   },
 
   deleteCategory: async (id) => {
-    const { error } = await supabase.from('vault_categories').delete().eq('id', id)
+    const { error } = await supabase
+      .from('vault_categories')
+      .delete()
+      .eq('id', id)
     if (error) throw new Error(friendlySyncError(error.message))
     await get().load()
   },
@@ -708,11 +827,13 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
 export function useVaultSync() {
   useEffect(() => {
     let cancelled = false
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (cancelled) return
-      if (session) void useVaultStore.getState().load()
-      else useVaultStore.getState().reset()
-    })
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (cancelled) return
+        if (session) void useVaultStore.getState().load()
+        else useVaultStore.getState().reset()
+      },
+    )
     supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return
       if (data.session) void useVaultStore.getState().load()

@@ -35,10 +35,6 @@ Auth** (email/password y Google OAuth) y protegida con **Row Level Security**.
   hacer clic se abre la conversación relacionada.
 - **Mensajes editables**: edición y eliminación para mí o para todos, con
   sincronización Realtime y marca `(editado)`.
-- **Importar respaldos**: CSV de Bitwarden / Chrome / Edge / 1Password /
-  LastPass y el propio Excel de WorkVault, con detección automática de formato,
-  vista previa, creación de categorías por carpeta y omisión de duplicados
-  (todo se procesa en el navegador).
 - **Panel de KPIs** en la vista de accesos: total, favoritas, claves débiles
   (filtro de un clic) y compartidas en equipos.
 - **Estados de carga con skeletons** y animaciones escalonadas en las rejillas.

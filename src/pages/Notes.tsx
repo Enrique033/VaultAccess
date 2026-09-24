@@ -13,10 +13,8 @@ import { NoteDialog, type NoteFormValues } from '@/components/notes/NoteDialog'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
 import { toast } from '@/store/ui.store'
+import { matchesCategoryFilter } from '@/lib/vault-filters'
 import type { Note } from '@/types'
-
-const FAVORITES = 'favorites'
-const NONE = 'none'
 
 export function Notes() {
   const notes = useVaultStore((s) => s.notes)
@@ -61,16 +59,6 @@ export function Notes() {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    const byCategory = (note: Note) => {
-      if (categoryFilter === FAVORITES) return note.favorite
-      if (categoryFilter === NONE) return !note.categoryId
-      if (categoryFilter) return note.categoryId === categoryFilter
-      if (sectionId) {
-        const cat = categories.find((c) => c.id === note.categoryId)
-        return cat?.sectionId === sectionId
-      }
-      return true
-    }
     const byQuery = (note: Note) => {
       if (!q) return true
       const category = categories.find((c) => c.id === note.categoryId)
@@ -80,7 +68,11 @@ export function Notes() {
         category?.name.toLowerCase().includes(q)
       )
     }
-    const list = notes.filter((n) => byCategory(n) && byQuery(n))
+    const list = notes.filter(
+      (note) =>
+        matchesCategoryFilter(note, categoryFilter, sectionId, categories) &&
+        byQuery(note),
+    )
     if (sort === 'az')
       return [...list].sort((a, b) => a.title.localeCompare(b.title, 'es'))
     if (sort === 'favorites') {
