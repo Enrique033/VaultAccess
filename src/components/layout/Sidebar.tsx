@@ -50,7 +50,7 @@ function SidebarPanel({ collapsed, onToggle, onClose }: SidebarPanelProps) {
           </span>
           {!collapsed && (
             <span className="truncate text-sm font-bold tracking-[-0.02em] text-foreground">
-              VaultAccess
+              Workvaul
             </span>
           )}
         </Link>

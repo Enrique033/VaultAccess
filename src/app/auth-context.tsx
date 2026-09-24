@@ -22,7 +22,7 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null)
 
-/** VaultAccess está configurado temporalmente como Google-only. */
+/** Workvaul está configurado temporalmente como Google-only. */
 function hasGoogleIdentity(user: User | null | undefined): boolean {
   if (!user) return false
   if (user.app_metadata?.provider === 'google') return true

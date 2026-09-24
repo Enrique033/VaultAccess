@@ -1,8 +1,8 @@
-# 🔒 Security Policy · VaultAccess
+# 🔒 Security Policy · Workvaul
 
 ## Modelo de seguridad
 
-VaultAccess es una SPA (React + Vite) con **Supabase** como backend. Entender el
+Workvaul es una SPA (React + Vite) con **Supabase** como backend. Entender el
 modelo evita falsos positivos al reportar vulnerabilidades:
 
 - **La `anon key` es pública por diseño.** Va embebida en el bundle

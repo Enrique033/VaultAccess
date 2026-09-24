@@ -315,7 +315,7 @@ async function searchUsersRpc(query: string): Promise<SearchUserRow[]> {
     if (!isMissingSearchRpcError(message)) {
       throw result.error
     }
-    console.warn(`[VaultAccess] RPC de búsqueda no disponible: ${rpcName}`)
+    console.warn(`[Workvaul] RPC de búsqueda no disponible: ${rpcName}`)
   }
 
   throw missingFunctionError ?? new Error('No se encontró la RPC de búsqueda.')
@@ -637,7 +637,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             })
           } else {
             console.warn(
-              '[VaultAccess] No se pudieron cargar perfiles de chat:',
+              '[Workvaul] No se pudieron cargar perfiles de chat:',
               result.error.message,
             )
           }
@@ -653,7 +653,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (error) {
       // La lista de equipo y la presencia siguen permitiendo renderizar el
       // mensaje aunque la RPC de perfiles no esté disponible todavía.
-      console.warn('[VaultAccess] Fallo al cargar perfiles de chat:', error)
+      console.warn('[Workvaul] Fallo al cargar perfiles de chat:', error)
     }
   },
 

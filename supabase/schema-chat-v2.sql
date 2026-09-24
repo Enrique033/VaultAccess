@@ -1,5 +1,5 @@
 -- ============================================================
--- VaultAccess · Chat v2: identidad, notificaciones y edición
+-- Workvaul · Chat v2: identidad, notificaciones y edición
 -- Ejecutar DESPUÉS de schema-sharing.sql y schema-chat.sql.
 -- No contiene credenciales del Vault.
 -- ============================================================
@@ -751,4 +751,4 @@ begin
 end;
 $$;
 
--- FIN VaultAccess Chat v2
+-- FIN Workvaul Chat v2

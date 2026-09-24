@@ -313,7 +313,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
         })
       if (memberError) {
         console.warn(
-          '[VaultAccess] No se pudo registrar al propietario como miembro:',
+          '[Workvaul] No se pudo registrar al propietario como miembro:',
           memberError.message,
         )
       } else {

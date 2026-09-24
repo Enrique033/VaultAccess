@@ -1,5 +1,5 @@
 -- ============================================================
--- VaultAccess · Historial de claves (versiones anteriores)
+-- Workvaul · Historial de claves (versiones anteriores)
 -- Ejecutar DESPUÉS de supabase/schema.sql en:
 -- Supabase Dashboard → SQL Editor → New query
 -- ============================================================

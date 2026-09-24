@@ -32,7 +32,7 @@ const COMMON_PASSWORDS = [
   'admin',
   'iloveyou',
   'letmein',
-  'vaultaccess',
+  'workvaul',
   'abcdef',
   'monkey',
   'dragon',

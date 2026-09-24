@@ -29,7 +29,7 @@ export function useIdleSignOut(timeoutMs = 15 * 60_000) {
       void signOutRef.current()
       toast.show(
         'Sesión cerrada',
-        `Por inactividad (${Math.round(timeoutMs / 60_000)} min sin usar VaultAccess).`,
+        `Por inactividad (${Math.round(timeoutMs / 60_000)} min sin usar Workvaul).`,
       )
     }
 

@@ -5,7 +5,7 @@ import { useAuth } from '@/app/auth-context'
 import { Button } from '@/components/ui/Button'
 import { AuthLayout } from '@/components/layout/AuthLayout'
 
-/** Acceso principal de VaultAccess: por ahora, únicamente Google OAuth. */
+/** Acceso principal de Workvaul: por ahora, únicamente Google OAuth. */
 export function Login() {
   const { status, signInWithGoogle } = useAuth()
   const [error, setError] = useState<string | null>(null)
@@ -28,7 +28,7 @@ export function Login() {
 
   return (
     <AuthLayout
-      title="VaultAccess"
+      title="Workvaul"
       subtitle="Accede con tu cuenta de Google para entrar a tu espacio privado."
     >
       {status === 'unconfigured' && (
@@ -85,8 +85,8 @@ export function Login() {
         </Button>
 
         <p className="text-center text-[11px] leading-relaxed text-muted">
-          Por ahora VaultAccess no crea cuentas con correo y contraseña. La
-          clave y la recuperación de acceso se administran desde Google.
+          Por ahora Workvaul no crea cuentas con correo y contraseña. La clave y
+          la recuperación de acceso se administran desde Google.
         </p>
       </div>
     </AuthLayout>

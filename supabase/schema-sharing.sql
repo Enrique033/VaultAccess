@@ -1,5 +1,5 @@
 -- ============================================================
--- VaultAccess · Equipos (espacios compartidos)
+-- Workvaul · Equipos (espacios compartidos)
 -- Ejecutar DESPUÉS de schema.sql y schema-content.sql en:
 -- Supabase Dashboard → SQL Editor → New query
 -- ============================================================

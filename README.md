@@ -1,4 +1,4 @@
-# 🗄️ VaultAccess
+# 🗄️ Workvaul
 
 Espacio privado para gestionar **accesos, enlaces y notas** en un solo
 lugar. SPA construida con React + Vite + Tailwind, autenticada con **Supabase
@@ -120,15 +120,15 @@ Sin dominio propio no hay problema: Vercel da uno gratis `*.vercel.app`.
 ```bash
 git init
 git add .
-git commit -m "feat: VaultAccess inicial"
+git commit -m "feat: Workvaul inicial"
 git branch -M main
-git remote add origin https://github.com/<tu-usuario>/VaultAccess.git
+git remote add origin https://github.com/<tu-usuario>/Workvaul.git
 git push -u origin main
 ```
 
 ### 2. Vercel
 
-1. [vercel.com/new](https://vercel.com/new) → _Import Git Repository_ → VaultAccess.
+1. [vercel.com/new](https://vercel.com/new) → _Import Git Repository_ → Workvaul.
 2. Framework: **Vite** (detecta solo). Build: `npm run build` · Output: `dist`.
 3. En **Settings → Environment Variables**, para **Production**:
    - `VITE_SUPABASE_URL` = `https://yugynaktiicspzzestdl.supabase.co`
@@ -172,13 +172,13 @@ Allí deben coincidir exactamente:
   `https://yugynaktiicspzzestdl.supabase.co/auth/v1/callback`
 
 El callback de Google siempre apunta a Supabase; después Supabase vuelve a
-`/login` en VaultAccess. Si Google termina en `localhost`, normalmente el **Site
+`/login` en Workvaul. Si Google termina en `localhost`, normalmente el **Site
 URL** sigue en `localhost:3000` o falta `/login` en **Redirect URLs**. No escribas
 `localhost` como destino público en producción.
 
 ### 4. Supabase: solo Google por ahora
 
-El acceso público de VaultAccess utiliza únicamente Google OAuth. No hay una interfaz
+El acceso público de Workvaul utiliza únicamente Google OAuth. No hay una interfaz
 para crear cuentas, iniciar sesión con correo/contraseña ni recuperar contraseñas.
 
 En **Supabase → Authentication → Providers → Email**, desactiva el proveedor

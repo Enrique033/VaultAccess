@@ -3,8 +3,8 @@
  * Centralizadas para evitar strings mágicos dispersos.
  */
 export const STORAGE_KEYS = {
-  vault: 'vaultaccess.vault',
-  ui: 'vaultaccess.ui',
+  vault: 'workvaul.vault',
+  ui: 'workvaul.ui',
 } as const
 
 // TODO(Fase Security): reemplazar la persistencia de `vault` por

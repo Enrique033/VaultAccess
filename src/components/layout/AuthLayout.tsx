@@ -10,7 +10,7 @@ interface AuthLayoutProps {
   legal?: ReactNode
 }
 
-/** Beneficios de VaultAccess: qué resuelve en el día a día. */
+/** Beneficios de Workvaul: qué resuelve en el día a día. */
 const HIGHLIGHTS = [
   {
     icon: Search,
@@ -86,7 +86,7 @@ export function AuthLayout({
             className="animate-fade-up space-y-3"
             style={{ animationDelay: '120ms' }}
           >
-            <span className="eyebrow">VaultAccess · espacio privado</span>
+            <span className="eyebrow">Workvaul · espacio privado</span>
             <h1 className="animate-gradient-pan bg-gradient-to-r from-foreground via-primary to-foreground bg-[length:200%_200%] bg-clip-text text-3xl font-semibold tracking-tight text-transparent">
               Tu espacio privado,
               <br />
