@@ -255,7 +255,10 @@ async function recordPasswordChange(credential: Credential): Promise<void> {
     }
   } catch (e) {
     // Nunca debe romper el guardado de la credencial.
-    console.warn('[WorkVault] No se pudo guardar el historial de la clave:', e)
+    console.warn(
+      '[VaultAccess] No se pudo guardar el historial de la clave:',
+      e,
+    )
   }
 }
 

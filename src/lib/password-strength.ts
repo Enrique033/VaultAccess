@@ -32,7 +32,7 @@ const COMMON_PASSWORDS = [
   'admin',
   'iloveyou',
   'letmein',
-  'workvault',
+  'vaultaccess',
   'abcdef',
   'monkey',
   'dragon',
@@ -94,5 +94,9 @@ export function evaluatePassword(password: string): PasswordStrength {
   else if (points >= 2) score = 2
   else if (points >= 1) score = 1
 
-  return { score, label: LEVELS[score]!.label, barClass: LEVELS[score]!.barClass }
+  return {
+    score,
+    label: LEVELS[score]!.label,
+    barClass: LEVELS[score]!.barClass,
+  }
 }

@@ -39,7 +39,7 @@ const optionRow = 'flex cursor-pointer items-center gap-2 text-xs text-muted'
 
 /**
  * Importa credenciales desde un respaldo (Bitwarden, Chrome, 1Password,
- * LastPass o el propio Excel de WorkVault). Todo ocurre en el navegador.
+ * LastPass o el propio Excel de VaultAccess). Todo ocurre en el navegador.
  */
 export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
   const categories = useVaultStore((s) => s.categories)
@@ -181,7 +181,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
           <DialogTitle>Importar respaldo</DialogTitle>
           <DialogDescription>
             Sube un CSV de Bitwarden, Chrome, 1Password o LastPass, o el Excel
-            exportado desde WorkVault. El archivo se procesa en tu navegador.
+            exportado desde VaultAccess. El archivo se procesa en tu navegador.
           </DialogDescription>
         </div>
         <DialogCloseButton onClick={() => onOpenChange(false)} />

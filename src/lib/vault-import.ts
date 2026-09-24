@@ -1,11 +1,11 @@
 /**
  * Importación de respaldos de otros gestores (CSV) y del propio Excel de
- * WorkVault (.xlsx). Todo se procesa en el navegador: el archivo no se sube
+ * VaultAccess (.xlsx). Todo se procesa en el navegador: el archivo no se sube
  * a ningún servidor.
  */
 
 export type ImportFormat =
-  | 'workvault'
+  | 'vaultaccess'
   | 'bitwarden'
   | 'chrome'
   | 'onepassword'
@@ -38,11 +38,11 @@ export const IMPORT_FORMATS: { value: ImportFormat; label: string }[] = [
   { value: 'chrome', label: 'Chrome / Edge / Brave (.csv)' },
   { value: 'onepassword', label: '1Password (.csv)' },
   { value: 'lastpass', label: 'LastPass (.csv)' },
-  { value: 'workvault', label: 'WorkVault (.xlsx)' },
+  { value: 'vaultaccess', label: 'VaultAccess (.xlsx)' },
   { value: 'generic', label: 'Otro CSV (título, usuario, clave)' },
 ]
 
-/** Marcador de celda vacía que usa la exportación de WorkVault. */
+/** Marcador de celda vacía que usa la exportación de VaultAccess. */
 const EMPTY_MARK = '—'
 
 /** Parsea CSV (RFC 4180): comillas dobles, campos multilínea y BOM. */
@@ -155,7 +155,15 @@ const USER_KEYS = [
   'cuenta',
 ]
 const PASS_KEYS = ['password', 'clave', 'contrasena', 'loginpassword', 'pass']
-const URL_KEYS = ['url', 'loginuri', 'website', 'web', 'sitioweb', 'sitio', 'uri']
+const URL_KEYS = [
+  'url',
+  'loginuri',
+  'website',
+  'web',
+  'sitioweb',
+  'sitio',
+  'uri',
+]
 const NOTES_KEYS = [
   'notes',
   'notas',
@@ -182,7 +190,7 @@ export function detectFormat(headers: string[]): ImportFormat {
   const set = new Set(headers)
   const has = (...names: string[]) => names.some((name) => set.has(name))
 
-  if (has('clave') && has('usuario')) return 'workvault'
+  if (has('clave') && has('usuario')) return 'vaultaccess'
   if (has('loginuri', 'loginusername', 'loginpassword')) return 'bitwarden'
   if (has('extra') && has('grouping')) return 'lastpass'
   if (has('otp') || (has('title') && has('url') && has('username')))
@@ -239,7 +247,10 @@ export function entriesFromRows(
     if (folder && !folders.includes(folder)) folders.push(folder)
 
     entries.push({
-      title: (rawTitle || hostOf(rawUrl) || username || 'Sin título').slice(0, 80),
+      title: (rawTitle || hostOf(rawUrl) || username || 'Sin título').slice(
+        0,
+        80,
+      ),
       username: (username || 'Sin usuario').slice(0, 120),
       password,
       url: isHttp ? rawUrl : undefined,
@@ -258,7 +269,12 @@ export function parseVaultText(
 ): ParsedImport {
   const rows = parseCsv(text, sniffDelimiter(text))
   if (rows.length < 2) {
-    return { format: formatHint ?? 'generic', entries: [], skipped: 0, folders: [] }
+    return {
+      format: formatHint ?? 'generic',
+      entries: [],
+      skipped: 0,
+      folders: [],
+    }
   }
   const [headerRow, ...body] = rows
   const headers = headerRow!.map(normalizeHeader)
@@ -271,11 +287,12 @@ export async function readVaultFile(
   formatHint?: ImportFormat,
 ): Promise<ParsedImport> {
   const name = file.name.toLowerCase()
-  if (name.endsWith('.xlsx') || name.endsWith('.xlsm')) return readWorkbook(file)
+  if (name.endsWith('.xlsx') || name.endsWith('.xlsm'))
+    return readWorkbook(file)
   return parseVaultText(await file.text(), formatHint)
 }
 
-/** Extrae la hoja "Credenciales" del Excel exportado por WorkVault. */
+/** Extrae la hoja "Credenciales" del Excel exportado por VaultAccess. */
 async function readWorkbook(file: File): Promise<ParsedImport> {
   // Carga diferida: ExcelJS solo se evalúa aquí (módulo compartido con la
   // exportación a Excel, así que no añade peso extra al bundle).
@@ -286,7 +303,12 @@ async function readWorkbook(file: File): Promise<ParsedImport> {
   >[0]
   await workbook.xlsx.load(data)
 
-  const empty: ParsedImport = { format: 'workvault', entries: [], skipped: 0, folders: [] }
+  const empty: ParsedImport = {
+    format: 'vaultaccess',
+    entries: [],
+    skipped: 0,
+    folders: [],
+  }
   const sheet = workbook.getWorksheet('Credenciales') ?? workbook.worksheets[0]
   if (!sheet) return empty
 
@@ -302,6 +324,5 @@ async function readWorkbook(file: File): Promise<ParsedImport> {
 
   const [headerRow, ...body] = rows
   if (!headerRow) return empty
-  return entriesFromRows(headerRow.map(normalizeHeader), body, 'workvault')
+  return entriesFromRows(headerRow.map(normalizeHeader), body, 'vaultaccess')
 }
-

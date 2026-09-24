@@ -70,7 +70,7 @@ export async function exportVaultToExcel(
   const { sections, categories, credentials, links, notes } = input
 
   const wb = new ExcelJS.Workbook()
-  wb.creator = 'WorkVault'
+  wb.creator = 'VaultAccess'
   wb.created = new Date()
 
   const catById = new Map(categories.map((c) => [c.id, c]))
@@ -106,7 +106,7 @@ export async function exportVaultToExcel(
 
   dash.mergeCells('A1:F1')
   const title = dash.getCell('A1')
-  title.value = `WorkVault — Dashboard · ${new Date().toLocaleDateString('es-ES')}`
+  title.value = `VaultAccess — Dashboard · ${new Date().toLocaleDateString('es-ES')}`
   title.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } }
   title.fill = {
     type: 'pattern',
@@ -327,7 +327,7 @@ export async function exportVaultToExcel(
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
   anchor.href = url
-  anchor.download = `workvault-${new Date().toISOString().slice(0, 10)}.xlsx`
+  anchor.download = `vaultaccess-${new Date().toISOString().slice(0, 10)}.xlsx`
   document.body.appendChild(anchor)
   anchor.click()
   document.body.removeChild(anchor)

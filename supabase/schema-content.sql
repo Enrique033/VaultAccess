@@ -1,5 +1,5 @@
 -- ============================================================
--- WorkVault · Links y Notas
+-- VaultAccess · Links y Notas
 -- Ejecutar DESPUÉS de schema.sql en:
 -- Supabase Dashboard → SQL Editor → New query
 -- ============================================================

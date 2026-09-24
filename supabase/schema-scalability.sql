@@ -1,5 +1,5 @@
 -- ============================================================
--- WorkVault · Escalabilidad Supabase (idempotente)
+-- VaultAccess · Escalabilidad Supabase (idempotente)
 -- Ejecutar DESPUÉS de schema-chat-v3.sql.
 -- No contiene credenciales del Vault ni cambia políticas existentes.
 -- ============================================================

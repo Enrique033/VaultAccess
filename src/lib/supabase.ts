@@ -40,7 +40,7 @@ export const appOrigin = (() => {
       // La advertencia de abajo permite diagnosticar el valor inválido.
     }
     console.warn(
-      '[WorkVault] VITE_APP_URL no es una URL HTTP válida; se usará el origen actual.',
+      '[VaultAccess] VITE_APP_URL no es una URL HTTP válida; se usará el origen actual.',
     )
   }
 
@@ -79,7 +79,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   // No lanzamos aquí para permitir el modo local/offline sin env.
   // Las funciones que requieran red fallarán con un error claro.
   console.warn(
-    '[WorkVault] Faltan VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY. ' +
+    '[VaultAccess] Faltan VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY. ' +
       'En local: copia .env.example a .env. En Vercel: Settings → ' +
       'Environment Variables y vuelve a desplegar (Redeploy).',
   )

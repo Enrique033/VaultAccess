@@ -85,7 +85,7 @@ export function AppShell() {
             aria-label="Pie de página"
             className="shrink-0 border-t border-border/70 bg-surface/60 px-4 py-2.5 text-center text-[10px] font-medium tracking-wide text-muted sm:text-[11px]"
           >
-            © WorkVault · Todos los derechos reservados.
+            © VaultAccess · Todos los derechos reservados.
           </footer>
         </div>
         {chatOpen && (

@@ -1,5 +1,5 @@
 -- ============================================================
--- WorkVault · Esquema Supabase con Row Level Security
+-- VaultAccess · Esquema Supabase con Row Level Security
 -- Ejecutar en: Supabase Dashboard → SQL Editor → New query
 -- ============================================================
 -- Cada usuario solo puede leer/escribir SUS propias filas

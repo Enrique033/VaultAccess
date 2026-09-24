@@ -1,5 +1,5 @@
 -- ============================================================
--- WorkVault · Chat Interno en Tiempo Real
+-- VaultAccess · Chat Interno en Tiempo Real
 -- Ejecutar DESPUÉS de schema-sharing.sql en:
 -- Supabase Dashboard → SQL Editor → New query
 -- ============================================================
