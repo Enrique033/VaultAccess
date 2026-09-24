@@ -12,7 +12,14 @@ import { AuthLayout } from '@/components/layout/AuthLayout'
 type Mode = 'signin' | 'signup' | 'forgot'
 
 export function Login() {
-  const { status, signIn, signUp, signInWithGoogle, resetPassword } = useAuth()
+  const {
+    status,
+    signIn,
+    signUp,
+    resendSignupConfirmation,
+    signInWithGoogle,
+    resetPassword,
+  } = useAuth()
   const [mode, setMode] = useState<Mode>('signin')
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -20,7 +27,9 @@ export function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [resending, setResending] = useState(false)
   const [sent, setSent] = useState(false)
+  const [confirmationRequired, setConfirmationRequired] = useState(false)
 
   if (status === 'signed-in') return <Navigate to="/credentials" replace />
 
@@ -28,6 +37,7 @@ export function Login() {
     e.preventDefault()
     setError(null)
     setSent(false)
+    setConfirmationRequired(false)
     if (mode === 'forgot') {
       setBusy(true)
       try {
@@ -48,20 +58,43 @@ export function Login() {
     }
     setBusy(true)
     try {
-      const { error: authError } =
-        mode === 'signin'
-          ? await signIn(email.trim(), password)
-          : await signUp(firstName, lastName, email.trim(), password)
-      if (authError) {
-        setError(authError)
+      if (mode === 'signin') {
+        const { error: authError } = await signIn(email.trim(), password)
+        if (authError) setError(authError)
         return
       }
-      if (mode === 'signup') {
-        // Si Supabase exige confirmación por correo, no hay sesión todavía.
+
+      const result = await signUp(firstName, lastName, email.trim(), password)
+      if (result.error) {
+        setError(result.error)
+        return
+      }
+      if (result.confirmationRequired) {
         setSent(true)
+        setConfirmationRequired(true)
       }
     } finally {
       setBusy(false)
+    }
+  }
+
+  const handleResendConfirmation = async () => {
+    const cleanEmail = email.trim()
+    if (!cleanEmail) {
+      setError('Escribe el correo con el que te registraste.')
+      return
+    }
+    setError(null)
+    setResending(true)
+    try {
+      const { error: resendError } = await resendSignupConfirmation(cleanEmail)
+      if (resendError) {
+        setError(resendError)
+        return
+      }
+      setSent(true)
+    } finally {
+      setResending(false)
     }
   }
 
@@ -191,17 +224,39 @@ export function Login() {
           </p>
         )}
         {sent && !error && (
-          <p className="rounded-xl border border-success/30 bg-success/10 px-3 py-2.5 text-xs text-success">
-            {mode === 'forgot'
-              ? '¡Listo! Te enviamos un enlace a tu correo para recuperar el acceso (revisa también la carpeta spam).'
-              : 'Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.'}
-          </p>
+          <div
+            role="status"
+            className="space-y-3 rounded-xl border border-success/30 bg-success/10 px-3 py-2.5 text-xs text-success"
+          >
+            <p>
+              {mode === 'forgot'
+                ? 'Si el correo está registrado, recibirás un enlace para recuperar el acceso. Revisa también la carpeta spam.'
+                : 'Cuenta registrada. Revisa tu correo y la carpeta spam para confirmarla. Si el mensaje no aparece, puedes reenviarlo.'}
+            </p>
+            {mode === 'signup' && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleResendConfirmation}
+                disabled={resending}
+                className="w-full"
+              >
+                {resending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Mail className="size-4" />
+                )}
+                {resending ? 'Reenviando…' : 'No llegó: reenviar confirmación'}
+              </Button>
+            )}
+          </div>
         )}
 
         <Button
           type="submit"
           variant="primary"
-          disabled={busy}
+          disabled={busy || (mode === 'signup' && confirmationRequired)}
           className="w-full"
         >
           {busy ? (
@@ -214,7 +269,9 @@ export function Login() {
           {mode === 'signin'
             ? 'Entrar'
             : mode === 'signup'
-              ? 'Crear cuenta'
+              ? confirmationRequired
+                ? 'Cuenta registrada'
+                : 'Crear cuenta'
               : 'Enviar enlace'}
         </Button>
 
@@ -224,6 +281,7 @@ export function Login() {
             setMode(mode === 'signin' ? 'signup' : 'signin')
             setError(null)
             setSent(false)
+            setConfirmationRequired(false)
           }}
           className="w-full text-center text-xs text-muted transition-colors hover:text-foreground"
         >

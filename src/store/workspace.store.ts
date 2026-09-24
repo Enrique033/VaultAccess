@@ -1,6 +1,11 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
-import { isSupabaseConfigured, requireUserId, supabase } from '@/lib/supabase'
+import {
+  appUrl,
+  isSupabaseConfigured,
+  requireUserId,
+  supabase,
+} from '@/lib/supabase'
 import {
   toWorkspace,
   toWorkspaceItem,
@@ -276,7 +281,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
       email: clean,
       options: {
         shouldCreateUser: true,
-        emailRedirectTo: `${window.location.origin}/equipos`,
+        emailRedirectTo: appUrl('/workspaces'),
       },
     })
     if (otpError)

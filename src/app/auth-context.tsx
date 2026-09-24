@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
-import { supabase, isSupabaseConfigured } from '@/lib/supabase'
+import { appUrl, supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { friendlyError } from '@/lib/auth-errors'
 
 export type AuthStatus = 'loading' | 'signed-in' | 'signed-out' | 'unconfigured'
@@ -16,10 +16,15 @@ interface AuthContextValue {
     lastName: string,
     email: string,
     password: string,
-  ) => Promise<{ error: string | null }>
+  ) => Promise<{ error: string | null; confirmationRequired: boolean }>
+  /** Reenvía el correo de confirmación de un registro todavía pendiente. */
+  resendSignupConfirmation: (email: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   /** Actualiza nombre y apellido en user_metadata. */
-  updateProfile: (firstName: string, lastName: string) => Promise<{ error: string | null }>
+  updateProfile: (
+    firstName: string,
+    lastName: string,
+  ) => Promise<{ error: string | null }>
   /** Valida la clave actual y cambia por la nueva. */
   changePassword: (
     currentPassword: string,
@@ -47,10 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(data.session)
       setStatus(data.session ? 'signed-in' : 'signed-out')
     })
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, next) => {
-      setSession(next)
-      setStatus(next ? 'signed-in' : 'signed-out')
-    })
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, next) => {
+        setSession(next)
+        setStatus(next ? 'signed-in' : 'signed-out')
+      },
+    )
     return () => {
       mounted = false
       listener.subscription.unsubscribe()
@@ -58,12 +65,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
     return { error: error ? friendlyError(error.message) : null }
   }
 
-  const signUp = async (firstName: string, lastName: string, email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+  const signUp = async (
+    firstName: string,
+    lastName: string,
+    email: string,
+    password: string,
+  ) => {
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -71,7 +86,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           first_name: firstName.trim(),
           last_name: lastName.trim(),
         },
+        // No depender del Site URL de Supabase: si queda en localhost, el
+        // enlace de confirmación devolvería al usuario al dispositivo equivocado.
+        emailRedirectTo: appUrl('/login'),
       },
+    })
+    return {
+      error: error ? friendlyError(error.message) : null,
+      confirmationRequired: !error && !data.session,
+    }
+  }
+
+  const resendSignupConfirmation = async (email: string) => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: appUrl('/login') },
     })
     return { error: error ? friendlyError(error.message) : null }
   }
@@ -87,7 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error ? friendlyError(error.message) : null }
   }
 
-  const changePassword = async (currentPassword: string, newPassword: string) => {
+  const changePassword = async (
+    currentPassword: string,
+    newPassword: string,
+  ) => {
     const email = session?.user.email
     if (!email) return { error: 'Sin sesión activa. Vuelve a iniciar sesión.' }
     // Supabase no valida la clave actual al actualizar: la verificamos primero.
@@ -104,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/login`,
+        redirectTo: appUrl('/login'),
       },
     })
     return { error: error ? friendlyError(error.message) : null }
@@ -112,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const resetPassword = async (email: string) => {
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: appUrl('/reset-password'),
     })
     return { error: error ? friendlyError(error.message) : null }
   }
@@ -125,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: session?.user ?? null,
         signIn,
         signUp,
+        resendSignupConfirmation,
         signOut,
         updateProfile,
         changePassword,

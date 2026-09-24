@@ -16,10 +16,50 @@ function cleanEnv(value: string | undefined): string | undefined {
 
 // Tratamos "" como ausente: en Vercel es fácil crear la variable sin valor y
 // `"" ?? fallback` no sustituye (solo cubre null/undefined) → createClient crasheaba.
-const supabaseUrl = cleanEnv(import.meta.env.VITE_SUPABASE_URL as string | undefined)
+const supabaseUrl = cleanEnv(
+  import.meta.env.VITE_SUPABASE_URL as string | undefined,
+)
 const supabaseAnonKey = cleanEnv(
   import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined,
 )
+const configuredAppUrl = cleanEnv(
+  import.meta.env.VITE_APP_URL as string | undefined,
+)
+
+/**
+ * Origen canónico de la aplicación. En producción conviene fijar
+ * `VITE_APP_URL`; localmente usamos el origen desde el que se abrió la app.
+ */
+export const appOrigin = (() => {
+  if (configuredAppUrl) {
+    try {
+      const url = new URL(configuredAppUrl)
+      if (url.protocol === 'https:' || url.protocol === 'http:')
+        return url.origin
+    } catch {
+      // La advertencia de abajo permite diagnosticar el valor inválido.
+    }
+    console.warn(
+      '[WorkVault] VITE_APP_URL no es una URL HTTP válida; se usará el origen actual.',
+    )
+  }
+
+  if (typeof window !== 'undefined' && window.location.origin !== 'null') {
+    return window.location.origin
+  }
+  return undefined
+})()
+
+/** Construye una redirección de Auth sobre el origen canónico de la app. */
+export function appUrl(pathname: string): string {
+  if (!appOrigin) {
+    throw new Error(
+      'No se pudo determinar la URL de la aplicación. Configura VITE_APP_URL.',
+    )
+  }
+  const path = pathname.startsWith('/') ? pathname : `/${pathname}`
+  return new URL(path, appOrigin).toString()
+}
 
 /**
  * Host de Supabase que está usando este build. Se muestra en los mensajes de

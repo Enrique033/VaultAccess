@@ -63,7 +63,8 @@ Supabase (Postgres + Auth) · Radix UI · Zod · ESLint + Prettier
 npm install
 
 # 2. Variables de entorno
-cp .env.example .env      # y completa VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
+cp .env.example .env      # completa VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
+# Opcional en local: VITE_APP_URL=http://localhost:5173
 
 # 3. Base de datos: ejecuta en Supabase Dashboard → SQL Editor → New query
 #    1) supabase/schema.sql          (tablas principales + RLS)
@@ -129,40 +130,74 @@ git push -u origin main
 
 1. [vercel.com/new](https://vercel.com/new) → _Import Git Repository_ → WorkVault.
 2. Framework: **Vite** (detecta solo). Build: `npm run build` · Output: `dist`.
-3. **Environment Variables** (Settings → Environment Variables):
-   - `VITE_SUPABASE_URL` = `https://tu-proyecto.supabase.co`
-   - `VITE_SUPABASE_ANON_KEY` = `<anon key>`
-   > Marca los entornos **Production** y **Preview**. Si las variables quedaron
-   > vacías o las cambias después, haz **Redeploy** (Deployments → ⋯ →
-   > Redeploy): Vite las incrusta en el build, no se leen en runtime.
-   > **Cuidado con el valor**: un typo en la URL (una letra de menos, comillas
-   > pegadas) no rompe el build, pero el host no resuelve y todo falla con
-   > `Failed to fetch`. La app muestra el host en uso en el mensaje de error:
-   > compáralo con _Supabase → Project Settings → API → Project URL_.
-4. Deploy → obtienes `https://workvault.vercel.app` (o similar).
+3. En **Settings → Environment Variables**, para **Production**:
+   - `VITE_SUPABASE_URL` = `https://yugynaktiicspzzestdl.supabase.co`
+   - `VITE_SUPABASE_ANON_KEY` = `<anon key pública>`
+   - `VITE_APP_URL` = `https://workvaul.vercel.app` (también viene fijado en
+     `vercel.json`; si usas otro dominio, cambia ambos o la variable).
+4. Después de crear o cambiar variables, haz **Redeploy** (Deployments → ⋯ →
+   Redeploy): Vite las incrusta en el build, no se leen en runtime.
+5. El dominio público actual es `https://workvaul.vercel.app`.
 
-> `vercel.json` ya incluye el rewrite SPA: recargar `/login` o
-> `/reset-password` funciona sin 404.
+> `VITE_APP_URL` fija el origen de todas las redirecciones de Supabase. Sin
+> esta variable la app usa el origen desde el que se abrió, pero `vercel.json`
+> la fija en producción para evitar depender de `localhost`. Los previews
+> también usarán ese origen público; si necesitas que un preview funcione por
+> separado, cambia temporalmente el valor y autoriza su URL en Supabase.
 
-### 3. Checklist Supabase para producción
+> **Cuidado con los valores**: un typo, comillas pegadas o una variable vacía
+> rompe la conexión. Compáralos con **Supabase → Project Settings → API** y
+> vuelve a desplegar después de cualquier corrección.
 
-Cuando ya tengas la URL de Vercel:
+> `vercel.json` incluye el rewrite SPA: `/login`, `/reset-password` y
+> `/workspaces` funcionan también al recargar o abrir un enlace de correo.
 
-- [ ] **Authentication → URL Configuration → Site URL**: `https://<tu-app>.vercel.app`
-- [ ] **Redirect URLs**: añadir `https://<tu-app>.vercel.app/login` y
-      `https://<tu-app>.vercel.app/reset-password`
-- [ ] **Providers → Google**: _Authorized JavaScript origins_ +=
-      `https://<tu-app>.vercel.app` (la redirect URI de Google **no** cambia:
-      sigue siendo `https://<proyecto>.supabase.co/auth/v1/callback`)
-- [x] **Providers → Email**: activo (las invitaciones a equipos envían un enlace
-      mágico al email del invitado; usa SMTP o el remitente por defecto de
-      Supabase)
-- [ ] **Emails**: revisar plantilla de "Reset password" (opcional: traducirla)
-- [ ] **Emails → Security notifications**: activar la plantilla "Password
-      changed"
-- [ ] **Providers → Email**: "Confirm email" activado (registro y reset)
-- [ ] Tras cambiar Site URL, probar en producción: registro, login Google y
-      reset password
+### 3. Supabase: Google y URLs (corrige `localhost rechazado`)
+
+En **Supabase → Authentication → URL Configuration**:
+
+- **Site URL**: `https://workvaul.vercel.app`
+- **Redirect URLs**:
+  - `https://workvaul.vercel.app/login`
+  - `https://workvaul.vercel.app/reset-password`
+  - `https://workvaul.vercel.app/workspaces`
+- Para desarrollo local: `http://localhost:5173/**`
+- Para previews de Vercel: `https://workvaul-*.vercel.app/**`
+
+En **Supabase → Authentication → Providers → Google**, activa el proveedor y
+configura el `Client ID` y `Client Secret` del proyecto OAuth de Google Cloud.
+Allí deben coincidir exactamente:
+
+- **Authorized JavaScript origins**: `https://workvaul.vercel.app`
+- **Authorized redirect URIs**:
+  `https://yugynaktiicspzzestdl.supabase.co/auth/v1/callback`
+
+El callback de Google siempre apunta a Supabase; después Supabase vuelve a
+`/login` en WorkVault. Si Google termina en `localhost`, normalmente el **Site
+URL** sigue en `localhost:3000` o falta `/login` en **Redirect URLs**. No escribas
+`localhost` como destino público en producción.
+
+### 4. Supabase: confirmación de correo (corrige “nunca llega”)
+
+El SMTP incluido por defecto **no es para producción**: según la documentación
+de Supabase, solo entrega a correos previamente autorizados del equipo y tiene
+un límite best-effort de **2 correos por hora**. Por eso `signUp` puede crear la
+cuenta aunque el correo de un usuario externo no llegue.
+
+Para registro con correo a usuarios reales:
+
+1. Contrata un SMTP compatible (Resend, AWS SES, Postmark, SendGrid, Brevo, etc.).
+2. Verifica el dominio o el remitente que usarás.
+3. En **Supabase → Authentication → SMTP Settings**, activa el SMTP personalizado
+   y completa host, puerto, usuario, contraseña y remitente.
+4. Mantén **Authentication → Email → Confirm email** activado.
+5. Revisa **Authentication → Logs** y confirma que el remitente esté autorizado.
+6. Prueba con una dirección externa a la organización y un registro nuevo.
+
+No pongas credenciales SMTP en `.env`, en VITE ni en Vercel: se configuran solo
+en el panel de Supabase. Mientras SMTP no esté configurado, **Continuar con
+Google** puede usarse si el alta de Google marca el correo como verificado; el
+registro por correo requiere un SMTP personalizado para producción.
 
 ## 🗺 Roadmap (plus de seguridad)
 
