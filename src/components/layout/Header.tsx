@@ -8,7 +8,7 @@ import { UserMenu } from './UserMenu'
 import { ThemeToggle } from './ThemeToggle'
 import { NotificationBell } from '@/components/chat/NotificationBell'
 
-/** Rutas que tienen su propio buscador y botón "Nuevo". */
+/** Rutas cuyo contenido filtra el buscador global del Header. */
 const SEARCHABLE_ROUTES = ['/credentials', '/links', '/notes']
 
 export function Header() {
@@ -20,10 +20,18 @@ export function Header() {
   const toggleChat = useUIStore((s) => s.toggleChat)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  /** Ruta actual si tiene buscador propio; si no, /credentials. */
+  /** Módulo actual para el placeholder y el botón "Nuevo". */
   const searchRoute = SEARCHABLE_ROUTES.find((r) =>
     location.pathname.startsWith(r),
   )
+
+  const searchPlaceholder = searchRoute
+    ? {
+        '/credentials': 'Buscar credenciales...',
+        '/links': 'Buscar enlaces...',
+        '/notes': 'Buscar notas...',
+      }[searchRoute]
+    : 'Buscar...'
 
   const handleNew = () => {
     navigate({ pathname: searchRoute ?? '/credentials', search: '?new=1' })
@@ -59,7 +67,7 @@ export function Header() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Buscar..."
+          placeholder={searchPlaceholder}
           aria-label="Buscar"
           className="min-w-0 flex-1 bg-transparent text-foreground placeholder:text-muted focus:outline-none"
         />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { KeyRound, Plus, Star, Users2, ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -39,17 +39,11 @@ export function Credentials() {
   const setSort = useSearchStore((s) => s.setSort)
   const weakOnly = useSearchStore((s) => s.weakOnly)
   const setWeakOnly = useSearchStore((s) => s.setWeakOnly)
-  const focusSignal = useSearchStore((s) => s.focusSignal)
 
   const [searchParams, setSearchParams] = useSearchParams()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Credential | null>(null)
   const [deleting, setDeleting] = useState<Credential | null>(null)
-  const searchRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (focusSignal > 0) searchRef.current?.focus()
-  }, [focusSignal])
 
   // Abre el dialog automáticamente cuando el Header navega con ?new=1
   const newParam = searchParams.get('new')

@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { NotebookPen, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { SearchInput } from '@/components/ui/SearchInput'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { FilterChips } from '@/components/ui/FilterChips'
@@ -31,22 +30,15 @@ export function Notes() {
   const deleteNote = useVaultStore((s) => s.deleteNote)
 
   const query = useSearchStore((s) => s.query)
-  const setQuery = useSearchStore((s) => s.setQuery)
   const sectionId = useSearchStore((s) => s.sectionId)
   const categoryFilter = useSearchStore((s) => s.categoryFilter)
   const sort = useSearchStore((s) => s.sort)
   const setSort = useSearchStore((s) => s.setSort)
-  const focusSignal = useSearchStore((s) => s.focusSignal)
 
   const [searchParams, setSearchParams] = useSearchParams()
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Note | null>(null)
   const [deleting, setDeleting] = useState<Note | null>(null)
-  const searchRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (focusSignal > 0) searchRef.current?.focus()
-  }, [focusSignal])
 
   useEffect(() => {
     void loadNotes()
@@ -147,16 +139,9 @@ export function Notes() {
         </Button>
       </div>
 
-      {/* Search + sort */}
+      {/* El buscador vive en el Header; aquí queda solo la ordenación. */}
       {notes.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
-          <SearchInput
-            ref={searchRef}
-            value={query}
-            onChange={setQuery}
-            placeholder="Buscar por título, contenido o categoría..."
-            className="w-full sm:min-w-52 sm:max-w-md sm:flex-1"
-          />
+        <div className="flex justify-end">
           <CredentialSortSelect value={sort} onChange={setSort} />
         </div>
       )}

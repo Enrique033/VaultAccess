@@ -81,6 +81,12 @@ export function AppShell() {
               <Outlet />
             </div>
           </main>
+          <footer
+            aria-label="Pie de página"
+            className="shrink-0 border-t border-border/70 bg-surface/60 px-4 py-2.5 text-center text-[10px] font-medium tracking-wide text-muted sm:text-[11px]"
+          >
+            @Dev Elvis Sebastian · Todos los derechos reservados.
+          </footer>
         </div>
         {chatOpen && (
           <Suspense fallback={null}>
