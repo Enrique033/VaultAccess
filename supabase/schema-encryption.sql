@@ -288,44 +288,6 @@ as $$
         ) order by cr.updated_at desc, cr.id desc
       ) from public.vault_credentials cr),
       '[]'::jsonb
--- =====================================================================
--- RESET DE COLUMNAS (OPCIONAL — ejecutar a mano, NO es parte de la migración)
--- ---------------------------------------------------------------------
--- Borra secciones y categorías del usuario actual para empezar el tablero
--- en blanco. Los registros (credenciales, enlaces y notas) NO se borran: se
--- quedan sin columna y aparecerán en "Sin categoría".
---
--- ADVERTENCIA: es destructivo para la organización, no para tus datos.
--- La app ya no crea columnas de ejemplo, así que sólo hace falta esto si
--- quieres tirar las columnas actuales.
--- =====================================================================
-
--- 1) Desasignar la columna de los registros del usuario actual.
-update public.vault_credentials
-   set category_id = null
- where user_id = auth.uid()
-   and category_id is not null;
-
-update public.vault_links
-   set category_id = null
- where user_id = auth.uid()
-   and category_id is not null;
-
-update public.vault_notes
-   set category_id = null
- where user_id = auth.uid()
-   and category_id is not null;
-
--- 2) Borrar columnas y secciones.
-delete from public.vault_categories where user_id = auth.uid();
-delete from public.vault_sections   where user_id = auth.uid();
-
--- 3) Comprobación: debe devolver 0.
-select count(*) as categorias_restantes
-  from public.vault_categories
- where user_id = auth.uid();
-
-
     )
   );
 $$;
@@ -357,3 +319,43 @@ revoke all on function public.get_vault_public_keys(uuid[]) from public, anon;
 grant execute on function public.get_vault_public_keys(uuid[]) to authenticated;
 
 notify pgr, 'reload schema';
+
+-- =====================================================================
+-- RESET DE COLUMNAS (OPCIONAL — ejecutar a mano, NO es parte de la migración)
+-- ---------------------------------------------------------------------
+-- Borra secciones y categorías del usuario actual para empezar el tablero
+-- en blanco. Los registros (credenciales, enlaces y notas) NO se borran: se
+-- quedan sin columna y aparecerán en "Sin categoría".
+--
+-- ADVERTENCIA: es destructivo para la organización, no para tus datos.
+-- La app ya no crea columnas de ejemplo, así que sólo hace falta esto si
+-- quieres tirar las columnas actuales.
+-- ESTE BLOQUE ES DESTRUCTIVO: bórralo antes de ejecutar el script entero
+-- salvo que quieras de verdad vaciar tus columnas.
+-- =====================================================================
+
+-- 1) Desasignar la columna de los registros del usuario actual.
+update public.vault_credentials
+   set category_id = null
+ where user_id = auth.uid()
+   and category_id is not null;
+
+update public.vault_links
+   set category_id = null
+ where user_id = auth.uid()
+   and category_id is not null;
+
+update public.vault_notes
+   set category_id = null
+ where user_id = auth.uid()
+   and category_id is not null;
+
+-- 2) Borrar columnas y secciones.
+delete from public.vault_categories where user_id = auth.uid();
+delete from public.vault_sections   where user_id = auth.uid();
+
+-- 3) Comprobación: debe devolver 0.
+select count(*) as categorias_restantes
+  from public.vault_categories
+ where user_id = auth.uid();
+
