@@ -109,8 +109,14 @@ export interface CategoryInput {
   sectionId: string
   parentId?: string
   sortOrder?: number
-  /** Módulo propietario. Si falta, se deduce del primer registro enlazado. */
-  module?: CategoryModule
+  /**
+   * Módulo propietario: `credential` (Access), `link` (Links) o `note` (Notas).
+   * Es obligatorio a propósito: los tres tableros no comparten columnas, así que
+   * una columna creada en Links nunca debe aparecer en Access. Si se omitiera,
+   * Postgres aplicaría el default `credential` y la columna se iría al tablero
+   * equivocado.
+   */
+  module: CategoryModule
 }
 
 export type LinkInput = Omit<
@@ -249,11 +255,18 @@ async function removeRecordAttachments(
   await deleteEncryptedAttachments(attachments, kind, recordId, userId)
 }
 
-function nextColor(categories: Category[]): string {
-  const used = new Set(categories.map((c) => c.color.toLowerCase()))
+function nextColor(categories: Category[], module: CategoryModule): string {
+  // Los colores se reparten dentro del módulo: cada tablero tiene su propia
+  // paleta para que las columnas de Links no compitan con las de Access.
+  const used = new Set(
+    categories
+      .filter((c) => c.module === module)
+      .map((c) => c.color.toLowerCase()),
+  )
   const free = CATEGORY_COLORS.find((color) => !used.has(color.toLowerCase()))
   if (free) return free
-  return CATEGORY_COLORS[categories.length % CATEGORY_COLORS.length]!
+  const total = categories.filter((c) => c.module === module).length
+  return CATEGORY_COLORS[total % CATEGORY_COLORS.length]!
 }
 
 function normalizeParentId(
@@ -261,11 +274,16 @@ function normalizeParentId(
   categoryId: string,
   sectionId: string,
   parentId: string | undefined | null,
+  module: CategoryModule,
 ): string | null {
   if (!parentId) return null
   const parent = categories.find((category) => category.id === parentId)
   if (!parent || parent.sectionId !== sectionId) {
     throw new Error('La categoría padre no pertenece a la misma sección.')
+  }
+  if (parent.module !== module) {
+    // Anidar una columna bajo una de otro tablero la volvería a mezclar.
+    throw new Error('Una columna no puede anidarse dentro de una columna de otro tablero.')
   }
   if (parentId === categoryId) {
     throw new Error('Una categoría no puede ser su propia categoría padre.')
@@ -291,9 +309,11 @@ function nextCategorySortOrder(
   categories: Category[],
   sectionId: string,
   parentId: string | null,
+  module: CategoryModule,
 ): number {
   const siblings = categories.filter(
     (category) =>
+      category.module === module &&
       category.sectionId === sectionId &&
       (category.parentId ?? null) === parentId,
   )
@@ -322,6 +342,11 @@ function sanitizeCategoryHierarchy(categories: Category[]): Category[] {
     if (!parent || parent.sectionId !== category.sectionId) {
       return { ...category, parentId: undefined }
     }
+    // Un padre de otro tablero convertiría la columna en sublista de Access:
+    // Access, Links y Notas no comparten jerarquías.
+    if (parent.module !== category.module) {
+      return { ...category, parentId: undefined }
+    }
     const seen = new Set([category.id])
     let cursor: Category | undefined = parent
     while (cursor) {
@@ -333,10 +358,16 @@ function sanitizeCategoryHierarchy(categories: Category[]): Category[] {
   })
 }
 
-/** Evita guardar una referencia a una categoría que no pertenece al Vault actual. */
+/**
+ * Evita guardar una referencia a una categoría que no pertenece al Vault actual
+ * ni al módulo del registro. Es la barrera que garantiza que un enlace nunca
+ * quede dentro de una columna de Access (y al revés): la tarjeta se queda donde
+ * el usuario la puso.
+ */
 function categoryIdForVault(
   categories: Category[],
   categoryId: string | undefined | null,
+  module: CategoryModule,
 ): string | null {
   if (
     categoryId === undefined ||
@@ -346,12 +377,18 @@ function categoryIdForVault(
     return null
   }
   const normalized = categoryId.trim()
-  if (categories.some((category) => category.id === normalized)) {
-    return normalized
+  const category = categories.find((item) => item.id === normalized)
+  if (!category) {
+    throw new Error(
+      'La categoría seleccionada ya no existe o no pertenece a este Vault. Recarga y elige una categoría válida.',
+    )
   }
-  throw new Error(
-    'La categoría seleccionada ya no existe o no pertenece a este Vault. Recarga y elige una categoría válida.',
-  )
+  if (category.module !== module) {
+    // Columna de otro tablero: se trata como "sin categoría" en vez de
+    // guardar una referencia cruzada que haría desaparecer la tarjeta.
+    return null
+  }
+  return normalized
 }
 
 /** Versiones anteriores que se conservan por credencial. */
@@ -743,7 +780,11 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
 
   addCredential: async (input, attachmentDraft) => {
     const userId = await requireUserId()
-    const categoryId = categoryIdForVault(get().categories, input.categoryId)
+    const categoryId = categoryIdForVault(
+      get().categories,
+      input.categoryId,
+      'credential',
+    )
     const id = crypto.randomUUID()
     const { attachments, uploaded } = await reconcileAttachments(
       undefined,
@@ -817,7 +858,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     }
     const categoryId =
       'categoryId' in input
-        ? categoryIdForVault(get().categories, input.categoryId)
+        ? categoryIdForVault(get().categories, input.categoryId, 'credential')
         : previous.categoryId ?? null
     let encryptedPayload: string
     try {
@@ -953,7 +994,11 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         id,
         user_id: userId,
         encrypted_payload: encryptedPayload,
-        category_id: categoryIdForVault(get().categories, item.categoryId),
+        category_id: categoryIdForVault(
+          get().categories,
+          item.categoryId,
+          'credential',
+        ),
       })
     }
 
@@ -1045,7 +1090,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
 
   addLink: async (input, attachmentDraft) => {
     const userId = await requireUserId()
-    const categoryId = categoryIdForVault(get().categories, input.categoryId)
+    const categoryId = categoryIdForVault(get().categories, input.categoryId, 'link')
     const id = crypto.randomUUID()
     const { attachments, uploaded } = await reconcileAttachments(
       undefined,
@@ -1111,7 +1156,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     }
     const categoryId =
       'categoryId' in input
-        ? categoryIdForVault(get().categories, input.categoryId)
+        ? categoryIdForVault(get().categories, input.categoryId, 'link')
         : previous.categoryId ?? null
     let encryptedPayload: string
     try {
@@ -1180,7 +1225,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
 
   addNote: async (input, attachmentDraft) => {
     const userId = await requireUserId()
-    const categoryId = categoryIdForVault(get().categories, input.categoryId)
+    const categoryId = categoryIdForVault(get().categories, input.categoryId, 'note')
     const id = crypto.randomUUID()
     const { attachments, uploaded } = await reconcileAttachments(
       undefined,
@@ -1243,7 +1288,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     }
     const categoryId =
       'categoryId' in input
-        ? categoryIdForVault(get().categories, input.categoryId)
+        ? categoryIdForVault(get().categories, input.categoryId, 'note')
         : previous.categoryId ?? null
     let encryptedPayload: string
     try {
@@ -1425,9 +1470,16 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       id,
       input.sectionId,
       input.parentId,
+      input.module,
     )
     const sortOrder =
-      input.sortOrder ?? nextCategorySortOrder(state.categories, input.sectionId, parentId)
+      input.sortOrder ??
+      nextCategorySortOrder(
+        state.categories,
+        input.sectionId,
+        parentId,
+        input.module,
+      )
     const encryptedPayload = await encryptPersonalPayload('category', id, userId, {
       name,
     })
@@ -1440,9 +1492,10 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         parent_id: parentId,
         sort_order: sortOrder,
         // Cada módulo tiene sus propias columnas: Access, Links y Notas no
-        // comparten nada. Por defecto la columna pertenece al módulo actual.
+        // comparten nada. El módulo es obligatorio en el input, así que la
+        // columna nace exactamente en el tablero desde el que se creó.
         module: input.module,
-        color: input.color ?? nextColor(state.categories),
+        color: input.color ?? nextColor(state.categories, input.module),
         encrypted_payload: encryptedPayload,
       })
       .select(CATEGORY_COLUMNS)
@@ -1484,9 +1537,21 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     if (!state.sections.some((section) => section.id === sectionId)) {
       throw new Error('La sección seleccionada ya no existe.')
     }
-    const nextParentId = normalizeParentId(state.categories, id, sectionId, parentId)
+    const nextParentId = normalizeParentId(
+      state.categories,
+      id,
+      sectionId,
+      parentId,
+      category.module,
+    )
     const nextSortOrder =
-      sortOrder ?? nextCategorySortOrder(state.categories, sectionId, nextParentId)
+      sortOrder ??
+      nextCategorySortOrder(
+        state.categories,
+        sectionId,
+        nextParentId,
+        category.module,
+      )
     const descendants = categoryDescendantIds(state.categories, id)
     const subtreeIds = [id, ...descendants]
     const { error: sectionError } = await supabase
@@ -1514,9 +1579,14 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     const category = state.categories.find((item) => item.id === id)
     if (!category) throw new Error('La categoría ya no existe.')
     const parentId = category.parentId ?? null
+    // Los hermanos son las columnas del mismo módulo: Access, Links y Notas
+    // mantienen órdenes independientes.
     const siblings = state.categories
       .filter(
-        (item) => item.sectionId === category.sectionId && (item.parentId ?? null) === parentId,
+        (item) =>
+          item.module === category.module &&
+          item.sectionId === category.sectionId &&
+          (item.parentId ?? null) === parentId,
       )
       .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'es'))
     const index = siblings.findIndex((item) => item.id === id)

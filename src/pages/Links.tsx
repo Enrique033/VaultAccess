@@ -253,7 +253,12 @@ export function Links() {
           onAddCard={handleOpenCreateIn}
           onMoveCard={handleMoveCard}
           renderAddColumn={(close) => (
-            <BoardHeader itemLabel="lista" presetParentId="" onClose={close} />
+            <BoardHeader
+              module="link"
+              itemLabel="lista"
+              presetParentId=""
+              onClose={close}
+            />
           )}
           onRenameColumn={(id, name) => void renameColumn(id, name)}
           onDeleteColumn={(id) => void deleteColumn(id, 'enlaces')}

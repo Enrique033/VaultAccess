@@ -255,7 +255,12 @@ export function Notes() {
           onAddCard={handleOpenCreateIn}
           onMoveCard={handleMoveCard}
           renderAddColumn={(close) => (
-            <BoardHeader itemLabel="lista" presetParentId="" onClose={close} />
+            <BoardHeader
+              module="note"
+              itemLabel="lista"
+              presetParentId=""
+              onClose={close}
+            />
           )}
           onRenameColumn={(id, name) => void renameColumn(id, name)}
           onDeleteColumn={(id) => void deleteColumn(id, 'notas')}

@@ -352,7 +352,12 @@ export function Credentials() {
           onAddCard={handleOpenCreateIn}
           onMoveCard={handleMoveCard}
           renderAddColumn={(close) => (
-            <BoardHeader itemLabel="lista" presetParentId="" onClose={close} />
+            <BoardHeader
+              module="credential"
+              itemLabel="lista"
+              presetParentId=""
+              onClose={close}
+            />
           )}
           onRenameColumn={(id, name) => void renameColumn(id, name)}
           onDeleteColumn={(id) => void deleteColumn(id, 'credenciales')}

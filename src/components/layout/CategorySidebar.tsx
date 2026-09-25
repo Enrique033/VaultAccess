@@ -153,7 +153,14 @@ export function CategorySidebar() {
     const name = (parentId ? newSubcat : newCat).trim()
     if (!name) return
     try {
-      await addCategory({ name, sectionId: section, parentId })
+      // La sidebar gestiona las columnas de Access: las de Links y Notas viven
+      // en sus propios tableros y no se editan desde aquí.
+      await addCategory({
+        name,
+        sectionId: section,
+        parentId,
+        module: 'credential',
+      })
       setNewCat('')
       setNewSubcat('')
       setAddingCatFor(null)

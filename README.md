@@ -19,9 +19,12 @@ Auth** (Google OAuth) y protegida con **Row Level Security**.
   ni los adjuntos. Alterna con la rejilla mediante el conmutador Rejilla/Tablero,
   que recuerda tu preferencia.
 - **Columnas independientes por módulo**: Access, Links y Notas **no comparten
-  nada**. Cada columna pertenece a un módulo (`vault_categories.module`), así que
-  renombrar o borrar una columna en Access no toca las de Links ni las de Notas.
-  Sólo el buscador ve los tres módulos y Equipos es quien reparte los registros.
+  nada**. Cada columna pertenece a un módulo (`vault_categories.module`) y el
+  módulo es **obligatorio** al crearla, así que una columna escrita en Links nace
+  en Links y sus tarjetas se quedan allí: renombrar o borrar una columna en Access
+  no toca las de Links ni las de Notas, y ningún enlace o nota puede acabar
+  dentro de una columna de otro tablero. Sólo el buscador ve los tres módulos y
+  Equipos es quien reparte los registros.
 - **Compartir en equipo desde cualquier lugar**: los 3 puntitos de cada tarjeta
   (Access, Links y Notas) incluyen «Compartir en equipo», el diálogo de edición
   tiene un botón directo, y al crear un registro nuevo se abre automáticamente
@@ -42,9 +45,10 @@ Auth** (Google OAuth) y protegida con **Row Level Security**.
   lateral queda sólo con la navegación (Access, Links, Notas, Equipos).
 - **Sin categorías de ejemplo**: la app ya no siembra secciones ni columnas al
   registrarte. Empiezas con el tablero vacío y creas las columnas que quieras. Si
-  quieres tirar las que tienes, `supabase/schema-encryption.sql` trae al final un
-  bloque **opcional** de reseteo (borra columnas y secciones, y deja los registros
-  sin columna; no borra credenciales, enlaces ni notas).
+  quieres tirar las que tienes, `supabase/reset-columns.sql` es un script aparte,
+  **destructivo y opcional**: borra columnas y secciones y deja los registros sin
+  columna, pero no borra credenciales, enlaces ni notas. Está en su propio archivo
+  para que no se ejecute por accidente al aplicar las migraciones.
 - **«Sin categoría» se comporta como las demás**: al renombrarla se convierte en
   una columna real —crea la categoría y traslada allí todo lo que estaba suelto— y
   a partir de ese momento es editable y eliminable como cualquier otra.
@@ -125,6 +129,22 @@ cp .env.example .env      # completa VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
 # después schema-scalability.sql (su RPC debe devolver esas columnas nuevas).
 # schema-scalability.sql ya NO redefine get_vault_snapshot(): esa función es de
 # schema-encryption.sql y sobrescribirla dejaba el Vault sin descifrar.
+
+# Los 9 archivos anteriores son idempotentes y NO borran nada: se ejecutan
+# enteros, sin miedo, y se pueden repetir. Los scripts de mantenimiento viven en
+# archivos aparte para que nunca se ejecuten por accidente:
+#
+#   · supabase/fix-category-modules.sql  →  devuelve a su tablero las columnas
+#     que se crearon sin módulo (te aparecían en Access) y suelta las tarjetas
+#     que quedaron en la columna equivocada. Empieza por su consulta 1, un
+#     diagnóstico, y comprueba el resultado antes de seguir. NO borra nada.
+#   · supabase/reset-columns.sql        →  vacía columnas y secciones para
+#     empezar de cero. DESTRUCTIVO: úsalo sólo si quieres tirar la
+#     organización actual. Está aparte precisamente por eso.
+#
+# ¿Las columnas de Links o Notas te salen en Access? Ejecuta primero
+# schema-encryption.sql ENTERO (su get_vault_snapshot() es la que devuelve
+# `module` al cliente) y después fix-category-modules.sql.
 
 # 4. Desarrollo
 npm run dev               # http://localhost:5173

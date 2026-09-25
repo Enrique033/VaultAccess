@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, DragEvent } from 'react'
 import {
   AlertCircle,
@@ -42,11 +42,17 @@ const optionRow = 'flex cursor-pointer items-center gap-2 text-xs text-muted'
  * LastPass o el propio Excel de Workvaul). Todo ocurre en el navegador.
  */
 export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
-  const categories = useVaultStore((s) => s.categories)
+  const allCategories = useVaultStore((s) => s.categories)
   const sections = useVaultStore((s) => s.sections)
   const addCategory = useVaultStore((s) => s.addCategory)
   const addSection = useVaultStore((s) => s.addSection)
   const importCredentials = useVaultStore((s) => s.importCredentials)
+
+  /** La importación crea credenciales: sólo se reutilizan columnas de Access. */
+  const categories = useMemo(
+    () => allCategories.filter((category) => category.module === 'credential'),
+    [allCategories],
+  )
 
   const [file, setFile] = useState<File | null>(null)
   const [format, setFormat] = useState<FormatChoice>('auto')
@@ -145,7 +151,13 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
           }
           const sectionId =
             sections[0]?.id ?? (await addSection('Importado')).id
-          const created = await addCategory({ name: folder, sectionId })
+          // La importación es de credenciales, así que sus carpetas se crean
+          // como columnas de Access y no se mezclan con Links ni Notas.
+          const created = await addCategory({
+            name: folder,
+            sectionId,
+            module: 'credential',
+          })
           folderToCategory.set(folder, created.id)
         }
       }
@@ -307,6 +319,7 @@ export function ImportDialog({ open, onOpenChange }: ImportDialogProps) {
                 id="import-category"
                 value={categoryId}
                 onChange={setCategoryId}
+                module="credential"
               />
               <p className="text-[11px] text-muted">
                 Se aplica a lo que no traiga carpeta propia.

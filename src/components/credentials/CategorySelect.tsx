@@ -1,14 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronDown, Hash, Plus, Search } from 'lucide-react'
 import { useVaultStore } from '@/store/vault.store'
 import { CATEGORY_COLORS } from '@/lib/category-colors'
 import { cn } from '@/lib/utils'
-import type { Category } from '@/types'
+import type { Category, CategoryModule } from '@/types'
 
 interface Props {
   value: string
   onChange: (id: string) => void
   id?: string
+  /**
+   * Módulo cuyas columnas ofrece y a cuál pertenece la que se cree. Por
+   * defecto Access: sin esto, el selector mostraría columnas de Links o Notas y
+   * una tarjeta acabaría guardada en el tablero equivocado.
+   */
+  module?: CategoryModule
 }
 
 type Mode = 'list' | 'create'
@@ -58,12 +64,18 @@ function orderedCategoryOptions(
   return options
 }
 
-export function CategorySelect({ value, onChange, id }: Props) {
-  const categories = useVaultStore((s) => s.categories)
+export function CategorySelect({ value, onChange, id, module = 'credential' }: Props) {
+  const allCategories = useVaultStore((s) => s.categories)
   const sections = useVaultStore((s) => s.sections)
   const addSection = useVaultStore((s) => s.addSection)
   const addCategory = useVaultStore((s) => s.addCategory)
   const status = useVaultStore((s) => s.status)
+
+  /** Cada tablero lista sólo sus columnas: Access, Links y Notas no comparten nada. */
+  const categories = useMemo(
+    () => allCategories.filter((category) => category.module === module),
+    [allCategories, module],
+  )
 
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
@@ -118,6 +130,8 @@ export function CategorySelect({ value, onChange, id }: Props) {
       name: finalName,
       sectionId,
       color: CATEGORY_COLORS[0],
+      // La columna nueva nace en el tablero de este selector.
+      module,
     })
     onChange(cat.id)
     setOpen(false)

@@ -1,10 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import { useVaultStore } from '@/store/vault.store'
 import { toast } from '@/store/ui.store'
 import { cn } from '@/lib/utils'
+import type { CategoryModule } from '@/types'
 
 interface BoardHeaderProps {
+  /**
+   * Módulo propietario de la columna que se crea aquí. Es obligatorio: sin él
+   * la columna nacía sin módulo, Postgres le ponía `credential` y aparecía en
+   * el tablero de Access en vez de en el tablero desde el que se creó.
+   */
+  module: CategoryModule
   /** Módulo mostrado en el placeholder («lista», «columna»…). */
   itemLabel?: string
   /** Quando pasa de `null` a un id, se abre el alta embebida en esa columna. */
@@ -24,13 +31,14 @@ interface BoardHeaderProps {
  * nueva al final cuando es `''`.
  */
 export function BoardHeader({
+  module,
   itemLabel = 'lista',
   presetParentId,
   onClose,
   className,
 }: BoardHeaderProps) {
   const sections = useVaultStore((s) => s.sections)
-  const categories = useVaultStore((s) => s.categories)
+  const allCategories = useVaultStore((s) => s.categories)
   const addSection = useVaultStore((s) => s.addSection)
   const addCategory = useVaultStore((s) => s.addCategory)
 
@@ -38,6 +46,12 @@ export function BoardHeader({
   const [busy, setBusy] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const parentId = presetParentId
+
+  /** Sólo se ofrecen columnas del propio módulo: Access, Links y Notas no comparten nada. */
+  const categories = useMemo(
+    () => allCategories.filter((category) => category.module === module),
+    [allCategories, module],
+  )
 
   /** Sección destino: la primera disponible, o «General» si no hay ninguna. */
   const effectiveSectionId = sections[0]?.id ?? ''
@@ -66,6 +80,8 @@ export function BoardHeader({
         name: trimmed,
         sectionId,
         parentId: parentId || undefined,
+        // La columna nace en el tablero desde el que se creó, nunca en otro.
+        module,
       })
       toast.success(parentId ? 'Sublista creada' : 'Columna creada')
       setName('')

@@ -156,25 +156,12 @@ update public.vault_categories
    set module = 'credential'
  where module is null;
 
--- Un enlace o nota que apuntara a una columna de Access queda suelto: así
--- aparece en su propio "Sin categoría" en vez de desaparecer.
-update public.vault_links
-   set category_id = null
- where user_id = auth.uid()
-   and category_id is not null
-   and category_id in (
-     select id from public.vault_categories
-      where user_id = auth.uid() and module = 'credential'
-   );
-
-update public.vault_notes
-   set category_id = null
- where user_id = auth.uid()
-   and category_id is not null
-   and category_id in (
-     select id from public.vault_categories
-      where user_id = auth.uid() and module = 'credential'
-   );
+-- OJO: aquí NO se sueltan los enlaces y notas que apuntaran a una columna de
+-- Access. Hacerlo con `auth.uid()` no funciona desde el SQL Editor de Supabase
+-- (allí `auth.uid()` es NULL y el update no toca ninguna fila), y desde la app
+-- tampoco hace falta: la propia aplicación ya impide que un registro se guarde
+-- en una columna de otro tablero. La limpieza de los datos que quedaron mal
+-- antes del arreglo está en supabase/fix-category-modules.sql.
 
 create index if not exists idx_categories_module_sort
   on public.vault_categories (user_id, module, section_id, parent_id, sort_order);
@@ -320,42 +307,16 @@ grant execute on function public.get_vault_public_keys(uuid[]) to authenticated;
 
 notify pgr, 'reload schema';
 
--- =====================================================================
--- RESET DE COLUMNAS (OPCIONAL — ejecutar a mano, NO es parte de la migración)
--- ---------------------------------------------------------------------
--- Borra secciones y categorías del usuario actual para empezar el tablero
--- en blanco. Los registros (credenciales, enlaces y notas) NO se borran: se
--- quedan sin columna y aparecerán en "Sin categoría".
+-- ======================================================================
+-- FIN DE LA MIGRACIÓN
+-- ----------------------------------------------------------------------
+-- Este archivo es idempotente: se puede ejecutar entero, y todas las veces
+-- que haga falta, sin efectos secundarios. NO contiene ningún borrado, así que
+-- es seguro ejecutarlo tal cual (Supabase Dashboard -> SQL Editor -> New query).
 --
--- ADVERTENCIA: es destructivo para la organización, no para tus datos.
--- La app ya no crea columnas de ejemplo, así que sólo hace falta esto si
--- quieres tirar las columnas actuales.
--- ESTE BLOQUE ES DESTRUCTIVO: bórralo antes de ejecutar el script entero
--- salvo que quieras de verdad vaciar tus columnas.
--- =====================================================================
-
--- 1) Desasignar la columna de los registros del usuario actual.
-update public.vault_credentials
-   set category_id = null
- where user_id = auth.uid()
-   and category_id is not null;
-
-update public.vault_links
-   set category_id = null
- where user_id = auth.uid()
-   and category_id is not null;
-
-update public.vault_notes
-   set category_id = null
- where user_id = auth.uid()
-   and category_id is not null;
-
--- 2) Borrar columnas y secciones.
-delete from public.vault_categories where user_id = auth.uid();
-delete from public.vault_sections   where user_id = auth.uid();
-
--- 3) Comprobación: debe devolver 0.
-select count(*) as categorias_restantes
-  from public.vault_categories
- where user_id = auth.uid();
-
+-- Scripts opcionales, en archivos aparte para que nunca se ejecuten solos:
+--   · supabase/fix-category-modules.sql -> devuelve a su tablero las columnas
+--     que se crearon sin módulo (aparecían en Access) y suelta las tarjetas
+--     que quedaron colgando de la columna equivocada.
+--   · supabase/reset-columns.sql       -> vacía columnas y secciones.
+--
