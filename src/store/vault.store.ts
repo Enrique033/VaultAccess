@@ -57,8 +57,10 @@ import type {
 } from '@/types'
 
 const SECTION_COLUMNS = 'id, name, encrypted_payload, created_at'
+// `module` debe estar aquí: sin él, una columna creada en Links o Notas se
+// releería sin módulo y aparecería en el tablero de Access.
 const CATEGORY_COLUMNS =
-  'id, section_id, parent_id, sort_order, name, color, encrypted_payload, created_at'
+  'id, section_id, parent_id, sort_order, module, name, color, encrypted_payload, created_at'
 const CREDENTIAL_COLUMNS =
   'id, title, username, password, url, category_id, notes, favorite, encrypted_payload, created_at, updated_at'
 const LINK_COLUMNS =
