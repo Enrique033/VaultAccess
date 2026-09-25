@@ -3,21 +3,44 @@ import { create } from 'zustand'
 import { useAuth } from '@/app/auth-context'
 import { supabase, isSupabaseConfigured, requireUserId } from '@/lib/supabase'
 import {
-  toCategory,
-  toCredential,
-  toHistoryEntry,
-  toLink,
-  toNote,
-  toSection,
-} from '@/lib/vault-mapper'
-import type {
-  CategoryRow,
-  CredentialRow,
-  HistoryRow,
-  LinkRow,
-  NoteRow,
-  SectionRow,
-} from '@/lib/vault-mapper'
+  toEncryptedCategory,
+  toEncryptedCredential,
+  toEncryptedHistory,
+  toEncryptedLink,
+  toEncryptedNote,
+  toEncryptedSection,
+  type CategoryRow,
+  type CredentialRow,
+  type HistoryRow,
+  type LinkRow,
+  type NoteRow,
+  type SectionRow,
+} from '@/lib/vault-record-crypto'
+import { encryptPersonal } from '@/lib/vault-payloads'
+import type { VaultRecordKind } from '@/lib/vault-crypto'
+import {
+  getVaultSessionGeneration,
+  requireActiveVaultSession,
+} from '@/lib/vault-session'
+import {
+  deleteEncryptedAttachments,
+  uploadEncryptedAttachments,
+  MAX_ATTACHMENTS_PER_RECORD,
+} from '@/lib/vault-attachments'
+import type { Attachment, AttachmentDraft } from '@/types'
+
+async function encryptPersonalPayload<T>(
+  kind: VaultRecordKind,
+  id: string,
+  userId: string,
+  payload: T,
+): Promise<string> {
+  const session = requireActiveVaultSession()
+  if (session.userId !== userId) {
+    throw new Error('La sesión del Vault no coincide con este usuario.')
+  }
+  return encryptPersonal(kind, id, userId, session.vaultKey, payload)
+}
 import { CATEGORY_COLORS } from '@/lib/category-colors'
 import type {
   Category,
@@ -37,15 +60,16 @@ const DEFAULT_CATS: { name: string; color: string; section: string }[] = [
   { name: 'Social', color: CATEGORY_COLORS[3]!, section: 'Redes' },
 ]
 
-const SECTION_COLUMNS = 'id, name, created_at'
-const CATEGORY_COLUMNS = 'id, section_id, name, color, created_at'
+const SECTION_COLUMNS = 'id, name, encrypted_payload, created_at'
+const CATEGORY_COLUMNS =
+  'id, section_id, parent_id, sort_order, name, color, encrypted_payload, created_at'
 const CREDENTIAL_COLUMNS =
-  'id, title, username, password, url, category_id, notes, favorite, created_at, updated_at'
+  'id, title, username, password, url, category_id, notes, favorite, encrypted_payload, created_at, updated_at'
 const LINK_COLUMNS =
-  'id, title, url, description, category_id, favorite, created_at, updated_at'
+  'id, title, url, description, category_id, favorite, encrypted_payload, created_at, updated_at'
 const NOTE_COLUMNS =
-  'id, title, content, category_id, favorite, created_at, updated_at'
-const HISTORY_COLUMNS = 'id, credential_id, password, changed_at'
+  'id, title, content, category_id, favorite, encrypted_payload, created_at, updated_at'
+const HISTORY_COLUMNS = 'id, credential_id, password, encrypted_payload, changed_at'
 
 function isMissingRpcError(message: string): boolean {
   return /PGRST202|schema cache|function .*does not exist|could not find the function/i.test(
@@ -57,9 +81,9 @@ let vaultLoadGeneration = 0
 
 function friendlySyncError(message: string): string {
   if (/row-level security/i.test(message))
-    return 'Supabase bloqueó la operación (RLS). Revisa que ejecutaste supabase/schema.sql y que iniciaste sesión.'
-  if (/relation .* does not exist/i.test(message))
-    return 'Faltan tablas en Supabase. Ejecuta supabase/schema.sql en el SQL Editor.'
+    return 'Supabase bloqueó la operación (RLS). Revisa las migraciones de Supabase y que hayas iniciado sesión.'
+  if (/relation .* does not exist|schema cache|PGRST202/i.test(message))
+    return 'Faltan tablas o funciones de cifrado. Ejecuta supabase/schema-encryption.sql después de las migraciones base en el SQL Editor de Supabase.'
   if (/Failed to fetch|NetworkError|network/i.test(message))
     return 'Sin conexión con Supabase. Revisa tu internet o la URL del proyecto.'
   return message
@@ -67,9 +91,8 @@ function friendlySyncError(message: string): string {
 
 export type CredentialInput = Omit<
   Credential,
-  'id' | 'createdAt' | 'updatedAt' | 'favorite'
+  'id' | 'createdAt' | 'updatedAt' | 'favorite' | 'attachments'
 >
-
 /** Resultado de una importación masiva. */
 export interface ImportResult {
   created: number
@@ -86,15 +109,17 @@ export interface CategoryInput {
   name: string
   color?: string
   sectionId: string
+  parentId?: string
+  sortOrder?: number
 }
 
 export type LinkInput = Omit<
   LinkItem,
-  'id' | 'createdAt' | 'updatedAt' | 'favorite'
+  'id' | 'createdAt' | 'updatedAt' | 'favorite' | 'attachments'
 >
 export type NoteInput = Omit<
   Note,
-  'id' | 'createdAt' | 'updatedAt' | 'favorite'
+  'id' | 'createdAt' | 'updatedAt' | 'favorite' | 'attachments'
 >
 
 /** Resultado de una importación de respaldo. */
@@ -129,10 +154,11 @@ interface VaultState {
   /** Vacía el estado local (al cerrar sesión). */
   reset: () => void
 
-  addCredential: (input: CredentialInput) => Promise<Credential>
+  addCredential: (input: CredentialInput, attachments?: AttachmentDraft) => Promise<Credential>
   updateCredential: (
     id: string,
     input: Partial<CredentialInput>,
+    attachments?: AttachmentDraft,
   ) => Promise<void>
   deleteCredential: (id: string) => Promise<void>
   toggleCredentialFavorite: (id: string) => Promise<void>
@@ -153,18 +179,69 @@ interface VaultState {
 
   addCategory: (input: CategoryInput) => Promise<Category>
   renameCategory: (id: string, name: string) => Promise<void>
-  moveCategory: (id: string, sectionId: string) => Promise<void>
+  moveCategory: (
+    id: string,
+    sectionId: string,
+    parentId?: string | null,
+    sortOrder?: number,
+  ) => Promise<void>
+  reorderCategory: (id: string, direction: 'up' | 'down') => Promise<void>
   deleteCategory: (id: string) => Promise<void>
 
-  addLink: (input: LinkInput) => Promise<LinkItem>
-  updateLink: (id: string, input: Partial<LinkInput>) => Promise<void>
+  addLink: (input: LinkInput, attachments?: AttachmentDraft) => Promise<LinkItem>
+  updateLink: (
+    id: string,
+    input: Partial<LinkInput>,
+    attachments?: AttachmentDraft,
+  ) => Promise<void>
   deleteLink: (id: string) => Promise<void>
   toggleLinkFavorite: (id: string) => Promise<void>
 
-  addNote: (input: NoteInput) => Promise<Note>
-  updateNote: (id: string, input: Partial<NoteInput>) => Promise<void>
+  addNote: (input: NoteInput, attachments?: AttachmentDraft) => Promise<Note>
+  updateNote: (
+    id: string,
+    input: Partial<NoteInput>,
+    attachments?: AttachmentDraft,
+  ) => Promise<void>
   deleteNote: (id: string) => Promise<void>
   toggleNoteFavorite: (id: string) => Promise<void>
+}
+
+interface ReconciledAttachments {
+  attachments: Attachment[]
+  uploaded: Attachment[]
+}
+
+async function reconcileAttachments(
+  existing: Attachment[] | undefined,
+  draft: AttachmentDraft | undefined,
+  kind: 'credential' | 'link' | 'note',
+  recordId: string,
+  userId: string,
+): Promise<ReconciledAttachments> {
+  if (!draft) return { attachments: existing ?? [], uploaded: [] }
+  const removed = new Set(draft.removedIds)
+  const retained = (existing ?? []).filter((attachment) => !removed.has(attachment.id))
+  if (retained.length + draft.newFiles.length > MAX_ATTACHMENTS_PER_RECORD) {
+    throw new Error(`Cada registro admite hasta ${MAX_ATTACHMENTS_PER_RECORD} imágenes.`)
+  }
+  const uploaded = await uploadEncryptedAttachments(
+    draft.newFiles,
+    kind,
+    recordId,
+    userId,
+  )
+  return { attachments: [...retained, ...uploaded], uploaded }
+}
+
+async function removeRecordAttachments(
+  attachments: Attachment[] | undefined,
+  kind: 'credential' | 'link' | 'note',
+  recordId: string,
+  userId: string,
+): Promise<void> {
+  if (!attachments?.length) return
+  await deleteEncryptedAttachments(attachments, kind, recordId, userId)
 }
 
 function nextColor(categories: Category[]): string {
@@ -172,6 +249,83 @@ function nextColor(categories: Category[]): string {
   const free = CATEGORY_COLORS.find((color) => !used.has(color.toLowerCase()))
   if (free) return free
   return CATEGORY_COLORS[categories.length % CATEGORY_COLORS.length]!
+}
+
+function normalizeParentId(
+  categories: Category[],
+  categoryId: string,
+  sectionId: string,
+  parentId: string | undefined | null,
+): string | null {
+  if (!parentId) return null
+  const parent = categories.find((category) => category.id === parentId)
+  if (!parent || parent.sectionId !== sectionId) {
+    throw new Error('La categoría padre no pertenece a la misma sección.')
+  }
+  if (parentId === categoryId) {
+    throw new Error('Una categoría no puede ser su propia categoría padre.')
+  }
+  const visited = new Set<string>()
+  let cursor: Category | undefined = parent
+  while (cursor) {
+    if (visited.has(cursor.id)) {
+      throw new Error('La jerarquía de categorías contiene un ciclo.')
+    }
+    visited.add(cursor.id)
+    if (cursor.id === categoryId) {
+      throw new Error('No se puede crear un ciclo de categorías.')
+    }
+    cursor = cursor.parentId
+      ? categories.find((category) => category.id === cursor?.parentId)
+      : undefined
+  }
+  return parentId
+}
+
+function nextCategorySortOrder(
+  categories: Category[],
+  sectionId: string,
+  parentId: string | null,
+): number {
+  const siblings = categories.filter(
+    (category) =>
+      category.sectionId === sectionId &&
+      (category.parentId ?? null) === parentId,
+  )
+  return siblings.reduce((max, category) => Math.max(max, category.sortOrder), -1) + 1
+}
+
+function categoryDescendantIds(categories: Category[], rootId: string): string[] {
+  const descendants: string[] = []
+  const visit = (parentId: string) => {
+    for (const category of categories) {
+      if (category.parentId !== parentId || descendants.includes(category.id)) continue
+      descendants.push(category.id)
+      visit(category.id)
+    }
+  }
+  visit(rootId)
+  return descendants
+}
+
+/** Rompe referencias antiguas/cycles antes de que lleguen a la UI. */
+function sanitizeCategoryHierarchy(categories: Category[]): Category[] {
+  const byId = new Map(categories.map((category) => [category.id, category]))
+  return categories.map((category) => {
+    if (!category.parentId) return category
+    const parent = byId.get(category.parentId)
+    if (!parent || parent.sectionId !== category.sectionId) {
+      return { ...category, parentId: undefined }
+    }
+    const seen = new Set([category.id])
+    let cursor: Category | undefined = parent
+    while (cursor) {
+      if (seen.has(cursor.id)) return { ...category, parentId: undefined }
+      seen.add(cursor.id)
+      cursor = cursor.parentId ? byId.get(cursor.parentId) : undefined
+    }
+    return category
+  })
 }
 
 /** Evita guardar una referencia a una categoría que no pertenece al Vault actual. */
@@ -218,18 +372,26 @@ async function recordPasswordChange(credential: Credential): Promise<void> {
   if (!isSupabaseConfigured) return
   try {
     const userId = await requireUserId()
+    const historyId = crypto.randomUUID()
+    const encryptedPayload = await encryptPersonalPayload(
+      'history',
+      historyId,
+      userId,
+      { password: credential.password },
+    )
     const { data, error } = await supabase
       .from('vault_password_history')
       .insert({
+        id: historyId,
         user_id: userId,
         credential_id: credential.id,
-        password: credential.password,
+        encrypted_payload: encryptedPayload,
       })
-      .select()
+      .select(HISTORY_COLUMNS)
       .single()
     if (error) throw new Error(error.message)
 
-    const entry = toHistoryEntry(data as HistoryRow)
+    const entry = await toEncryptedHistory(data as HistoryRow, userId)
     useVaultStore.setState((s) => ({
       history:
         s.historyCredentialId === credential.id
@@ -281,6 +443,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
 
   load: async (knownUserId) => {
     const generation = ++vaultLoadGeneration
+    const vaultGeneration = getVaultSessionGeneration()
     if (!isSupabaseConfigured) {
       set({
         status: 'local',
@@ -341,53 +504,97 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         credentialRows = snapshot.credentials
       }
 
-      if (generation !== vaultLoadGeneration) return
-      let sections = sectionRows.map(toSection)
-      let categories = categoryRows.map(toCategory)
-      const credentials = credentialRows.map(toCredential)
+      if (
+        generation !== vaultLoadGeneration ||
+        vaultGeneration !== getVaultSessionGeneration()
+      )
+        return
+      let sections = await Promise.all(
+        sectionRows.map((row) => toEncryptedSection(row, userId)),
+      )
+      let categories = sanitizeCategoryHierarchy(
+        await Promise.all(
+          categoryRows.map((row) => toEncryptedCategory(row, userId)),
+        ),
+      )
+      const credentials = await Promise.all(
+        credentialRows.map((row) => toEncryptedCredential(row, userId)),
+      )
 
       if (sections.length === 0) {
         if (generation !== vaultLoadGeneration) return
+        const sectionSeeds = await Promise.all(
+          DEFAULT_SECTIONS.map(async (name) => {
+            const id = crypto.randomUUID()
+            const encryptedPayload = await encryptPersonalPayload(
+              'section',
+              id,
+              userId,
+              { name },
+            )
+            return { id, user_id: userId, encrypted_payload: encryptedPayload }
+          }),
+        )
         const { data: sectionData, error: sectionError } = await supabase
           .from('vault_sections')
-          .insert(DEFAULT_SECTIONS.map((name) => ({ user_id: userId, name })))
+          .insert(sectionSeeds)
           .select(SECTION_COLUMNS)
         if (sectionError) {
           throw new Error(friendlySyncError(sectionError.message))
         }
-        sections = (sectionData ?? []).map(toSection)
+        sections = await Promise.all(
+          (sectionData ?? []).map((row) => toEncryptedSection(row as SectionRow, userId)),
+        )
         if (generation !== vaultLoadGeneration) return
         const byName = new Map(
           sections.map((section) => [section.name, section.id]),
         )
-        const categoryRowsToCreate = DEFAULT_CATS.flatMap((seed) => {
-          const sectionId = byName.get(seed.section)
-          return sectionId
-            ? [
-                {
-                  user_id: userId,
-                  section_id: sectionId,
-                  name: seed.name,
-                  color: seed.color,
-                },
-              ]
-            : []
-        })
-        if (generation !== vaultLoadGeneration) return
+        const categorySeeds = (
+          await Promise.all(
+            DEFAULT_CATS.map(async (seed) => {
+              const sectionId = byName.get(seed.section)
+              if (!sectionId) return null
+              const id = crypto.randomUUID()
+              const encryptedPayload = await encryptPersonalPayload(
+                'category',
+                id,
+                userId,
+                { name: seed.name },
+              )
+              return {
+                id,
+                user_id: userId,
+                section_id: sectionId,
+                color: seed.color,
+                encrypted_payload: encryptedPayload,
+              }
+            }),
+          )
+        ).filter((row): row is NonNullable<typeof row> => row !== null)
         const { data: categoryData, error: categoryError } = await supabase
           .from('vault_categories')
-          .insert(categoryRowsToCreate)
+          .insert(categorySeeds)
           .select(CATEGORY_COLUMNS)
         if (categoryError) {
           throw new Error(friendlySyncError(categoryError.message))
         }
-        categories = (categoryData ?? []).map(toCategory)
+        categories = await Promise.all(
+          (categoryData ?? []).map((row) => toEncryptedCategory(row as CategoryRow, userId)),
+        )
       }
 
-      if (generation !== vaultLoadGeneration) return
+      if (
+        generation !== vaultLoadGeneration ||
+        vaultGeneration !== getVaultSessionGeneration()
+      )
+        return
       set({ status: 'ready', error: null, sections, categories, credentials })
     } catch (e) {
-      if (generation !== vaultLoadGeneration) return
+      if (
+        generation !== vaultLoadGeneration ||
+        vaultGeneration !== getVaultSessionGeneration()
+      )
+        return
       const message =
         e instanceof Error ? e.message : 'Error al cargar tus datos.'
       set({ status: 'error', error: message })
@@ -397,51 +604,99 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
   loadLinks: async () => {
     if (get().linksLoaded || get().linksLoading) return
     const generation = vaultLoadGeneration
+    const vaultGeneration = getVaultSessionGeneration()
     if (!isSupabaseConfigured) {
       set({ linksLoaded: true, linksLoading: false, linksError: null })
       return
     }
     set({ linksLoading: true, linksError: null })
-    const { data, error } = await supabase
-      .from('vault_links')
-      .select(LINK_COLUMNS)
-      .order('updated_at', { ascending: false })
-    if (generation !== vaultLoadGeneration) return
-    if (error) {
-      set({ linksLoading: false, linksError: friendlySyncError(error.message) })
-      return
+    try {
+      const { data, error } = await supabase
+        .from('vault_links')
+        .select(LINK_COLUMNS)
+        .order('updated_at', { ascending: false })
+      if (
+        generation !== vaultLoadGeneration ||
+        vaultGeneration !== getVaultSessionGeneration()
+      )
+        return
+      if (error) throw new Error(friendlySyncError(error.message))
+      const rows = (data ?? []) as LinkRow[]
+      const userId = await requireUserId()
+      const links = await Promise.all(
+        rows.map((row) => toEncryptedLink(row, userId)),
+      )
+      if (
+        generation !== vaultLoadGeneration ||
+        vaultGeneration !== getVaultSessionGeneration()
+      )
+        return
+      set({
+        links,
+        linksLoaded: true,
+        linksLoading: false,
+        linksError: null,
+      })
+    } catch (e) {
+      if (
+        generation !== vaultLoadGeneration ||
+        vaultGeneration !== getVaultSessionGeneration()
+      )
+        return
+      set({
+        linksLoading: false,
+        linksError: e instanceof Error ? e.message : 'No se pudieron descifrar los enlaces.',
+      })
     }
-    set({
-      links: ((data ?? []) as LinkRow[]).map(toLink),
-      linksLoaded: true,
-      linksLoading: false,
-      linksError: null,
-    })
   },
 
   loadNotes: async () => {
     if (get().notesLoaded || get().notesLoading) return
     const generation = vaultLoadGeneration
+    const vaultGeneration = getVaultSessionGeneration()
     if (!isSupabaseConfigured) {
       set({ notesLoaded: true, notesLoading: false, notesError: null })
       return
     }
     set({ notesLoading: true, notesError: null })
-    const { data, error } = await supabase
-      .from('vault_notes')
-      .select(NOTE_COLUMNS)
-      .order('updated_at', { ascending: false })
-    if (generation !== vaultLoadGeneration) return
-    if (error) {
-      set({ notesLoading: false, notesError: friendlySyncError(error.message) })
-      return
+    try {
+      const { data, error } = await supabase
+        .from('vault_notes')
+        .select(NOTE_COLUMNS)
+        .order('updated_at', { ascending: false })
+      if (
+        generation !== vaultLoadGeneration ||
+        vaultGeneration !== getVaultSessionGeneration()
+      )
+        return
+      if (error) throw new Error(friendlySyncError(error.message))
+      const rows = (data ?? []) as NoteRow[]
+      const userId = await requireUserId()
+      const notes = await Promise.all(
+        rows.map((row) => toEncryptedNote(row, userId)),
+      )
+      if (
+        generation !== vaultLoadGeneration ||
+        vaultGeneration !== getVaultSessionGeneration()
+      )
+        return
+      set({
+        notes,
+        notesLoaded: true,
+        notesLoading: false,
+        notesError: null,
+      })
+    } catch (e) {
+      if (
+        generation !== vaultLoadGeneration ||
+        vaultGeneration !== getVaultSessionGeneration()
+      )
+        return
+      set({
+        notesLoading: false,
+        notesError: e instanceof Error ? e.message : 'No se pudieron descifrar las notas.',
+      })
     }
-    set({
-      notes: ((data ?? []) as NoteRow[]).map(toNote),
-      notesLoaded: true,
-      notesLoading: false,
-      notesError: null,
-    })
   },
 
   reset: () => {
@@ -467,91 +722,151 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     })
   },
 
-  addCredential: async (input) => {
+  addCredential: async (input, attachmentDraft) => {
     const userId = await requireUserId()
     const categoryId = categoryIdForVault(get().categories, input.categoryId)
-    const { data, error } = await supabase
-      .from('vault_credentials')
-      .insert({
-        user_id: userId,
+    const id = crypto.randomUUID()
+    const { attachments, uploaded } = await reconcileAttachments(
+      undefined,
+      attachmentDraft,
+      'credential',
+      id,
+      userId,
+    )
+    let encryptedPayload: string
+    try {
+      encryptedPayload = await encryptPersonalPayload('credential', id, userId, {
         title: input.title,
         username: input.username,
         password: input.password,
-        url: input.url ?? null,
-        category_id: categoryId,
-        notes: input.notes ?? null,
+        url: input.url ?? undefined,
+        notes: input.notes ?? undefined,
+        attachments,
       })
-      .select()
+    } catch (cause) {
+      await deleteEncryptedAttachments(uploaded, 'credential', id, userId).catch(() => undefined)
+      throw cause
+    }
+    const { data, error } = await supabase
+      .from('vault_credentials')
+      .insert({
+        id,
+        user_id: userId,
+        category_id: categoryId,
+        encrypted_payload: encryptedPayload,
+      })
+      .select(CREDENTIAL_COLUMNS)
       .single()
-    if (error) throw new Error(friendlySyncError(error.message))
-    if (!data) throw new Error('No se pudo recuperar la credencial creada.')
-    const credential = toCredential(
-      data as {
-        id: string
-        title: string
-        username: string
-        password: string
-        url: string | null
-        category_id: string | null
-        notes: string | null
-        favorite: boolean
-        created_at: string
-        updated_at: string
-      },
+    if (error) {
+      if (uploaded.length > 0) {
+        await deleteEncryptedAttachments(uploaded, 'credential', id, userId).catch(() => undefined)
+      }
+      throw new Error(friendlySyncError(error.message))
+    }
+    if (!data) {
+      await deleteEncryptedAttachments(uploaded, 'credential', id, userId).catch(() => undefined)
+      throw new Error('No se pudo recuperar la credencial creada.')
+    }
+    const credential = await toEncryptedCredential(
+      data as CredentialRow,
+      userId,
     )
     set((s) => ({ credentials: [credential, ...s.credentials] }))
     return credential
   },
 
-  updateCredential: async (id, input) => {
+  updateCredential: async (id, input, attachmentDraft) => {
     const previous = get().credentials.find((c) => c.id === id)
-    /** Solo hay historial si la clave cambia de verdad. */
+    if (!previous) throw new Error('La credencial ya no existe.')
+    const userId = await requireUserId()
     const passwordChanged =
-      input.password !== undefined && input.password !== previous?.password
-    const patch: Record<string, unknown> = {}
-    if (input.title !== undefined) patch.title = input.title
-    if (input.username !== undefined) patch.username = input.username
-    if (input.password !== undefined) patch.password = input.password
-    if (input.url !== undefined) patch.url = input.url ?? null
-    if ('categoryId' in input) {
-      patch.category_id = categoryIdForVault(get().categories, input.categoryId)
+      input.password !== undefined && input.password !== previous.password
+    const { attachments, uploaded } = await reconcileAttachments(
+      previous.attachments,
+      attachmentDraft,
+      'credential',
+      id,
+      userId,
+    )
+    const next = {
+      title: input.title ?? previous.title,
+      username: input.username ?? previous.username,
+      password: input.password ?? previous.password,
+      url: input.url !== undefined ? input.url ?? undefined : previous.url,
+      notes: input.notes !== undefined ? input.notes ?? undefined : previous.notes,
+      attachments,
     }
-    if (input.notes !== undefined) patch.notes = input.notes ?? null
+    const categoryId =
+      'categoryId' in input
+        ? categoryIdForVault(get().categories, input.categoryId)
+        : previous.categoryId ?? null
+    let encryptedPayload: string
+    try {
+      encryptedPayload = await encryptPersonalPayload('credential', id, userId, next)
+    } catch (cause) {
+      await deleteEncryptedAttachments(uploaded, 'credential', id, userId).catch(() => undefined)
+      throw cause
+    }
     const { data, error } = await supabase
       .from('vault_credentials')
-      .update(patch)
+      .update({
+        category_id: categoryId,
+        encrypted_payload: encryptedPayload,
+        title: null,
+        username: null,
+        password: null,
+        url: null,
+        notes: null,
+      })
       .eq('id', id)
-      .select()
+      .select(CREDENTIAL_COLUMNS)
       .single()
-    if (error) throw new Error(friendlySyncError(error.message))
-    const updated = toCredential(
-      data as {
-        id: string
-        title: string
-        username: string
-        password: string
-        url: string | null
-        category_id: string | null
-        notes: string | null
-        favorite: boolean
-        created_at: string
-        updated_at: string
-      },
+    if (error) {
+      await deleteEncryptedAttachments(uploaded, 'credential', id, userId).catch(() => undefined)
+      throw new Error(friendlySyncError(error.message))
+    }
+    const updated = await toEncryptedCredential(
+      data as CredentialRow,
+      userId,
     )
+    const removed = new Set(attachmentDraft?.removedIds ?? [])
+    const removedAttachments = previous.attachments?.filter((attachment) =>
+      removed.has(attachment.id),
+    )
+    if (removedAttachments?.length) {
+      await deleteEncryptedAttachments(
+        removedAttachments,
+        'credential',
+        id,
+        userId,
+      ).catch((cause) => {
+        console.warn('[Workvaul] No se pudieron limpiar imágenes retiradas:', cause)
+      })
+    }
     set((s) => ({
       credentials: s.credentials.map((c) => (c.id === id ? updated : c)),
     }))
 
     // Guarda la clave reemplazada (best-effort: no interrumpe el guardado).
-    if (passwordChanged && previous) await recordPasswordChange(previous)
+    if (passwordChanged) await recordPasswordChange(previous)
   },
 
   deleteCredential: async (id) => {
+    const userId = await requireUserId()
+    const current = get().credentials.find((credential) => credential.id === id)
     const { error } = await supabase
       .from('vault_credentials')
       .delete()
       .eq('id', id)
     if (error) throw new Error(friendlySyncError(error.message))
+    await removeRecordAttachments(
+      current?.attachments,
+      'credential',
+      id,
+      userId,
+    ).catch((cause) => {
+      console.warn('[Workvaul] La credencial se eliminó, pero faltaron sus imágenes:', cause)
+    })
     set((s) => ({
       credentials: s.credentials.filter((c) => c.id !== id),
       // En la base cae en cascada; aquí limpiamos la copia local.
@@ -571,22 +886,12 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       .from('vault_credentials')
       .update({ favorite: !current.favorite })
       .eq('id', id)
-      .select()
+      .select(CREDENTIAL_COLUMNS)
       .single()
     if (error) throw new Error(friendlySyncError(error.message))
-    const updated = toCredential(
-      data as {
-        id: string
-        title: string
-        username: string
-        password: string
-        url: string | null
-        category_id: string | null
-        notes: string | null
-        favorite: boolean
-        created_at: string
-        updated_at: string
-      },
+    const updated = await toEncryptedCredential(
+      data as CredentialRow,
+      await requireUserId(),
     )
     set((s) => ({
       credentials: s.credentials.map((c) => (c.id === id ? updated : c)),
@@ -612,14 +917,24 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         }
         seen.add(key)
       }
+      const id = crypto.randomUUID()
+      const encryptedPayload = await encryptPersonalPayload(
+        'credential',
+        id,
+        userId,
+        {
+          title,
+          username,
+          password: item.password,
+          url: item.url?.trim() || undefined,
+          notes: item.notes?.trim() || undefined,
+        },
+      )
       rows.push({
+        id,
         user_id: userId,
-        title,
-        username,
-        password: item.password,
-        url: item.url?.trim() || null,
+        encrypted_payload: encryptedPayload,
         category_id: categoryIdForVault(get().categories, item.categoryId),
-        notes: item.notes?.trim() || null,
       })
     }
 
@@ -629,10 +944,12 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       const { data, error } = await supabase
         .from('vault_credentials')
         .insert(rows.slice(i, i + IMPORT_CHUNK))
-        .select()
+        .select(CREDENTIAL_COLUMNS)
       if (error) throw new Error(friendlySyncError(error.message))
       created.push(
-        ...(data ?? []).map((row) => toCredential(row as CredentialRow)),
+        ...(await Promise.all(
+          (data ?? []).map((row) => toEncryptedCredential(row as CredentialRow, userId)),
+        )),
       )
     }
     if (created.length > 0)
@@ -642,6 +959,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
   },
 
   loadCredentialHistory: async (credentialId) => {
+    const vaultGeneration = getVaultSessionGeneration()
     set({
       historyCredentialId: credentialId,
       history: [],
@@ -656,24 +974,36 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       })
       return
     }
-    const { data, error } = await supabase
-      .from('vault_password_history')
-      .select(HISTORY_COLUMNS)
-      .eq('credential_id', credentialId)
-      .order('changed_at', { ascending: false })
-      .limit(HISTORY_LIMIT)
-    if (error) {
+    try {
+      const { data, error } = await supabase
+        .from('vault_password_history')
+        .select(HISTORY_COLUMNS)
+        .eq('credential_id', credentialId)
+        .order('changed_at', { ascending: false })
+        .limit(HISTORY_LIMIT)
+      if (vaultGeneration !== getVaultSessionGeneration()) return
+      if (error) throw new Error(historyFriendlyError(error.message))
+      const userId = await requireUserId()
+      const historyRows = (data ?? []) as HistoryRow[]
+      const history = await Promise.all(
+        historyRows.map((row) => toEncryptedHistory(row, userId)),
+      )
+      if (vaultGeneration !== getVaultSessionGeneration()) return
+      set({
+        history,
+        historyLoading: false,
+        historyError: null,
+      })
+    } catch (e) {
+      if (vaultGeneration !== getVaultSessionGeneration()) return
       set({
         historyLoading: false,
-        historyError: historyFriendlyError(error.message),
+        historyError:
+          e instanceof Error
+            ? e.message
+            : 'No se pudo descifrar el historial de claves.',
       })
-      return
     }
-    set({
-      history: (data ?? []).map((row) => toHistoryEntry(row as HistoryRow)),
-      historyLoading: false,
-      historyError: null,
-    })
   },
 
   deleteHistoryEntry: async (id) => {
@@ -694,50 +1024,124 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     set({ history: [] })
   },
 
-  addLink: async (input) => {
+  addLink: async (input, attachmentDraft) => {
     const userId = await requireUserId()
     const categoryId = categoryIdForVault(get().categories, input.categoryId)
+    const id = crypto.randomUUID()
+    const { attachments, uploaded } = await reconcileAttachments(
+      undefined,
+      attachmentDraft,
+      'link',
+      id,
+      userId,
+    )
+    let encryptedPayload: string
+    try {
+      encryptedPayload = await encryptPersonalPayload('link', id, userId, {
+        title: input.title,
+        url: input.url,
+        description: input.description ?? undefined,
+        attachments,
+      })
+    } catch (cause) {
+      await deleteEncryptedAttachments(uploaded, 'link', id, userId).catch(() => undefined)
+      throw cause
+    }
     const { data, error } = await supabase
       .from('vault_links')
       .insert({
+        id,
         user_id: userId,
-        title: input.title,
-        url: input.url,
         category_id: categoryId,
-        description: input.description ?? null,
+        encrypted_payload: encryptedPayload,
       })
-      .select()
+      .select(LINK_COLUMNS)
       .single()
-    if (error) throw new Error(friendlySyncError(error.message))
-    if (!data) throw new Error('No se pudo recuperar el enlace creado.')
-    const link = toLink(data as LinkRow)
+    if (error) {
+      await deleteEncryptedAttachments(uploaded, 'link', id, userId).catch(() => undefined)
+      throw new Error(friendlySyncError(error.message))
+    }
+    if (!data) {
+      await deleteEncryptedAttachments(uploaded, 'link', id, userId).catch(() => undefined)
+      throw new Error('No se pudo recuperar el enlace creado.')
+    }
+    const link = await toEncryptedLink(data as LinkRow, userId)
     set((s) => ({ links: [link, ...s.links] }))
     return link
   },
 
-  updateLink: async (id, input) => {
-    const patch: Record<string, unknown> = {}
-    if (input.title !== undefined) patch.title = input.title
-    if (input.url !== undefined) patch.url = input.url
-    if ('categoryId' in input) {
-      patch.category_id = categoryIdForVault(get().categories, input.categoryId)
+  updateLink: async (id, input, attachmentDraft) => {
+    const previous = get().links.find((link) => link.id === id)
+    if (!previous) throw new Error('El enlace ya no existe.')
+    const userId = await requireUserId()
+    const { attachments, uploaded } = await reconcileAttachments(
+      previous.attachments,
+      attachmentDraft,
+      'link',
+      id,
+      userId,
+    )
+    const next = {
+      title: input.title ?? previous.title,
+      url: input.url ?? previous.url,
+      description:
+        input.description !== undefined
+          ? input.description ?? undefined
+          : previous.description,
+      attachments,
     }
-    if (input.description !== undefined)
-      patch.description = input.description ?? null
+    const categoryId =
+      'categoryId' in input
+        ? categoryIdForVault(get().categories, input.categoryId)
+        : previous.categoryId ?? null
+    let encryptedPayload: string
+    try {
+      encryptedPayload = await encryptPersonalPayload('link', id, userId, next)
+    } catch (cause) {
+      await deleteEncryptedAttachments(uploaded, 'link', id, userId).catch(() => undefined)
+      throw cause
+    }
     const { data, error } = await supabase
       .from('vault_links')
-      .update(patch)
+      .update({
+        category_id: categoryId,
+        encrypted_payload: encryptedPayload,
+        title: null,
+        url: null,
+        description: null,
+      })
       .eq('id', id)
-      .select()
+      .select(LINK_COLUMNS)
       .single()
-    if (error) throw new Error(friendlySyncError(error.message))
-    const updated = toLink(data as LinkRow)
+    if (error) {
+      await deleteEncryptedAttachments(uploaded, 'link', id, userId).catch(() => undefined)
+      throw new Error(friendlySyncError(error.message))
+    }
+    const updated = await toEncryptedLink(data as LinkRow, userId)
+    const removed = new Set(attachmentDraft?.removedIds ?? [])
+    const removedAttachments = previous.attachments?.filter((attachment) =>
+      removed.has(attachment.id),
+    )
+    if (removedAttachments?.length) {
+      await deleteEncryptedAttachments(removedAttachments, 'link', id, userId).catch(
+        (cause) => {
+          console.warn('[Workvaul] No se pudieron limpiar imágenes retiradas:', cause)
+        },
+      )
+    }
     set((s) => ({ links: s.links.map((l) => (l.id === id ? updated : l)) }))
   },
 
   deleteLink: async (id) => {
+    const userId = await requireUserId()
+    const current = get().links.find((link) => link.id === id)
     const { error } = await supabase.from('vault_links').delete().eq('id', id)
     if (error) throw new Error(friendlySyncError(error.message))
+    await removeRecordAttachments(current?.attachments, 'link', id, userId).catch(
+      (cause) => {
+        console.warn('[Workvaul] El enlace se eliminó, pero faltaron sus imágenes:', cause)
+      },
+    )
     set((s) => ({ links: s.links.filter((l) => l.id !== id) }))
   },
 
@@ -748,54 +1152,121 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       .from('vault_links')
       .update({ favorite: !current.favorite })
       .eq('id', id)
-      .select()
+      .select(LINK_COLUMNS)
       .single()
     if (error) throw new Error(friendlySyncError(error.message))
-    const updated = toLink(data as LinkRow)
+    const updated = await toEncryptedLink(data as LinkRow, await requireUserId())
     set((s) => ({ links: s.links.map((l) => (l.id === id ? updated : l)) }))
   },
 
-  addNote: async (input) => {
+  addNote: async (input, attachmentDraft) => {
     const userId = await requireUserId()
     const categoryId = categoryIdForVault(get().categories, input.categoryId)
+    const id = crypto.randomUUID()
+    const { attachments, uploaded } = await reconcileAttachments(
+      undefined,
+      attachmentDraft,
+      'note',
+      id,
+      userId,
+    )
+    let encryptedPayload: string
+    try {
+      encryptedPayload = await encryptPersonalPayload('note', id, userId, {
+        title: input.title,
+        content: input.content,
+        attachments,
+      })
+    } catch (cause) {
+      await deleteEncryptedAttachments(uploaded, 'note', id, userId).catch(() => undefined)
+      throw cause
+    }
     const { data, error } = await supabase
       .from('vault_notes')
       .insert({
+        id,
         user_id: userId,
-        title: input.title,
-        content: input.content,
         category_id: categoryId,
+        encrypted_payload: encryptedPayload,
       })
-      .select()
+      .select(NOTE_COLUMNS)
       .single()
-    if (error) throw new Error(friendlySyncError(error.message))
-    if (!data) throw new Error('No se pudo recuperar la nota creada.')
-    const note = toNote(data as NoteRow)
+    if (error) {
+      await deleteEncryptedAttachments(uploaded, 'note', id, userId).catch(() => undefined)
+      throw new Error(friendlySyncError(error.message))
+    }
+    if (!data) {
+      await deleteEncryptedAttachments(uploaded, 'note', id, userId).catch(() => undefined)
+      throw new Error('No se pudo recuperar la nota creada.')
+    }
+    const note = await toEncryptedNote(data as NoteRow, userId)
     set((s) => ({ notes: [note, ...s.notes] }))
     return note
   },
 
-  updateNote: async (id, input) => {
-    const patch: Record<string, unknown> = {}
-    if (input.title !== undefined) patch.title = input.title
-    if (input.content !== undefined) patch.content = input.content
-    if ('categoryId' in input) {
-      patch.category_id = categoryIdForVault(get().categories, input.categoryId)
+  updateNote: async (id, input, attachmentDraft) => {
+    const previous = get().notes.find((note) => note.id === id)
+    if (!previous) throw new Error('La nota ya no existe.')
+    const userId = await requireUserId()
+    const { attachments, uploaded } = await reconcileAttachments(
+      previous.attachments,
+      attachmentDraft,
+      'note',
+      id,
+      userId,
+    )
+    const next = {
+      title: input.title ?? previous.title,
+      content: input.content ?? previous.content,
+      attachments,
+    }
+    const categoryId =
+      'categoryId' in input
+        ? categoryIdForVault(get().categories, input.categoryId)
+        : previous.categoryId ?? null
+    let encryptedPayload: string
+    try {
+      encryptedPayload = await encryptPersonalPayload('note', id, userId, next)
+    } catch (cause) {
+      await deleteEncryptedAttachments(uploaded, 'note', id, userId).catch(() => undefined)
+      throw cause
     }
     const { data, error } = await supabase
       .from('vault_notes')
-      .update(patch)
+      .update({
+        category_id: categoryId,
+        encrypted_payload: encryptedPayload,
+        title: null,
+        content: null,
+      })
       .eq('id', id)
-      .select()
+      .select(NOTE_COLUMNS)
       .single()
-    if (error) throw new Error(friendlySyncError(error.message))
-    const updated = toNote(data as NoteRow)
+    if (error) {
+      await deleteEncryptedAttachments(uploaded, 'note', id, userId).catch(() => undefined)
+      throw new Error(friendlySyncError(error.message))
+    }
+    const updated = await toEncryptedNote(data as NoteRow, userId)
+    const removed = new Set(attachmentDraft?.removedIds ?? [])
+    const removedAttachments = previous.attachments?.filter((attachment) =>
+      removed.has(attachment.id),
+    )
+    if (removedAttachments?.length) {
+      await deleteEncryptedAttachments(removedAttachments, 'note', id, userId).catch((cause) => {
+        console.warn('[Workvaul] No se pudieron limpiar imágenes retiradas:', cause)
+      })
+    }
     set((s) => ({ notes: s.notes.map((n) => (n.id === id ? updated : n)) }))
   },
 
   deleteNote: async (id) => {
+    const userId = await requireUserId()
+    const current = get().notes.find((note) => note.id === id)
     const { error } = await supabase.from('vault_notes').delete().eq('id', id)
     if (error) throw new Error(friendlySyncError(error.message))
+    await removeRecordAttachments(current?.attachments, 'note', id, userId).catch((cause) => {
+      console.warn('[Workvaul] La nota se eliminó, pero faltaron sus imágenes:', cause)
+    })
     set((s) => ({ notes: s.notes.filter((n) => n.id !== id) }))
   },
 
@@ -806,32 +1277,51 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       .from('vault_notes')
       .update({ favorite: !current.favorite })
       .eq('id', id)
-      .select()
+      .select(NOTE_COLUMNS)
       .single()
     if (error) throw new Error(friendlySyncError(error.message))
-    const updated = toNote(data as NoteRow)
+    const updated = await toEncryptedNote(data as NoteRow, await requireUserId())
     set((s) => ({ notes: s.notes.map((n) => (n.id === id ? updated : n)) }))
   },
 
   addSection: async (name) => {
+    const next = name.trim()
+    if (!next || next.length > 60) {
+      throw new Error('El nombre de la sección debe tener entre 1 y 60 caracteres.')
+    }
     const userId = await requireUserId()
+    const id = crypto.randomUUID()
+    const encryptedPayload = await encryptPersonalPayload('section', id, userId, {
+      name: next,
+    })
     const { data, error } = await supabase
       .from('vault_sections')
-      .insert({ user_id: userId, name: name.trim() })
-      .select()
+      .insert({ id, user_id: userId, encrypted_payload: encryptedPayload })
+      .select(SECTION_COLUMNS)
       .single()
     if (error) throw new Error(friendlySyncError(error.message))
-    const section = toSection(data as { id: string; name: string })
+    const section = await toEncryptedSection(data as SectionRow, userId)
     set((s) => ({ sections: [...s.sections, section] }))
     return section
   },
 
   renameSection: async (id, name) => {
     const next = name.trim()
-    if (!next) return
+    if (!next || next.length > 60) {
+      throw new Error('El nombre de la sección debe tener entre 1 y 60 caracteres.')
+    }
+    if (!get().sections.some((section) => section.id === id)) {
+      throw new Error('La sección ya no existe.')
+    }
+    const encryptedPayload = await encryptPersonalPayload(
+      'section',
+      id,
+      await requireUserId(),
+      { name: next },
+    )
     const { error } = await supabase
       .from('vault_sections')
-      .update({ name: next })
+      .update({ encrypted_payload: encryptedPayload, name: null })
       .eq('id', id)
     if (error) throw new Error(friendlySyncError(error.message))
     set((s) => ({
@@ -849,7 +1339,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     if (orphans.length > 0 && fallback) {
       const { error } = await supabase
         .from('vault_categories')
-        .update({ section_id: fallback })
+        .update({ section_id: fallback, parent_id: null })
         .eq('section_id', id)
       if (error) throw new Error(friendlySyncError(error.message))
     }
@@ -869,7 +1359,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         categories: fallback
           ? state.categories.map((category) =>
               category.sectionId === id
-                ? { ...category, sectionId: fallback }
+                ? { ...category, sectionId: fallback, parentId: undefined }
                 : category,
             )
           : state.categories.filter((category) => category.sectionId !== id),
@@ -901,68 +1391,162 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
 
   addCategory: async (input) => {
     const userId = await requireUserId()
+    const name = input.name.trim()
+    if (!name || name.length > 60) {
+      throw new Error('El nombre de la categoría debe tener entre 1 y 60 caracteres.')
+    }
+    const state = get()
+    const section = state.sections.find((item) => item.id === input.sectionId)
+    if (!section) throw new Error('La sección seleccionada ya no existe.')
+    const id = crypto.randomUUID()
+    const parentId = normalizeParentId(
+      state.categories,
+      id,
+      input.sectionId,
+      input.parentId,
+    )
+    const sortOrder =
+      input.sortOrder ?? nextCategorySortOrder(state.categories, input.sectionId, parentId)
+    const encryptedPayload = await encryptPersonalPayload('category', id, userId, {
+      name,
+    })
     const { data, error } = await supabase
       .from('vault_categories')
       .insert({
+        id,
         user_id: userId,
         section_id: input.sectionId,
-        name: input.name.trim(),
-        color: input.color ?? nextColor(get().categories),
+        parent_id: parentId,
+        sort_order: sortOrder,
+        color: input.color ?? nextColor(state.categories),
+        encrypted_payload: encryptedPayload,
       })
-      .select()
+      .select(CATEGORY_COLUMNS)
       .single()
     if (error) throw new Error(friendlySyncError(error.message))
-    const category = toCategory(
-      data as { id: string; name: string; color: string; section_id: string },
-    )
+    const category = await toEncryptedCategory(data as CategoryRow, userId)
     set((s) => ({ categories: [...s.categories, category] }))
     return category
   },
 
   renameCategory: async (id, name) => {
     const next = name.trim()
-    if (!next) return
+    if (!next || next.length > 60) {
+      throw new Error('El nombre de la categoría debe tener entre 1 y 60 caracteres.')
+    }
+    if (!get().categories.some((category) => category.id === id)) {
+      throw new Error('La categoría ya no existe.')
+    }
+    const encryptedPayload = await encryptPersonalPayload(
+      'category',
+      id,
+      await requireUserId(),
+      { name: next },
+    )
     const { error } = await supabase
       .from('vault_categories')
-      .update({ name: next })
+      .update({ encrypted_payload: encryptedPayload, name: null })
       .eq('id', id)
     if (error) throw new Error(friendlySyncError(error.message))
     set((s) => ({
-      categories: s.categories.map((c) =>
-        c.id === id ? { ...c, name: next } : c,
-      ),
+      categories: s.categories.map((c) => c.id === id ? { ...c, name: next } : c),
     }))
   },
 
-  moveCategory: async (id, sectionId) => {
-    const { error } = await supabase
+  moveCategory: async (id, sectionId, parentId, sortOrder) => {
+    const state = get()
+    const category = state.categories.find((item) => item.id === id)
+    if (!category) throw new Error('La categoría ya no existe.')
+    if (!state.sections.some((section) => section.id === sectionId)) {
+      throw new Error('La sección seleccionada ya no existe.')
+    }
+    const nextParentId = normalizeParentId(state.categories, id, sectionId, parentId)
+    const nextSortOrder =
+      sortOrder ?? nextCategorySortOrder(state.categories, sectionId, nextParentId)
+    const descendants = categoryDescendantIds(state.categories, id)
+    const subtreeIds = [id, ...descendants]
+    const { error: sectionError } = await supabase
       .from('vault_categories')
       .update({ section_id: sectionId })
+      .in('id', subtreeIds)
+    if (sectionError) throw new Error(friendlySyncError(sectionError.message))
+    const { error: rootError } = await supabase
+      .from('vault_categories')
+      .update({ parent_id: nextParentId, sort_order: nextSortOrder })
       .eq('id', id)
+    if (rootError) throw new Error(friendlySyncError(rootError.message))
+    set((s) => ({
+      categories: s.categories.map((item) => {
+        if (item.id === id) {
+          return { ...item, sectionId, parentId: nextParentId ?? undefined, sortOrder: nextSortOrder }
+        }
+        return descendants.includes(item.id) ? { ...item, sectionId } : item
+      }),
+    }))
+  },
+
+  reorderCategory: async (id, direction) => {
+    const state = get()
+    const category = state.categories.find((item) => item.id === id)
+    if (!category) throw new Error('La categoría ya no existe.')
+    const parentId = category.parentId ?? null
+    const siblings = state.categories
+      .filter(
+        (item) => item.sectionId === category.sectionId && (item.parentId ?? null) === parentId,
+      )
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'es'))
+    const index = siblings.findIndex((item) => item.id === id)
+    const targetIndex = direction === 'up' ? index - 1 : index + 1
+    if (index < 0 || targetIndex < 0 || targetIndex >= siblings.length) return
+
+    // Normaliza hermanos antiguos (todos pueden tener sort_order=0).
+    const ordered = [...siblings]
+    ;[ordered[index], ordered[targetIndex]] = [ordered[targetIndex]!, ordered[index]!]
+    const updates = await Promise.all(
+      ordered.map((item, order) =>
+        supabase.from('vault_categories').update({ sort_order: order }).eq('id', item.id),
+      ),
+    )
+    const error = updates.find((result) => result.error)?.error
     if (error) throw new Error(friendlySyncError(error.message))
     set((s) => ({
-      categories: s.categories.map((c) =>
-        c.id === id ? { ...c, sectionId } : c,
-      ),
+      categories: s.categories.map((item) => {
+        const order = ordered.findIndex((candidate) => candidate.id === item.id)
+        return order >= 0 ? { ...item, sortOrder: order } : item
+      }),
     }))
   },
 
   deleteCategory: async (id) => {
+    const descendants = new Set<string>()
+    const visit = (parentId: string) => {
+      for (const category of get().categories) {
+        if (category.parentId !== parentId || descendants.has(category.id)) continue
+        descendants.add(category.id)
+        visit(category.id)
+      }
+    }
+    visit(id)
+    const removedIds = new Set([id, ...descendants])
     const { error } = await supabase
       .from('vault_categories')
       .delete()
-      .eq('id', id)
+      .in('id', [...removedIds])
     if (error) throw new Error(friendlySyncError(error.message))
     set((state) => ({
-      categories: state.categories.filter((category) => category.id !== id),
+      categories: state.categories.filter((category) => !removedIds.has(category.id)),
       links: state.links.map((link) =>
-        link.categoryId === id ? { ...link, categoryId: undefined } : link,
+        link.categoryId && removedIds.has(link.categoryId)
+          ? { ...link, categoryId: undefined }
+          : link,
       ),
       notes: state.notes.map((note) =>
-        note.categoryId === id ? { ...note, categoryId: undefined } : note,
+        note.categoryId && removedIds.has(note.categoryId)
+          ? { ...note, categoryId: undefined }
+          : note,
       ),
       credentials: state.credentials.map((credential) =>
-        credential.categoryId === id
+        credential.categoryId && removedIds.has(credential.categoryId)
           ? { ...credential, categoryId: undefined }
           : credential,
       ),

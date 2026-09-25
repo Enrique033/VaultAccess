@@ -3,6 +3,7 @@ import { Check, ChevronDown, Hash, Plus, Search } from 'lucide-react'
 import { useVaultStore } from '@/store/vault.store'
 import { CATEGORY_COLORS } from '@/lib/category-colors'
 import { cn } from '@/lib/utils'
+import type { Category } from '@/types'
 
 interface Props {
   value: string
@@ -12,11 +13,57 @@ interface Props {
 
 type Mode = 'list' | 'create'
 
+interface CategoryOption {
+  category: Category
+  depth: number
+}
+
+/** Ordena raíces y descendientes sin convertir registros antiguos en huérfanos. */
+function orderedCategoryOptions(
+  categories: Category[],
+  sectionId: string,
+  query: string,
+): CategoryOption[] {
+  const local = categories.filter((category) => category.sectionId === sectionId)
+  const children = new Map<string | undefined, Category[]>()
+  for (const category of local) {
+    const parentId = category.parentId ?? undefined
+    const list = children.get(parentId) ?? []
+    list.push(category)
+    children.set(parentId, list)
+  }
+  for (const list of children.values()) {
+    list.sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name, 'es'))
+  }
+  const options: CategoryOption[] = []
+  const visited = new Set<string>()
+  const visit = (parentId: string | undefined, depth: number, path: Set<string>) => {
+    for (const category of children.get(parentId) ?? []) {
+      if (path.has(category.id) || visited.has(category.id)) continue
+      visited.add(category.id)
+      if (!query || category.name.toLowerCase().includes(query)) {
+        options.push({ category, depth })
+      }
+      const nextPath = new Set(path)
+      nextPath.add(category.id)
+      visit(category.id, depth + 1, nextPath)
+    }
+  }
+  visit(undefined, 0, new Set())
+  // Si una fila antigua tiene un padre que no existe, se muestra como raíz
+  // para que el selector siga siendo compatible sin crear referencias.
+  for (const category of local) {
+    if (!visited.has(category.id)) options.push({ category, depth: 0 })
+  }
+  return options
+}
+
 export function CategorySelect({ value, onChange, id }: Props) {
   const categories = useVaultStore((s) => s.categories)
   const sections = useVaultStore((s) => s.sections)
   const addSection = useVaultStore((s) => s.addSection)
   const addCategory = useVaultStore((s) => s.addCategory)
+  const status = useVaultStore((s) => s.status)
 
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
@@ -26,6 +73,16 @@ export function CategorySelect({ value, onChange, id }: Props) {
   const box = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLInputElement>(null)
   const selected = categories.find((c) => c.id === value)
+
+  useEffect(() => {
+    if (
+      (status === 'ready' || status === 'local') &&
+      value &&
+      !categories.some((category) => category.id === value)
+    ) {
+      onChange('')
+    }
+  }, [categories, onChange, status, value])
 
   useEffect(() => {
     if (!open) return
@@ -45,7 +102,6 @@ export function CategorySelect({ value, onChange, id }: Props) {
   }, [open])
 
   const query = q.trim().toLowerCase()
-  const match = (n: string) => !query || n.toLowerCase().includes(query)
   const exactExists = categories.some((c) => c.name.toLowerCase() === query)
 
   const beginCreate = async () => {
@@ -143,9 +199,7 @@ export function CategorySelect({ value, onChange, id }: Props) {
                   {!value && <Check className="size-3.5 text-primary" />}
                 </button>
                 {sections.map((sec) => {
-                  const items = categories.filter(
-                    (c) => c.sectionId === sec.id && match(c.name),
-                  )
+                  const items = orderedCategoryOptions(categories, sec.id, query)
                   if (query && items.length === 0) return null
                   return (
                     <div key={sec.id} className="mt-1.5">
@@ -155,17 +209,19 @@ export function CategorySelect({ value, onChange, id }: Props) {
                       {items.length === 0 && (
                         <p className="px-2.5 py-1 text-xs text-muted">Vacía.</p>
                       )}
-                      {items.map((c) => (
+                      {items.map(({ category: c, depth }) => (
                         <button
                           key={c.id}
                           type="button"
                           role="option"
+                          aria-level={depth + 1}
                           aria-selected={value === c.id}
                           onClick={() => {
                             onChange(c.id)
                             setOpen(false)
                           }}
                           className={item(value === c.id)}
+                          style={{ paddingLeft: `${10 + depth * 16}px` }}
                         >
                           <span
                             className="size-2 rounded-full"

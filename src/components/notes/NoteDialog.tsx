@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -15,7 +15,8 @@ import { Textarea } from '@/components/ui/Textarea'
 import { Label } from '@/components/ui/Label'
 import { Button } from '@/components/ui/Button'
 import { CategorySelect } from '@/components/credentials/CategorySelect'
-import type { Note } from '@/types'
+import { AttachmentPicker } from '@/components/attachments/AttachmentPicker'
+import type { AttachmentDraft, Note } from '@/types'
 
 const noteSchema = z.object({
   title: z
@@ -35,11 +36,23 @@ interface NoteDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   note?: Note
-  onSubmit: (values: NoteFormValues) => void
+  onSubmit: (values: NoteFormValues, attachments: AttachmentDraft) => void
+  /** Categoría preseleccionada al crear desde una columna del tablero. */
+  defaultCategoryId?: string
 }
 
-export function NoteDialog({ open, onOpenChange, note, onSubmit }: NoteDialogProps) {
+export function NoteDialog({
+  open,
+  onOpenChange,
+  note,
+  onSubmit,
+  defaultCategoryId,
+}: NoteDialogProps) {
   const isEditing = Boolean(note)
+  const [attachmentDraft, setAttachmentDraft] = useState<AttachmentDraft>({
+    newFiles: [],
+    removedIds: [],
+  })
 
   const {
     register,
@@ -57,6 +70,7 @@ export function NoteDialog({ open, onOpenChange, note, onSubmit }: NoteDialogPro
 
   useEffect(() => {
     if (!open) return
+    setAttachmentDraft({ newFiles: [], removedIds: [] })
     if (note) {
       reset({
         title: note.title,
@@ -64,9 +78,9 @@ export function NoteDialog({ open, onOpenChange, note, onSubmit }: NoteDialogPro
         categoryId: note.categoryId ?? '',
       })
     } else {
-      reset(EMPTY)
+      reset({ ...EMPTY, categoryId: defaultCategoryId ?? '' })
     }
-  }, [open, note, reset])
+  }, [open, note, defaultCategoryId, reset])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} className="max-w-xl">
@@ -83,7 +97,10 @@ export function NoteDialog({ open, onOpenChange, note, onSubmit }: NoteDialogPro
       </DialogHeader>
 
       <DialogContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form
+          onSubmit={handleSubmit((values) => onSubmit(values, attachmentDraft))}
+          className="space-y-4"
+        >
           <div className="space-y-1.5">
             <Label htmlFor="note-title">Título</Label>
             <Input
@@ -122,6 +139,12 @@ export function NoteDialog({ open, onOpenChange, note, onSubmit }: NoteDialogPro
               onChange={(id) => setValue('categoryId', id, { shouldDirty: true })}
             />
           </div>
+
+          <AttachmentPicker
+            existing={note?.attachments}
+            value={attachmentDraft}
+            onChange={setAttachmentDraft}
+          />
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

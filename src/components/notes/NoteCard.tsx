@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { CategoryBadge } from '@/components/ui/CategoryBadge'
+import { AttachmentPreview } from '@/components/attachments/AttachmentPreview'
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -117,6 +118,13 @@ export function NoteCard({ note, onEdit, onDelete }: NoteCardProps) {
       <p className="mt-3 line-clamp-4 whitespace-pre-wrap text-xs leading-relaxed text-muted">
         {note.content || 'Sin contenido.'}
       </p>
+
+      <AttachmentPreview
+        attachments={note.attachments}
+        kind="note"
+        recordId={note.id}
+        compact
+      />
 
       <div className="mt-auto pt-3">
         <button

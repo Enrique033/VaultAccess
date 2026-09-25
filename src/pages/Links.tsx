@@ -9,10 +9,16 @@ import { CardGridSkeleton } from '@/components/ui/Skeleton'
 import { CredentialSortSelect } from '@/components/credentials/CredentialSortSelect'
 import { LinkCard } from '@/components/links/LinkCard'
 import { LinkDialog, type LinkFormValues } from '@/components/links/LinkDialog'
+import { ViewToggle } from '@/components/board/ViewToggle'
+import { BoardView } from '@/components/board/BoardView'
+import { BoardHeader } from '@/components/board/BoardHeader'
+import { LinkBoardCard } from '@/components/board/LinkBoardCard'
+import type { AttachmentDraft } from '@/types'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
-import { toast } from '@/store/ui.store'
+import { toast, useUIStore } from '@/store/ui.store'
 import { matchesCategoryFilter } from '@/lib/vault-filters'
+import { buildBoardColumns } from '@/lib/vault-board'
 import type { LinkItem } from '@/types'
 
 export function Links() {
@@ -25,6 +31,8 @@ export function Links() {
   const linksLoading = useVaultStore((s) => s.linksLoading)
   const linksError = useVaultStore((s) => s.linksError)
   const loadLinks = useVaultStore((s) => s.loadLinks)
+  const renameCategory = useVaultStore((s) => s.renameCategory)
+  const deleteCategory = useVaultStore((s) => s.deleteCategory)
   const addLink = useVaultStore((s) => s.addLink)
   const updateLink = useVaultStore((s) => s.updateLink)
   const deleteLink = useVaultStore((s) => s.deleteLink)
@@ -32,6 +40,7 @@ export function Links() {
   const query = useSearchStore((s) => s.query)
   const sectionId = useSearchStore((s) => s.sectionId)
   const categoryFilter = useSearchStore((s) => s.categoryFilter)
+  const setCategoryFilter = useSearchStore((s) => s.setCategoryFilter)
   const sort = useSearchStore((s) => s.sort)
   const setSort = useSearchStore((s) => s.setSort)
 
@@ -39,6 +48,11 @@ export function Links() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<LinkItem | null>(null)
   const [deleting, setDeleting] = useState<LinkItem | null>(null)
+  /** Categoría preseleccionada al crear desde el botón «+» de una columna. */
+  const [createCategoryId, setCreateCategoryId] = useState('')
+  /** Petición de alta de lista lanzada desde una columna del tablero. */
+  const [listPresetParent, setListPresetParent] = useState<string | null>(null)
+  const vaultView = useUIStore((s) => s.vaultView)
 
   useEffect(() => {
     void loadLinks()
@@ -87,10 +101,61 @@ export function Links() {
 
   const handleOpenCreate = () => {
     setEditing(null)
+    setCreateCategoryId('')
     setDialogOpen(true)
   }
 
-  const handleSubmit = async (values: LinkFormValues) => {
+  /** Abre el diálogo con la categoría de la columna ya elegida. */
+  const handleOpenCreateIn = (categoryId: string) => {
+    setEditing(null)
+    setCreateCategoryId(categoryId)
+    setDialogOpen(true)
+  }
+
+  /** Arrastre entre columnas: sólo cambia la categoría y conserva los adjuntos. */
+  const handleMoveCard = async (link: LinkItem, toCategoryId: string | undefined) => {
+    const target = categories.find((c) => c.id === toCategoryId)
+    try {
+      await updateLink(link.id, { categoryId: toCategoryId })
+      toast.success(target ? `Movido a ${target.name}` : 'Movido a Sin categoría')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo mover')
+    }
+  }
+
+  /** Abre el alta de lista del encabezado; opcionalmente anidada. */
+  const handleAddList = (parentId: string) => setListPresetParent(parentId)
+
+  /** Renombra la categoría de una columna desde el tablero. */
+  const handleRenameColumn = async (categoryId: string, name: string) => {
+    try {
+      await renameCategory(categoryId, name)
+      toast.success('Lista renombrada')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo renombrar')
+    }
+  }
+
+  /** Elimina una columna; sus registros quedan sin categoría. */
+  const handleDeleteColumn = async (categoryId: string) => {
+    const target = categories.find((c) => c.id === categoryId)
+    if (!target) return
+    if (
+      !window.confirm(
+        `¿Eliminar la lista "${target.name}"? Sus enlaces quedarán sin categoría.`,
+      )
+    )
+      return
+    if (categoryFilter === categoryId) setCategoryFilter(null)
+    try {
+      await deleteCategory(categoryId)
+      toast.success('Lista eliminada')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo eliminar')
+    }
+  }
+
+  const handleSubmit = async (values: LinkFormValues, attachments: AttachmentDraft) => {
     const normalized = {
       title: values.title.trim(),
       url: values.url.trim(),
@@ -99,10 +164,10 @@ export function Links() {
     }
     try {
       if (editing) {
-        await updateLink(editing.id, normalized)
+        await updateLink(editing.id, normalized, attachments)
         toast.success('Enlace actualizado')
       } else {
-        await addLink(normalized)
+        await addLink(normalized, attachments)
         toast.success('Enlace creado')
       }
       setDialogOpen(false)
@@ -141,9 +206,10 @@ export function Links() {
         </Button>
       </div>
 
-      {/* El buscador vive en el Header; aquí queda solo la ordenación. */}
+      {/* El buscador vive en el Header; aquí queda la ordenación y el modo de vista. */}
       {links.length > 0 && (
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <ViewToggle />
           <CredentialSortSelect value={sort} onChange={setSort} />
         </div>
       )}
@@ -195,6 +261,38 @@ export function Links() {
           title="Sin resultados"
           description="No se encontraron enlaces que coincidan con la búsqueda."
         />
+      ) : vaultView === 'board' ? (
+        <>
+          <BoardHeader
+            itemLabel="enlace"
+            presetParentId={listPresetParent}
+            className="mb-3"
+          />
+          <BoardView
+            columns={buildBoardColumns(filtered, {
+              sections,
+              categories,
+              filter: categoryFilter,
+              sectionId,
+            })}
+            renderCard={(link) => (
+              <LinkBoardCard
+                link={link}
+                onEdit={(l) => {
+                  setEditing(l)
+                  setDialogOpen(true)
+                }}
+                onDelete={setDeleting}
+              />
+            )}
+            onAddCard={handleOpenCreateIn}
+            onMoveCard={handleMoveCard}
+            onAddSubcategory={handleAddList}
+            onRenameColumn={(id, name) => void handleRenameColumn(id, name)}
+            onDeleteColumn={(id) => void handleDeleteColumn(id)}
+            addLabel="Añade un enlace"
+          />
+        </>
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filtered.map((link) => (
@@ -215,9 +313,13 @@ export function Links() {
         open={dialogOpen}
         onOpenChange={(open) => {
           setDialogOpen(open)
-          if (!open) setEditing(null)
+          if (!open) {
+            setEditing(null)
+            setCreateCategoryId('')
+          }
         }}
         link={editing ?? undefined}
+        defaultCategoryId={editing ? undefined : createCategoryId}
         onSubmit={handleSubmit}
       />
 

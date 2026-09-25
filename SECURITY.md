@@ -5,29 +5,63 @@
 Workvaul es una SPA (React + Vite) con **Supabase** como backend. Entender el
 modelo evita falsos positivos al reportar vulnerabilidades:
 
-- **La `anon key` es pública por diseño.** Va embebida en el bundle
-  (`VITE_SUPABASE_ANON_KEY`). No es una filtración: la protección real es
-  **Row Level Security (RLS)** en cada tabla (las políticas del Vault usan
-  `auth.uid() = user_id`; las de chat usan participación explícita). Ver
-  `supabase/schema.sql` y `supabase/schema-chat.sql`. En el Vault solo el dueño de
-  las filas puede leerlas o escribirlas; en chat, solo los participantes.
-- **No hay backend propio.** Toda la lógica de servidor vive en Supabase
-  (Auth, Postgres + RLS).
-- **Las claves de las cuentas se guardan en texto plano en la base**
-  (comentario "Fase 2" en `schema.sql`). El cifrado cliente (AES-GCM) está en
-  el roadmap; hasta entonces, el riesgo asumido es: quien tenga acceso ADMIN a
-  Supabase podría leerlas. El acceso desde la app está protegido por RLS.
-  Lo mismo aplica al **historial de claves** (`vault_password_history`) y a las
-  **credenciales compartidas** (`vault_workspace_items`), que son copias del
-  dato visible solo para los miembros del espacio.
-- **Claves de usuario y sesiones:** las gestiona Supabase Auth
-  (hash bcrypt/argon2, tokens rotados). Google OAuth delega en Google.
+- **El contenido privado usa cifrado de extremo a extremo en el navegador.**
+  El usuario crea una frase maestra independiente de Google; de ella se deriva
+  con PBKDF2 una clave AES-256-GCM. La frase y las claves derivadas no se envían
+  a Supabase y no se guardan en `localStorage`; el Vault queda bloqueado al
+  recargar o cerrar sesión.
+- **RLS sigue activo** en las tablas del Vault, sharing, historial y chat:
+  `using`/`with check` con `auth.uid()` y la participación/rol que corresponda.
+  La `anon key` es pública por diseño; RLS y el cifrado son capas distintas.
+- **Cifrado:** credenciales, enlaces, notas, historial y copias compartidas se
+  almacenan en `encrypted_payload`. Las claves de equipo se envuelven con la
+  clave pública RSA de cada miembro. El propietario de Supabase puede ver
+  ciphertext y metadatos (fechas, favoritos, categorías y relaciones), pero no
+  la frase maestra ni las claves AES con las que se descifra.
+- **Transición:** las filas nuevas nacen cifradas. Las filas antiguas se migran y
+  limpian progresivamente cuando el usuario las abre tras desbloquear el Vault;
+  hasta entonces, el propietario de Supabase puede ver esas filas heredadas en
+  claro.
+- **Adjuntos cifrados:** las imágenes de credenciales, enlaces y notas se cifran
+  con AES-GCM en el navegador antes de subirlas al bucket privado
+  `vault-attachments`. Supabase almacena el sobre opaco, nunca los bytes de la
+  imagen; nombre, MIME, tamaño e ID se guardan únicamente dentro del
+  `encrypted_payload` del registro. La descarga requiere una sesión autenticada
+  y se descifra en memoria; la UI usa un `Blob URL` temporal y lo revoca al
+  cerrar. No se usa `getPublicUrl`.
+- **Storage privado:** las políticas de `vault-attachments` sólo admiten
+  `authenticated` y exige que la primera carpeta sea `{auth.uid()}`. No hay
+  políticas públicas para imágenes. Si una eliminación de Storage falla, el
+  registro se elimina igualmente y el cliente deja registrada la limpieza
+  pendiente; una tarea posterior puede auditar carpetas privadas por usuario.
+- **Categorías:** `parent_id` y `sort_order` permiten raíces, subcategorías y
+  orden entre hermanos. El cliente rechaza padres de otra sección, ciclos y
+  referencias inexistentes; al borrar una categoría se desvinculan sus
+  descendientes y los registros quedan sin categoría, sin borrar contenido.
+- **Limitación del modelo:** no protege contra malware, una extensión
+  comprometida, una sesión ya robada o un dispositivo desbloqueado mientras se
+  usa la aplicación. Si alguien controla también el hosting o el código del
+  frontend, podría publicar una versión maliciosa que capture la frase maestra.
+  La exportación a Excel genera deliberadamente un archivo local en texto plano.
+- **Chat aislado:** `chat_conversations`, `chat_conversation_participants` y
+  `chat_messages` no contienen credenciales; cada lectura/escritura exige ser
+  participante. La creación de conversaciones directas pasa por una RPC
+  `SECURITY DEFINER` validada y el texto se sanea en cliente y servidor.
+- **Presencia:** heartbeat privado en Supabase con TTL; la UI solo consulta
+  usuarios visibles del chat/equipo abierto. El contador global se muestra en el
+  menú de cuenta únicamente después de que `is_global_owner()` confirme en
+  Supabase el correo exacto `elvissebas39@gmail.com`.
+- Headers de seguridad en producción via `vercel.json`: CSP, HSTS,
+  `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
+- `robots.txt` con `Disallow: /` + `meta noindex` (contenido privado).
+- `.env` ignorado por git; solo existe `.env.example`.
 
 ## Controles implementados
 
 | Capa           | Control                                                                                                                                                                                                         |
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Datos          | RLS activo en las tablas del Vault, sharing, historial y `chat_conversations`, `chat_conversation_participants`, `chat_messages`                                                                                |
+| Datos          | RLS activo en las tablas del Vault, sharing, historial y `chat_conversations`, `chat_conversation_participants`, `chat_messages`; `vault-attachments` restringido a `authenticated` y rutas `{auth.uid()}/...`                                                                                |
+| Cifrado        | AES-256-GCM en el navegador, PBKDF2 con frase maestra y claves RSA para compartir; Supabase almacena ciphertext, sal, verificadores y claves envueltas                                                    |
 | Privacidad     | `list_workspace_members()` y `get_chat_user_profiles()` ocultan el email a usuarios no globales cuando existe un nombre registrado; solo `elvissebas39@gmail.com` ve nombre + correo                            |
 | Chat           | Las tablas `chat_*` están aisladas de credenciales; lectura y envío exigen ser participante. La creación de chats directos usa una RPC `SECURITY DEFINER` validada y el contenido se sanea antes de persistirse |
 | Notificaciones | `chat_notifications` solo es legible por su destinatario; un registro por mensaje y avisos genéricos de cambios del equipo, sin copiar credenciales                                                             |

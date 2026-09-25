@@ -37,11 +37,12 @@ export interface WorkspaceItemRow {
   workspace_id: string
   credential_id: string | null
   created_by: string
-  title: string
-  username: string
-  password: string
-  url: string | null
-  notes: string | null
+  title?: string | null
+  username?: string | null
+  password?: string | null
+  url?: string | null
+  notes?: string | null
+  encrypted_payload?: string | null
   created_at: string
   updated_at: string
 }
@@ -79,6 +80,9 @@ export function toWorkspaceItemReference(
 }
 
 export function toWorkspaceItem(row: WorkspaceItemRow): WorkspaceItem {
+  if (typeof row.title !== 'string' || typeof row.username !== 'string' || typeof row.password !== 'string') {
+    throw new Error('No se pudo descifrar el elemento compartido.')
+  }
   return {
     id: row.id,
     workspaceId: row.workspace_id,

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -15,7 +15,8 @@ import { Textarea } from '@/components/ui/Textarea'
 import { Label } from '@/components/ui/Label'
 import { Button } from '@/components/ui/Button'
 import { CategorySelect } from '@/components/credentials/CategorySelect'
-import type { LinkItem } from '@/types'
+import { AttachmentPicker } from '@/components/attachments/AttachmentPicker'
+import type { AttachmentDraft, LinkItem } from '@/types'
 
 const linkSchema = z.object({
   title: z
@@ -46,11 +47,23 @@ interface LinkDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   link?: LinkItem
-  onSubmit: (values: LinkFormValues) => void
+  onSubmit: (values: LinkFormValues, attachments: AttachmentDraft) => void
+  /** Categoría preseleccionada al crear desde una columna del tablero. */
+  defaultCategoryId?: string
 }
 
-export function LinkDialog({ open, onOpenChange, link, onSubmit }: LinkDialogProps) {
+export function LinkDialog({
+  open,
+  onOpenChange,
+  link,
+  onSubmit,
+  defaultCategoryId,
+}: LinkDialogProps) {
   const isEditing = Boolean(link)
+  const [attachmentDraft, setAttachmentDraft] = useState<AttachmentDraft>({
+    newFiles: [],
+    removedIds: [],
+  })
 
   const {
     register,
@@ -66,6 +79,7 @@ export function LinkDialog({ open, onOpenChange, link, onSubmit }: LinkDialogPro
 
   useEffect(() => {
     if (!open) return
+    setAttachmentDraft({ newFiles: [], removedIds: [] })
     if (link) {
       reset({
         title: link.title,
@@ -74,9 +88,9 @@ export function LinkDialog({ open, onOpenChange, link, onSubmit }: LinkDialogPro
         description: link.description ?? '',
       })
     } else {
-      reset(EMPTY)
+      reset({ ...EMPTY, categoryId: defaultCategoryId ?? '' })
     }
-  }, [open, link, reset])
+  }, [open, link, defaultCategoryId, reset])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange} className="max-w-xl">
@@ -93,7 +107,10 @@ export function LinkDialog({ open, onOpenChange, link, onSubmit }: LinkDialogPro
       </DialogHeader>
 
       <DialogContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form
+          onSubmit={handleSubmit((values) => onSubmit(values, attachmentDraft))}
+          className="space-y-4"
+        >
           <div className="space-y-1.5">
             <Label htmlFor="link-title">Título</Label>
             <Input
@@ -142,6 +159,12 @@ export function LinkDialog({ open, onOpenChange, link, onSubmit }: LinkDialogPro
               <p className="text-xs text-red-400">{errors.description.message}</p>
             )}
           </div>
+
+          <AttachmentPicker
+            existing={link?.attachments}
+            value={attachmentDraft}
+            onChange={setAttachmentDraft}
+          />
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

@@ -42,7 +42,8 @@ create table if not exists public.vault_workspace_items (
   created_by uuid not null references auth.users (id) on delete cascade,
   title text not null check (char_length(title) between 1 and 80),
   username text not null check (char_length(username) between 1 and 120),
-  -- NOTA: en texto claro por ahora, igual que vault_credentials.password.
+  -- Compatibilidad durante la transición; el cliente limpia la copia al
+  -- abrirla y escribe encrypted_payload.
   password text not null,
   url text,
   notes text,

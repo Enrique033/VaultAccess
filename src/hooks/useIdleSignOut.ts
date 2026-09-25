@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useAuth } from '@/app/auth-context'
+import { useVaultKey } from '@/app/vault-key-context'
 import { toast } from '@/store/ui.store'
 
 /**
@@ -8,6 +9,7 @@ import { toast } from '@/store/ui.store'
  */
 export function useIdleSignOut(timeoutMs = 15 * 60_000) {
   const { status, signOut } = useAuth()
+  const { lock } = useVaultKey()
   const signOutRef = useRef(signOut)
   signOutRef.current = signOut
 
@@ -26,6 +28,7 @@ export function useIdleSignOut(timeoutMs = 15 * 60_000) {
 
     const fire = () => {
       clear()
+      lock()
       void signOutRef.current()
       toast.show(
         'Sesión cerrada',
@@ -60,5 +63,5 @@ export function useIdleSignOut(timeoutMs = 15 * 60_000) {
         window.removeEventListener(event, reset)
       }
     }
-  }, [status, timeoutMs])
+  }, [status, timeoutMs, lock])
 }

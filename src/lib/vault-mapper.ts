@@ -20,6 +20,8 @@ export interface CategoryRow {
   id: string
   user_id?: string
   section_id: string
+  parent_id?: string | null
+  sort_order?: number | null
   name: string
   color: string
   created_at?: string
@@ -45,7 +47,14 @@ export function toSection(row: SectionRow): VaultSection {
 }
 
 export function toCategory(row: CategoryRow): Category {
-  return { id: row.id, name: row.name, color: row.color, sectionId: row.section_id }
+  return {
+    id: row.id,
+    name: row.name,
+    color: row.color,
+    sectionId: row.section_id,
+    parentId: row.parent_id ?? undefined,
+    sortOrder: row.sort_order ?? 0,
+  }
 }
 
 export function toCredential(row: CredentialRow): Credential {
@@ -57,6 +66,7 @@ export function toCredential(row: CredentialRow): Credential {
     url: row.url ?? undefined,
     categoryId: row.category_id ?? undefined,
     notes: row.notes ?? undefined,
+    attachments: [],
     favorite: row.favorite,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -83,6 +93,7 @@ export function toLink(row: LinkRow): LinkItem {
     url: row.url,
     categoryId: row.category_id ?? undefined,
     description: row.description ?? undefined,
+    attachments: [],
     favorite: row.favorite,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -107,6 +118,7 @@ export function toNote(row: NoteRow): Note {
     title: row.title,
     content: row.content,
     categoryId: row.category_id ?? undefined,
+    attachments: [],
     favorite: row.favorite,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

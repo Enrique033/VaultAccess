@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { FileSpreadsheet, LogOut, User, Users } from 'lucide-react'
+import { FileSpreadsheet, LockKeyhole, LogOut, User, Users } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import {
@@ -19,7 +19,11 @@ import {
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
 import { useAuth } from '@/app/auth-context'
+import { useVaultKey } from '@/app/vault-key-context'
 import { useVaultStore } from '@/store/vault.store'
+import { useWorkspaceStore } from '@/store/workspace.store'
+import { useChatStore } from '@/store/chat.store'
+import { useNotificationStore } from '@/store/notification.store'
 import { toast } from '@/store/ui.store'
 import { usePresenceContext } from '@/hooks/usePresence'
 
@@ -28,6 +32,7 @@ const errorBox =
 
 export function UserMenu() {
   const { user, signOut } = useAuth()
+  const { lock } = useVaultKey()
   const navigate = useNavigate()
   const { globalOnline, isGlobalOwner } = usePresenceContext()
   const [busy, setBusy] = useState(false)
@@ -44,8 +49,13 @@ export function UserMenu() {
 
   const handleSignOut = async () => {
     setBusy(true)
+    lock()
     try {
       await signOut()
+      useVaultStore.getState().reset()
+      useWorkspaceStore.getState().reset()
+      useChatStore.getState().reset()
+      useNotificationStore.getState().reset()
       navigate('/login', { replace: true })
       toast.show('Sesión cerrada')
     } finally {
@@ -144,6 +154,10 @@ export function UserMenu() {
         )}
         <DropdownMenuItem onClick={() => setProfileOpen(true)}>
           <User className="size-3.5" /> Editar perfil
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={lock}>
+          <LockKeyhole className="size-3.5" /> Bloquear Vault
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => void handleExport()}>

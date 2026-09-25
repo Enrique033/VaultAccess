@@ -31,7 +31,8 @@ create table if not exists public.vault_credentials (
   category_id uuid references public.vault_categories (id) on delete set null,
   title text not null check (char_length(title) between 1 and 80),
   username text not null check (char_length(username) between 1 and 120),
-  -- NOTA: en texto claro por ahora. Fase 2 = cifrar en cliente (AES-GCM).
+  -- La columna se conserva como compatibilidad durante la transición; las nuevas
+  -- filas escriben el contenido en encrypted_payload.
   password text not null,
   url text,
   notes text,

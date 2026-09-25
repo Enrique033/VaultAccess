@@ -8,4 +8,8 @@ export interface Category {
   name: string
   color: string
   sectionId: string
+  /** Categoría padre; undefined = categoría raíz de la sección. */
+  parentId?: string
+  /** Orden estable dentro de la misma sección y padre. */
+  sortOrder: number
 }

@@ -10,7 +10,6 @@ import {
   Vault,
   X,
 } from 'lucide-react'
-import { CategorySidebar } from './CategorySidebar'
 import { useUIStore } from '@/store/ui.store'
 import { cn } from '@/lib/utils'
 
@@ -94,11 +93,10 @@ function SidebarPanel({ collapsed, onToggle, onClose }: SidebarPanelProps) {
         })}
       </nav>
 
-      {!collapsed && (
-        <div className="max-h-[55%] overflow-y-auto overscroll-contain border-t border-border p-3">
-          <CategorySidebar />
-        </div>
-      )}
+      {/*
+        Sin panel de categorías: la jerarquía se gestiona desde el encabezado del
+        tablero (columnas por categoría), igual que las listas en Trello.
+      */}
 
       {onToggle && (
         <div className="border-t border-border p-2">

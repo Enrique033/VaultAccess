@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import type { Session, User } from '@supabase/supabase-js'
 import { appUrl, supabase, isSupabaseConfigured } from '@/lib/supabase'
 import { friendlyError } from '@/lib/auth-errors'
+import { clearActiveVaultSession } from '@/lib/vault-session'
 
 export type AuthStatus = 'loading' | 'signed-in' | 'signed-out' | 'unconfigured'
 
@@ -46,14 +47,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (next && !hasGoogleIdentity(next.user)) {
         setSession(null)
         setStatus('signed-out')
+        clearActiveVaultSession()
         if (!invalidSessionSignOutQueued) {
           invalidSessionSignOutQueued = true
           setTimeout(() => {
             void supabase.auth.signOut()
+            clearActiveVaultSession()
           }, 0)
         }
         return
       }
+      if (!next) clearActiveVaultSession()
       setSession(next)
       setStatus(next ? 'signed-in' : 'signed-out')
     }
@@ -73,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = async () => {
+    clearActiveVaultSession()
     await supabase.auth.signOut()
   }
 

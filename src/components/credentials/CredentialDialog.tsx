@@ -11,7 +11,7 @@ import {
 import { CredentialForm, type CredentialFormValues } from './CredentialForm'
 import { CredentialHistory } from './CredentialHistory'
 import { cn } from '@/lib/utils'
-import type { Credential } from '@/types'
+import type { AttachmentDraft, Credential } from '@/types'
 
 type Tab = 'data' | 'history'
 
@@ -19,7 +19,9 @@ interface CredentialDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   credential?: Credential
-  onSubmit: (values: CredentialFormValues) => void
+  onSubmit: (values: CredentialFormValues, attachments: AttachmentDraft) => void
+  /** Categoría preseleccionada al crear desde una columna del tablero. */
+  defaultCategoryId?: string
 }
 
 export function CredentialDialog({
@@ -27,6 +29,7 @@ export function CredentialDialog({
   onOpenChange,
   credential,
   onSubmit,
+  defaultCategoryId,
 }: CredentialDialogProps) {
   const isEditing = Boolean(credential)
   const [tab, setTab] = useState<Tab>('data')
@@ -103,6 +106,7 @@ export function CredentialDialog({
           <CredentialForm
             credential={credential}
             passwordSeed={passwordSeed}
+            defaultCategoryId={defaultCategoryId}
             onSubmit={onSubmit}
             onCancel={() => onOpenChange(false)}
           />

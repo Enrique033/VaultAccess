@@ -12,7 +12,8 @@ create table if not exists public.vault_password_history (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
   credential_id uuid not null references public.vault_credentials (id) on delete cascade,
-  -- NOTA: en texto claro por ahora, igual que vault_credentials.password.
+  -- Compatibilidad durante la transición; el cliente limpia esta columna al
+  -- abrir la fila y escribe encrypted_payload.
   password text not null,
   changed_at timestamptz not null default now()
 );

@@ -1,3 +1,4 @@
+export type { Attachment, AttachmentChanges, AttachmentDraft } from './attachment'
 export type { Category, VaultSection } from './category'
 export type { Credential } from './credential'
 export type { PasswordHistoryEntry } from './history'

@@ -7,7 +7,5 @@ export const STORAGE_KEYS = {
   ui: 'workvaul.ui',
 } as const
 
-// TODO(Fase Security): reemplazar la persistencia de `vault` por
-// un payload cifrado con AES-GCM (Web Crypto API) derivado de la
-// Master Password con PBKDF2. La implementación actual es temporal
-// y solo apta para desarrollo local.
+// El estado del Vault no se persiste en localStorage: las claves y el contenido
+// descifrado viven solo en memoria. `ui` conserva únicamente preferencias visuales.

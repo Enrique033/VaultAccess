@@ -14,6 +14,9 @@ export interface Toast {
 
 export type Theme = 'light' | 'dark'
 
+/** Modo de visualización de los listados del Vault. */
+export type VaultView = 'grid' | 'board'
+
 interface UIState {
   sidebarCollapsed: boolean
   /** Drawer de navegación en móvil/tablet. */
@@ -21,6 +24,8 @@ interface UIState {
   /** Drawer de chat interno. No se persiste entre sesiones. */
   chatOpen: boolean
   theme: Theme
+  /** Rejilla o tablero por columnas. */
+  vaultView: VaultView
   toasts: Toast[]
 
   toggleSidebar: () => void
@@ -30,6 +35,7 @@ interface UIState {
   toggleChat: () => void
   setChatOpen: (open: boolean) => void
   toggleTheme: () => void
+  setVaultView: (view: VaultView) => void
 
   addToast: (toast: Omit<Toast, 'id'>) => void
   removeToast: (id: string) => void
@@ -46,6 +52,7 @@ export const useUIStore = create<UIState>()(
       mobileNavOpen: false,
       chatOpen: false,
       theme: 'light' as Theme,
+      vaultView: 'grid' as VaultView,
       toasts: [],
 
       toggleSidebar: () =>
@@ -68,6 +75,8 @@ export const useUIStore = create<UIState>()(
           return { theme }
         }),
 
+      setVaultView: (vaultView) => set({ vaultView }),
+
       addToast: (toast) => {
         const id = generateId()
         set((s) => ({ toasts: [...s.toasts, { ...toast, id }] }))
@@ -80,6 +89,7 @@ export const useUIStore = create<UIState>()(
       name: STORAGE_KEYS.ui,
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
+        vaultView: state.vaultView,
       }),
       onRehydrateStorage: () => (state) => {
         // El producto es light-first: una preferencia oscura antigua no debe

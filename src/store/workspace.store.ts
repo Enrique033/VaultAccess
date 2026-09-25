@@ -4,10 +4,13 @@ import { useAuth } from '@/app/auth-context'
 import { isSupabaseConfigured, requireUserId, supabase } from '@/lib/supabase'
 import {
   toWorkspace,
-  toWorkspaceItem,
   toWorkspaceMember,
   toWorkspaceItemReference,
 } from '@/lib/workspace-mapper'
+import { getVaultSessionGeneration } from '@/lib/vault-session'
+import { toEncryptedWorkspaceItem } from '@/lib/workspace-record-crypto'
+import { getWorkspaceKey, ensureWorkspaceKey, syncWorkspaceKeys } from '@/lib/workspace-crypto'
+import { encryptJson, workspaceRecordAad } from '@/lib/vault-crypto'
 import type {
   WorkspaceItemReferenceRow,
   WorkspaceItemRow,
@@ -29,10 +32,10 @@ export type WorkspaceStatus = 'idle' | 'loading' | 'ready' | 'error' | 'local'
 function friendlyWorkspaceError(message: string): string {
   if (/list_workspace_members|schema-chat-v2/i.test(message))
     return 'Falta la privacidad de miembros. Ejecuta supabase/schema-chat-v2.sql en Supabase.'
-  if (/relation .* does not exist|schema cache/i.test(message))
-    return 'Faltan las tablas de equipos. Ejecuta supabase/schema-sharing.sql en el SQL Editor de Supabase.'
+  if (/relation .* does not exist|schema cache|PGRST202/i.test(message))
+    return 'Faltan tablas o funciones de cifrado. Ejecuta supabase/schema-encryption.sql después de las migraciones base en el SQL Editor de Supabase.'
   if (/row-level security/i.test(message))
-    return `Supabase bloqueó la operación (RLS). Revisa que ejecutaste supabase/schema-sharing.sql y que iniciaste sesión. Detalle: ${message}`
+    return `Supabase bloqueó la operación (RLS). Revisa las migraciones de Supabase y que hayas iniciado sesión. Detalle: ${message}`
   if (/Failed to fetch|NetworkError|network/i.test(message))
     return 'Sin conexión con Supabase. Revisa tu internet o la URL del proyecto.'
   if (/duplicate key/i.test(message))
@@ -43,7 +46,7 @@ function friendlyWorkspaceError(message: string): string {
 const WORKSPACE_COLUMNS = 'id, owner_id, name, created_at'
 const ITEM_REFERENCE_COLUMNS = 'id, workspace_id, credential_id'
 const ITEM_COLUMNS =
-  'id, workspace_id, credential_id, created_by, title, username, password, url, notes, created_at, updated_at'
+  'id, workspace_id, credential_id, created_by, title, username, password, url, notes, encrypted_payload, created_at, updated_at'
 
 function isMissingRpcError(message: string): boolean {
   return /PGRST202|schema cache|function .*does not exist|could not find the function/i.test(
@@ -53,17 +56,6 @@ function isMissingRpcError(message: string): boolean {
 
 let workspaceLoadGeneration = 0
 let workspaceItemsGeneration = 0
-
-/** Copia el dato de una credencial al formato de elemento compartido. */
-function itemPayload(credential: Credential) {
-  return {
-    title: credential.title,
-    username: credential.username,
-    password: credential.password,
-    url: credential.url ?? null,
-    notes: credential.notes ?? null,
-  }
-}
 
 interface WorkspaceState {
   workspaces: Workspace[]
@@ -121,6 +113,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
 
   load: async () => {
     const generation = ++workspaceLoadGeneration
+    const vaultGeneration = getVaultSessionGeneration()
     workspaceItemsGeneration += 1
     if (!isSupabaseConfigured) {
       set({
@@ -191,7 +184,32 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
       }
 
       const workspaces = workspaceRows.map(toWorkspace)
-      if (generation !== workspaceLoadGeneration) return
+      if (
+        generation !== workspaceLoadGeneration ||
+        vaultGeneration !== getVaultSessionGeneration()
+      )
+        return
+      const currentUserId = await requireUserId()
+      const memberIdsByWorkspace = new Map<string, string[]>()
+      for (const member of memberRows) {
+        if (!member.user_id) continue
+        const ids = memberIdsByWorkspace.get(member.workspace_id) ?? []
+        ids.push(member.user_id)
+        memberIdsByWorkspace.set(member.workspace_id, ids)
+      }
+      for (const workspace of workspaces.filter(
+        (item) => item.ownerId === currentUserId,
+      )) {
+        await syncWorkspaceKeys(
+          workspace.id,
+          memberIdsByWorkspace.get(workspace.id) ?? [],
+        )
+      }
+      if (
+        generation !== workspaceLoadGeneration ||
+        vaultGeneration !== getVaultSessionGeneration()
+      )
+        return
       set((state) => ({
         workspaces,
         members: memberRows.map(toWorkspaceMember),
@@ -209,7 +227,11 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
             : (workspaces[0]?.id ?? null),
       }))
     } catch (e) {
-      if (generation !== workspaceLoadGeneration) return
+      if (
+        generation !== workspaceLoadGeneration ||
+        vaultGeneration !== getVaultSessionGeneration()
+      )
+        return
       set({
         status: 'error',
         error: e instanceof Error ? e.message : 'Error al cargar los espacios.',
@@ -221,6 +243,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
     const state = get()
     if (state.itemsWorkspaceId === workspaceId && !state.itemsError) return
     const generation = ++workspaceItemsGeneration
+    const vaultGeneration = getVaultSessionGeneration()
     if (!isSupabaseConfigured) {
       set({
         items: [],
@@ -236,25 +259,48 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
       itemsLoading: true,
       itemsError: null,
     })
-    const { data, error } = await supabase
-      .from('vault_workspace_items')
-      .select(ITEM_COLUMNS)
-      .eq('workspace_id', workspaceId)
-      .order('updated_at', { ascending: false })
-    if (generation !== workspaceItemsGeneration) return
-    if (error) {
+    try {
+      const { data, error } = await supabase
+        .from('vault_workspace_items')
+        .select(ITEM_COLUMNS)
+        .eq('workspace_id', workspaceId)
+        .order('updated_at', { ascending: false })
+      if (
+        generation !== workspaceItemsGeneration ||
+        vaultGeneration !== getVaultSessionGeneration()
+      )
+        return
+      if (error) throw new Error(friendlyWorkspaceError(error.message))
+      const key = await getWorkspaceKey(workspaceId)
+      const rows = (data ?? []) as WorkspaceItemRow[]
+      const items = await Promise.all(
+        rows.map((row) => toEncryptedWorkspaceItem(row, workspaceId, key)),
+      )
+      if (
+        generation !== workspaceItemsGeneration ||
+        vaultGeneration !== getVaultSessionGeneration()
+      )
+        return
+      set({
+        items,
+        itemsWorkspaceId: workspaceId,
+        itemsLoading: false,
+        itemsError: null,
+      })
+    } catch (e) {
+      if (
+        generation !== workspaceItemsGeneration ||
+        vaultGeneration !== getVaultSessionGeneration()
+      )
+        return
       set({
         itemsLoading: false,
-        itemsError: friendlyWorkspaceError(error.message),
+        itemsError:
+          e instanceof Error
+            ? e.message
+            : 'No se pudieron descifrar los elementos del equipo.',
       })
-      return
     }
-    set({
-      items: ((data ?? []) as WorkspaceItemRow[]).map(toWorkspaceItem),
-      itemsWorkspaceId: workspaceId,
-      itemsLoading: false,
-      itemsError: null,
-    })
   },
 
   setActive: (activeId) => set({ activeId }),
@@ -333,6 +379,7 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
         }))
       }
     }
+    await ensureWorkspaceKey(workspace.id)
 
     set((s) => ({
       workspaces: [...s.workspaces, workspace],
@@ -411,41 +458,75 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
   },
 
   removeMember: async (memberId) => {
+    const member = get().members.find((item) => item.id === memberId)
     const { error } = await supabase
       .from('vault_workspace_members')
       .delete()
       .eq('id', memberId)
     if (error) throw new Error(friendlyWorkspaceError(error.message))
+    if (member?.userId) {
+      await supabase
+        .from('vault_workspace_keys')
+        .delete()
+        .eq('workspace_id', member.workspaceId)
+        .eq('user_id', member.userId)
+    }
     set((s) => ({ members: s.members.filter((m) => m.id !== memberId) }))
   },
 
   shareCredential: async (workspaceId, credential) => {
     const userId = await requireUserId()
+    const workspaceKey = await ensureWorkspaceKey(workspaceId)
+    const payload = {
+      title: credential.title,
+      username: credential.username,
+      password: credential.password,
+      url: credential.url ?? undefined,
+      notes: credential.notes ?? undefined,
+    }
     const existing = get().itemReferences.find(
       (item) =>
         item.workspaceId === workspaceId && item.credentialId === credential.id,
     )
+    const itemId = existing?.id ?? crypto.randomUUID()
+    const encryptedPayload = await encryptJson(
+      payload,
+      workspaceKey,
+      workspaceRecordAad(workspaceId, itemId),
+    )
     const request = existing
       ? supabase
           .from('vault_workspace_items')
-          .update(itemPayload(credential))
-          .eq('id', existing.id)
-          .select()
+          .update({
+            encrypted_payload: encryptedPayload,
+            title: null,
+            username: null,
+            password: null,
+            url: null,
+            notes: null,
+          })
+          .eq('id', itemId)
+          .select(ITEM_COLUMNS)
           .single()
       : supabase
           .from('vault_workspace_items')
           .insert({
-            ...itemPayload(credential),
+            id: itemId,
             workspace_id: workspaceId,
             credential_id: credential.id,
             created_by: userId,
+            encrypted_payload: encryptedPayload,
           })
-          .select()
+          .select(ITEM_COLUMNS)
           .single()
 
     const { data, error } = await request
     if (error) throw new Error(friendlyWorkspaceError(error.message))
-    const item = toWorkspaceItem(data as WorkspaceItemRow)
+    const item = await toEncryptedWorkspaceItem(
+      data as WorkspaceItemRow,
+      workspaceId,
+      workspaceKey,
+    )
     const reference = toWorkspaceItemReference({
       id: item.id,
       workspace_id: item.workspaceId,
@@ -464,19 +545,43 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
   },
 
   updateSharedItem: async (itemId, credential) => {
+    const current = get().items.find((item) => item.id === itemId)
+    if (!current) throw new Error('El elemento compartido ya no existe.')
+    const workspaceKey = await getWorkspaceKey(current.workspaceId)
+    const encryptedPayload = await encryptJson(
+      {
+        title: credential.title,
+        username: credential.username,
+        password: credential.password,
+        url: credential.url ?? undefined,
+        notes: credential.notes ?? undefined,
+      },
+      workspaceKey,
+      workspaceRecordAad(current.workspaceId, itemId),
+    )
     const { data, error } = await supabase
       .from('vault_workspace_items')
-      .update(itemPayload(credential))
+      .update({
+        encrypted_payload: encryptedPayload,
+        title: null,
+        username: null,
+        password: null,
+        url: null,
+        notes: null,
+      })
       .eq('id', itemId)
-      .select()
+      .select(ITEM_COLUMNS)
       .single()
     if (error) throw new Error(friendlyWorkspaceError(error.message))
-    const item = toWorkspaceItem(data as WorkspaceItemRow)
+    const item = await toEncryptedWorkspaceItem(
+      data as WorkspaceItemRow,
+      current.workspaceId,
+      workspaceKey,
+    )
     set((s) => ({
-      items:
-        s.itemsWorkspaceId === item.workspaceId
-          ? s.items.map((i) => (i.id === itemId ? item : i))
-          : s.items,
+      items: s.itemsWorkspaceId === item.workspaceId
+        ? s.items.map((i) => (i.id === itemId ? item : i))
+        : s.items,
     }))
   },
 

@@ -10,12 +10,18 @@ import { CardGridSkeleton } from '@/components/ui/Skeleton'
 import { CredentialGrid } from '@/components/credentials/CredentialGrid'
 import { CredentialDialog } from '@/components/credentials/CredentialDialog'
 import { CredentialSortSelect } from '@/components/credentials/CredentialSortSelect'
+import { ViewToggle } from '@/components/board/ViewToggle'
+import { BoardView } from '@/components/board/BoardView'
+import { BoardHeader } from '@/components/board/BoardHeader'
+import { CredentialBoardCard } from '@/components/board/CredentialBoardCard'
 import type { CredentialFormValues } from '@/components/credentials/CredentialForm'
+import type { AttachmentDraft } from '@/types'
 import { evaluatePassword } from '@/lib/password-strength'
+import { buildBoardColumns } from '@/lib/vault-board'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
 import { useWorkspaceStore } from '@/store/workspace.store'
-import { toast } from '@/store/ui.store'
+import { toast, useUIStore } from '@/store/ui.store'
 import { FAVORITES, matchesCategoryFilter } from '@/lib/vault-filters'
 import type { Credential } from '@/types'
 
@@ -26,6 +32,8 @@ export function Credentials() {
   const status = useVaultStore((s) => s.status)
   const syncError = useVaultStore((s) => s.error)
   const retryLoad = useVaultStore((s) => s.load)
+  const renameCategory = useVaultStore((s) => s.renameCategory)
+  const deleteCategory = useVaultStore((s) => s.deleteCategory)
   const addCredential = useVaultStore((s) => s.addCredential)
   const updateCredential = useVaultStore((s) => s.updateCredential)
   const deleteCredential = useVaultStore((s) => s.deleteCredential)
@@ -44,6 +52,11 @@ export function Credentials() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Credential | null>(null)
   const [deleting, setDeleting] = useState<Credential | null>(null)
+  /** Categoría preseleccionada al crear desde el botón «+» de una columna. */
+  const [createCategoryId, setCreateCategoryId] = useState('')
+  /** Petición de alta de lista lanzada desde una columna del tablero. */
+  const [listPresetParent, setListPresetParent] = useState<string | null>(null)
+  const vaultView = useUIStore((s) => s.vaultView)
 
   // Abre el dialog automáticamente cuando el Header navega con ?new=1
   const newParam = searchParams.get('new')
@@ -105,7 +118,33 @@ export function Credentials() {
 
   const handleOpenCreate = () => {
     setEditing(null)
+    setCreateCategoryId('')
     setDialogOpen(true)
+  }
+
+  /** Abre el diálogo de creación con la categoría de la columna ya elegida. */
+  const handleOpenCreateIn = (categoryId: string) => {
+    setEditing(null)
+    setCreateCategoryId(categoryId)
+    setDialogOpen(true)
+  }
+
+  /** Arrastre entre columnas: sólo cambia la categoría y conserva los adjuntos. */
+  const handleMoveCard = async (
+    credential: Credential,
+    toCategoryId: string | undefined,
+  ) => {
+    const target = categories.find((c) => c.id === toCategoryId)
+    try {
+      await updateCredential(credential.id, { categoryId: toCategoryId })
+      toast.success(
+        target
+          ? `Movida a ${target.name}`
+          : 'Movida a Sin categoría',
+      )
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo mover')
+    }
   }
 
   const handleOpenEdit = (credential: Credential) => {
@@ -113,7 +152,40 @@ export function Credentials() {
     setDialogOpen(true)
   }
 
-  const handleSubmit = async (values: CredentialFormValues) => {
+  /** Renombra la categoría de una columna desde el tablero. */
+  const handleRenameColumn = async (categoryId: string, name: string) => {
+    try {
+      await renameCategory(categoryId, name)
+      toast.success('Lista renombrada')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo renombrar')
+    }
+  }
+
+  /** Elimina una columna; sus registros quedan sin categoría. */
+  const handleDeleteColumn = async (categoryId: string) => {
+    const target = categories.find((c) => c.id === categoryId)
+    if (!target) return
+    const confirmed = window.confirm(
+      `¿Eliminar la lista "${target.name}"? Sus credenciales quedarán sin categoría.`,
+    )
+    if (!confirmed) return
+    if (categoryFilter === categoryId) setCategoryFilter(null)
+    try {
+      await deleteCategory(categoryId)
+      toast.success('Lista eliminada')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo eliminar')
+    }
+  }
+
+  /** Abre el alta de lista del encabezado; opcionalmente anidada. */
+  const handleAddList = (parentId: string) => setListPresetParent(parentId)
+
+  const handleSubmit = async (
+    values: CredentialFormValues,
+    attachments: AttachmentDraft,
+  ) => {
     const normalized = {
       title: values.title.trim(),
       username: values.username.trim(),
@@ -125,10 +197,10 @@ export function Credentials() {
 
     try {
       if (editing) {
-        await updateCredential(editing.id, normalized)
+        await updateCredential(editing.id, normalized, attachments)
         toast.success('Credencial actualizada')
       } else {
-        await addCredential(normalized)
+        await addCredential(normalized, attachments)
         toast.success('Credencial creada')
       }
       setDialogOpen(false)
@@ -227,6 +299,7 @@ export function Credentials() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-elevated/50 p-3 rounded-xl border border-border/50">
           <FilterChips sections={sections} categories={categories} />
           <div className="flex items-center gap-2 shrink-0">
+            <ViewToggle />
             <span className="text-xs text-muted hidden sm:inline">
               Ordenar por:
             </span>
@@ -267,6 +340,35 @@ export function Credentials() {
           title="Sin resultados"
           description="No se encontraron credenciales que coincidan con la búsqueda."
         />
+      ) : vaultView === 'board' ? (
+        <>
+          <BoardHeader
+            itemLabel="credencial"
+            presetParentId={listPresetParent}
+            className="mb-3"
+          />
+          <BoardView
+            columns={buildBoardColumns(filtered, {
+              sections,
+              categories,
+              filter: categoryFilter,
+              sectionId,
+            })}
+            renderCard={(credential) => (
+              <CredentialBoardCard
+                credential={credential}
+                onEdit={handleOpenEdit}
+                onDelete={setDeleting}
+              />
+            )}
+            onAddCard={handleOpenCreateIn}
+            onMoveCard={handleMoveCard}
+            onAddSubcategory={handleAddList}
+            onRenameColumn={(id, name) => void handleRenameColumn(id, name)}
+            onDeleteColumn={(id) => void handleDeleteColumn(id)}
+            addLabel="Añade una credencial"
+          />
+        </>
       ) : (
         <CredentialGrid
           credentials={filtered}
@@ -280,9 +382,13 @@ export function Credentials() {
         open={dialogOpen}
         onOpenChange={(open) => {
           setDialogOpen(open)
-          if (!open) setEditing(null)
+          if (!open) {
+            setEditing(null)
+            setCreateCategoryId('')
+          }
         }}
         credential={editing ?? undefined}
+        defaultCategoryId={editing ? undefined : createCategoryId}
         onSubmit={handleSubmit}
       />
 
