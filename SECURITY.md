@@ -8,8 +8,20 @@ modelo evita falsos positivos al reportar vulnerabilidades:
 - **El contenido privado usa cifrado de extremo a extremo en el navegador.**
   El usuario crea una frase maestra independiente de Google; de ella se deriva
   con PBKDF2 una clave AES-256-GCM. La frase y las claves derivadas no se envían
-  a Supabase y no se guardan en `localStorage`; el Vault queda bloqueado al
-  recargar o cerrar sesión.
+  nunca a Supabase.
+  - **Caché de sesión:** la frase se guarda en `sessionStorage` (nunca en
+    `localStorage`) para no pedirla en cada recarga. `sessionStorage` pertenece a
+    la pestaña y el navegador lo descarta al cerrarla, así que **no queda una
+    llave maestra escrita en el disco del perfil**. Al recuperarla se vuelve a
+    derivar la misma clave AES, por lo que **no requiere migración de los datos
+    ya cifrados**: los AAD dependen de `user_id` e id de registro, que no cambian.
+  - El bloqueo por inactividad, el cierre de sesión y el cambio de usuario borran
+    esa caché.
+  - **Riesgo asumido:** cualquier JavaScript que se ejecute en este origen
+    (XSS o extensión con permiso de lectura sobre la pestaña) puede leer la
+    frase cacheada mientras la pestaña está abierta. Es el mismo riesgo que tener
+    la clave en memoria, y sigue sin exponerla al servidor ni a terceros.
+  - Si la caché se pierde o la pestaña se cierra, el Vault vuelve a pedirla.
 - **RLS sigue activo** en las tablas del Vault, sharing, historial y chat:
   `using`/`with check` con `auth.uid()` y la participación/rol que corresponda.
   La `anon key` es pública por diseño; RLS y el cifrado son capas distintas.

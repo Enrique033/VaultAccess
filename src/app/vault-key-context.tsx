@@ -22,6 +22,11 @@ import {
   getVaultSessionGeneration,
   setActiveVaultSession,
 } from '@/lib/vault-session'
+import {
+  cachePassphrase,
+  clearCachedPassphrase,
+  readCachedPassphrase,
+} from '@/lib/storage'
 
 export type VaultKeyStatus =
   | 'loading'
@@ -111,6 +116,43 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
         setStatus('error')
         return
       }
+
+      /*
+        Si esta pestaña ya desbloqueó el Vault, la frase quedó cacheada en
+        sessionStorage: se re-deriva la clave sin volver a preguntarla. La clave
+        AES es la misma, así que los datos ya cifrados se abren igual y no hace
+        falta migrar nada.
+      */
+      const row = data as CryptoRow
+      const cached = readCachedPassphrase(userId)
+      if (cached) {
+        try {
+          const key = await deriveVaultKey(cached, row.salt, row.iterations)
+          await verifyVaultKey(key, row.verifier)
+          const unlockedPrivateKey = await importPrivateKey(
+            row.encrypted_private_key,
+            key,
+            userId,
+          )
+          if (cancelled || operation !== operationId.current) return
+          setVaultKey(key)
+          setPrivateKey(unlockedPrivateKey)
+          setSessionUserId(userId)
+          setActiveVaultSession({
+            userId,
+            vaultKey: key,
+            privateKey: unlockedPrivateKey,
+            publicKey: row.public_key,
+          })
+          setStatus('unlocked')
+          return
+        } catch {
+          // La frase cacheada ya no sirve (cambió la clave o se corrompió): se
+          // descarta y se vuelve al formulario normal.
+          clearCachedPassphrase(userId)
+        }
+      }
+
       setStatus('locked')
     })()
 
@@ -122,13 +164,15 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
 
   const lock = useCallback(() => {
     operationId.current += 1
+    // El bloqueo borra la caché: cerrar o bloquear equivale a "olvidarse".
+    clearCachedPassphrase(userId)
     setVaultKey(null)
     setPrivateKey(null)
     setSessionUserId(null)
     setError(null)
     setStatus(isSupabaseConfigured ? 'locked' : 'unconfigured')
     setActiveVaultSession(null)
-  }, [])
+  }, [userId])
 
   const setup = useCallback(
     async (passphrase: string) => {
@@ -192,6 +236,8 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
         privateKey: unlockedPrivateKey,
         publicKey: pair.publicKey,
       })
+      // Se cachea en sessionStorage para no volver a pedirla en esta pestaña.
+      cachePassphrase(userId, passphrase)
       setStatus('unlocked')
     },
     [userId],
@@ -238,6 +284,8 @@ export function VaultKeyProvider({ children }: { children: ReactNode }) {
         privateKey: unlockedPrivateKey,
         publicKey: row.public_key,
       })
+      // Se cachea en sessionStorage para no volver a pedirla en esta pestaña.
+      cachePassphrase(userId, passphrase)
       setStatus('unlocked')
     },
     [userId],

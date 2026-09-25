@@ -83,7 +83,7 @@ export function VaultUnlock() {
             <p className="mt-1 text-xs leading-relaxed text-muted">
               {needsSetup
                 ? 'Si la olvidas, no existe recuperación: los datos quedarían inaccesibles.'
-                : 'La clave se mantiene solo en la memoria de esta pestaña.'}
+                : 'No te la volveremos a pedir mientras esta pestaña siga abierta; se descarta al cerrarla.'}
             </p>
           </div>
         </div>

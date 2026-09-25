@@ -142,9 +142,12 @@ Ver **[SECURITY.md](./SECURITY.md)** para el modelo completo. Resumen:
   de escalabilidad se conserva el fallback compatible al canal anterior.
 - El contenido privado se cifra en el navegador con AES-256-GCM después de
   derivar la clave con PBKDF2 desde una frase maestra independiente de Google.
-  La frase y las claves derivadas no se envían a Supabase ni se guardan en
-  `localStorage`; después de Google se requiere configurar o desbloquear el
-  Vault en cada sesión.
+  La frase y las claves derivadas no se envían nunca a Supabase. Para no
+  escribirla en cada recarga se cachea en `sessionStorage` (nunca en
+  `localStorage`): el navegador la descarta al cerrar la pestaña, de modo que no
+  queda una llave maestra en el disco. La clave AES que se vuelve a derivar es
+  la misma, así que **las credenciales, enlaces, notas e imágenes ya cifrados se
+  abren sin migración**. Ver el detalle del modelo en **[SECURITY.md](./SECURITY.md)**.
 - Credenciales, enlaces, notas, historial y copias compartidas se almacenan
   en `encrypted_payload`. Para los equipos, la clave AES se envuelve con la
   clave pública RSA de cada miembro. Las claves privadas de usuario están
