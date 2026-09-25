@@ -45,9 +45,14 @@ function friendlyWorkspaceError(message: string): string {
 }
 
 const WORKSPACE_COLUMNS = 'id, owner_id, name, created_at'
-const ITEM_REFERENCE_COLUMNS = 'id, workspace_id, credential_id'
+// `item_kind`, `link_id` y `note_id` deben estar aquí: sin ellos, una referencia
+// a un enlace o a una nota compartida se leería como si fuera de credencial.
+const ITEM_REFERENCE_COLUMNS =
+  'id, workspace_id, item_kind, credential_id, link_id, note_id'
+// `description` y `content` no son columnas: los enlaces y las notas se
+// comparten siempre cifrados, así que esos campos viajan en encrypted_payload.
 const ITEM_COLUMNS =
-  'id, workspace_id, credential_id, created_by, title, username, password, url, notes, encrypted_payload, created_at, updated_at'
+  'id, workspace_id, item_kind, credential_id, link_id, note_id, created_by, title, username, password, url, notes, encrypted_payload, created_at, updated_at'
 
 function isMissingRpcError(message: string): boolean {
   return /PGRST202|schema cache|function .*does not exist|could not find the function/i.test(
@@ -557,8 +562,6 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
             password: null,
             url: null,
             notes: null,
-            description: null,
-            content: null,
           })
           .eq('id', itemId)
           .select(ITEM_COLUMNS)
@@ -621,8 +624,6 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
         password: null,
         url: null,
         notes: null,
-        description: null,
-        content: null,
       })
       .eq('id', itemId)
       .select(ITEM_COLUMNS)

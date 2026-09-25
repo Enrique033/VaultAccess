@@ -51,8 +51,6 @@ export async function toEncryptedWorkspaceItem(
       password: kind === 'credential' ? required(row.password, 'la contraseña compartida') : '',
       url: row.url ?? undefined,
       notes: row.notes ?? undefined,
-      description: row.description ?? undefined,
-      content: row.content ?? undefined,
     }
     const encryptedPayload = await encryptJson(payload, key, aad)
     if (vaultGeneration !== getVaultSessionGeneration()) {
@@ -67,8 +65,6 @@ export async function toEncryptedWorkspaceItem(
         password: null,
         url: null,
         notes: null,
-        description: null,
-        content: null,
       })
       .eq('id', row.id)
     if (error) {

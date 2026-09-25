@@ -119,6 +119,10 @@ cp .env.example .env      # completa VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
 #    7) supabase/schema-chat-v3.sql  (búsqueda global de personas + refresh API)
 #    8) supabase/schema-scalability.sql (índices, heartbeats y snapshots; ejecutar después de v3)
 #    9) supabase/schema-encryption.sql  (E2EE + adjuntos/categorías; ejecutar al final)
+#
+# IMPORTANTE: si ya habías aplicado 4) y 8) antes de compartir enlaces y notas,
+# vuelve a ejecutar schema-sharing.sql (añade item_kind, link_id y note_id) y
+# después schema-scalability.sql (su RPC debe devolver esas columnas nuevas).
 
 # 4. Desarrollo
 npm run dev               # http://localhost:5173

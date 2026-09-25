@@ -49,8 +49,6 @@ export interface WorkspaceItemRow {
   password?: string | null
   url?: string | null
   notes?: string | null
-  description?: string | null
-  content?: string | null
   encrypted_payload?: string | null
   created_at: string
   updated_at: string
@@ -115,8 +113,6 @@ export function toWorkspaceItem(row: WorkspaceItemRow): WorkspaceItem {
     password: row.password ?? '',
     url: row.url ?? undefined,
     notes: row.notes ?? undefined,
-    description: row.description ?? undefined,
-    content: row.content ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

@@ -220,7 +220,7 @@ begin
     'item_references', coalesce(
       (select jsonb_agg(to_jsonb(r) order by r.workspace_id, r.id)
        from (
-         select i.id, i.workspace_id, i.credential_id
+         select i.id, i.workspace_id, i.item_kind, i.credential_id, i.link_id, i.note_id
          from public.vault_workspace_items i
        ) r),
       '[]'::jsonb
