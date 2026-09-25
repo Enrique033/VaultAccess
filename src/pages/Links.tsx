@@ -4,7 +4,6 @@ import { Link2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { FilterChips } from '@/components/ui/FilterChips'
 import { CardGridSkeleton } from '@/components/ui/Skeleton'
 import { CredentialSortSelect } from '@/components/credentials/CredentialSortSelect'
 import { LinkCard } from '@/components/links/LinkCard'
@@ -206,16 +205,12 @@ export function Links() {
         </Button>
       </div>
 
-      {/* El buscador vive en el Header; aquí queda la ordenación y el modo de vista. */}
+      {/* El buscador vive en el Header; aquí sólo ordenación y modo de vista. */}
       {links.length > 0 && (
         <div className="flex flex-wrap items-center justify-end gap-2">
           <ViewToggle />
           <CredentialSortSelect value={sort} onChange={setSort} />
         </div>
-      )}
-
-      {links.length > 0 && (
-        <FilterChips sections={sections} categories={categories} />
       )}
 
       {/* Content */}

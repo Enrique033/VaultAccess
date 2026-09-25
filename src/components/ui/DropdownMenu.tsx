@@ -102,16 +102,20 @@ interface DropdownMenuItemProps {
   children: ReactNode
   onClick?: () => void
   variant?: 'default' | 'danger'
+  /** Deshabilita la acción (p. ej. abrir un enlace sin URL). */
+  disabled?: boolean
 }
 
 export function DropdownMenuItem({
   children,
   onClick,
   variant = 'default',
+  disabled = false,
 }: DropdownMenuItemProps) {
   const ctx = useContext(DropdownContext)
 
   const handleClick = () => {
+    if (disabled) return
     onClick?.()
     ctx?.close()
   }
@@ -120,12 +124,16 @@ export function DropdownMenuItem({
     <button
       type="button"
       role="menuitem"
+      disabled={disabled}
+      aria-disabled={disabled}
       onClick={handleClick}
       className={cn(
         'flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] transition-colors',
-        variant === 'danger'
-          ? 'text-danger hover:bg-danger/10 hover:text-danger'
-          : 'text-foreground hover:bg-surface',
+        disabled
+          ? 'cursor-not-allowed text-muted opacity-50'
+          : variant === 'danger'
+            ? 'text-danger hover:bg-danger/10 hover:text-danger'
+            : 'text-foreground hover:bg-surface',
       )}
     >
       {children}

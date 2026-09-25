@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { FileSpreadsheet, LockKeyhole, LogOut, User, Users } from 'lucide-react'
+import { FileSpreadsheet, LogOut, User, Users } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import {
@@ -154,10 +154,6 @@ export function UserMenu() {
         )}
         <DropdownMenuItem onClick={() => setProfileOpen(true)}>
           <User className="size-3.5" /> Editar perfil
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={lock}>
-          <LockKeyhole className="size-3.5" /> Bloquear Vault
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => void handleExport()}>

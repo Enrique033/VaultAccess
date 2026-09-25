@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
 import {
+  AlignLeft,
   ExternalLink,
   MoreVertical,
   Pencil,
@@ -12,8 +13,6 @@ import {
   Users2,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
-import { CopyButton } from '@/components/ui/CopyButton'
-import { PasswordField } from '@/components/ui/PasswordField'
 import { AttachmentPreview } from '@/components/attachments/AttachmentPreview'
 import {
   DropdownMenu,
@@ -27,6 +26,7 @@ import {
   workspacesOfCredential,
 } from '@/store/workspace.store'
 import { toast } from '@/store/ui.store'
+import { copyToClipboard } from '@/lib/clipboard'
 import type { Credential } from '@/types'
 
 interface CredentialBoardCardProps {
@@ -68,76 +68,42 @@ export function CredentialBoardCard({
     }
   }
 
+  const handleCopyUsername = async () => {
+    const ok = await copyToClipboard(credential.username)
+    if (ok) toast.success('Usuario copiado')
+    else toast.error('No se pudo copiar el usuario')
+  }
+
+  const handleCopyPassword = async () => {
+    const ok = await copyToClipboard(credential.password)
+    if (ok)
+      toast.success(
+        'Clave copiada',
+        'Se borrará del portapapeles en 30 s (si no copias otra cosa).',
+      )
+    else toast.error('No se pudo copiar la clave')
+  }
+
   return (
     <>
-      <Card className="group surface-card-hover p-3.5">
-        <div className="flex items-start justify-between gap-2">
+      <Card className="group surface-card-hover p-3">
+        {/* Título: al pulsar se abre la tarjeta, igual que en Trello. */}
+        <div className="flex items-start gap-1.5">
           <button
             type="button"
             onClick={() => onEdit(credential)}
             title="Abrir para editar"
             className="min-w-0 flex-1 text-left"
           >
-            <h3 className="truncate text-[13px] font-bold tracking-tight text-foreground transition-colors group-hover:text-primary">
+            <h3 className="truncate text-[13px] font-bold tracking-tight text-foreground">
               {credential.title}
             </h3>
+            {credential.username && (
+              <p className="mt-0.5 truncate text-[11px] text-muted">
+                {credential.username}
+              </p>
+            )}
           </button>
-          {credential.favorite && (
-            <Star className="mt-0.5 size-3.5 shrink-0 fill-primary text-primary" />
-          )}
-        </div>
-
-        <div className="mt-2.5 flex items-center gap-1.5 rounded-lg border border-border bg-elevated/60 px-2 py-1.5">
-          <User className="size-3 shrink-0 text-muted" />
-          <span className="flex-1 truncate text-[11px] text-foreground">
-            {credential.username}
-          </span>
-          <CopyButton
-            value={credential.username}
-            label="Copiar usuario"
-            successMessage="Usuario copiado"
-          />
-        </div>
-
-        <div className="mt-1.5">
-          <PasswordField value={credential.password} className="!px-2 !py-1.5" />
-        </div>
-
-        {credential.notes && (
-          <p className="mt-2 line-clamp-2 text-[11px] text-muted">
-            {credential.notes}
-          </p>
-        )}
-
-        <AttachmentPreview
-          attachments={credential.attachments}
-          kind="credential"
-          recordId={credential.id}
-          compact
-        />
-
-        <div className="mt-2.5 flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={handleOpenLogin}
-            disabled={!credential.url}
-            className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface/70 px-2 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:border-primary/35 hover:bg-primary-soft hover:text-primary disabled:pointer-events-none disabled:opacity-50"
-          >
-            <ExternalLink className="size-3.5" />
-            Abrir
-          </button>
-
-          {sharedIn.length > 0 && (
-            <Link
-              to="/workspaces"
-              title={sharedIn.map((w) => w.name).join(', ')}
-              className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border px-2 py-1.5 text-[11px] text-muted transition-colors hover:border-primary/35 hover:bg-primary-soft hover:text-primary"
-            >
-              <Users2 className="size-3.5" />
-              {sharedIn.length}
-            </Link>
-          )}
-
           <span className="shrink-0">
             <DropdownMenu
               contentClassName="min-w-[13rem]"
@@ -145,6 +111,18 @@ export function CredentialBoardCard({
             >
               <DropdownMenuItem onClick={() => onEdit(credential)}>
                 <Pencil className="size-3.5" /> Editar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCopyUsername}>
+                <User className="size-3.5" /> Copiar usuario
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCopyPassword}>
+                <Pencil className="size-3.5" /> Copiar clave
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={handleOpenLogin}
+                disabled={!credential.url}
+              >
+                <ExternalLink className="size-3.5" /> Abrir sitio
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleToggleFavorite}>
                 {credential.favorite ? (
@@ -170,6 +148,35 @@ export function CredentialBoardCard({
               </DropdownMenuItem>
             </DropdownMenu>
           </span>
+        </div>
+
+        <AttachmentPreview
+          attachments={credential.attachments}
+          kind="credential"
+          recordId={credential.id}
+          compact
+        />
+
+        {/* Badges: en lugar de campos pesados, sólo lo relevante. */}
+        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
+          {credential.favorite && (
+            <span className="inline-flex items-center gap-1 text-primary">
+              <Star className="size-3 fill-primary" /> Favorito
+            </span>
+          )}
+          {credential.notes && (
+            <span className="inline-flex items-center gap-1">
+              <AlignLeft className="size-3" /> Notas
+            </span>
+          )}
+          {sharedIn.length > 0 && (
+            <Link
+              to="/workspaces"
+              className="inline-flex items-center gap-1 transition-colors hover:text-primary"
+            >
+              <Users2 className="size-3" /> {sharedIn.length}
+            </Link>
+          )}
         </div>
       </Card>
 

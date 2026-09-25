@@ -14,16 +14,22 @@ Auth** (Google OAuth) y protegida con **Row Level Security**.
   subcategorías anidadas, plegables, ordenables y movibles entre secciones
   (`parent_id` + `sort_order`, ver `supabase/schema-encryption.sql`).
 - **Vista de tablero tipo Trello** en credenciales, enlaces y notas: pestañas de
-  sección en el encabezado (como los tableros de Trello), una columna por
-  categoría con desplazamiento vertical independiente, botón **«+ Añade…»**
-  fijo al pie de cada columna y un **«+» que aparece entre tarjetas** al pasar
-  el cursor. Las tarjetas se **arrastran entre columnas** para cambiar de
-  categoría, sin tocar el cifrado ni los adjuntos. Alterna con la rejilla
-  mediante el conmutador Rejilla/Tablero, que recuerda tu preferencia.
+  sección en el encabezado (como los tableros de Trello) y una columna por
+  categoría con desplazamiento vertical independiente. Las tarjetas se
+  **arrastran entre columnas** para cambiar de categoría, sin tocar el cifrado
+  ni los adjuntos. Alterna con la rejilla mediante el conmutador Rejilla/Tablero,
+  que recuerda tu preferencia.
+- **Interfaz de tablero minimalista, al estilo Trello**: el encabezado de cada
+  columna muestra **sólo el título (editable con un clic) y el contador**; los
+  controles aparecen al pasar el cursor. El botón **«+» sólo se despliega en el
+  hueco exacto entre dos tarjetas** y hay un **«+ Añade…» fijo al pie** de la
+  columna. Las tarjetas muestran título, dato secundario y *badges*; todas las
+  acciones (editar, copiar, abrir, compartir, eliminar) viven en el menú `⋯`.
+  No se muestra el filtro de categorías ni botones pesados.
 - **Gestión de categorías desde el tablero**: se crean secciones, categorías y
   subcategorías desde el encabezado y desde el menú `⋯` de cada columna
-  (añadir subcategoría, renombrar en línea, eliminar), además del botón final
-  «Añade otra lista». La barra lateral queda sólo con la navegación.
+  (añadir subcategoría, eliminar), además del botón final «Añade otra lista».
+  La barra lateral queda sólo con la navegación.
 - **Links y Notas** completos: tarjetas, CRUD, favoritos, búsqueda y filtros
   (tablas `vault_links` / `vault_notes` con RLS).
 - **Generador de claves** (crypto.getRandomValues) con longitud 8–48,

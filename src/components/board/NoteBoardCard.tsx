@@ -58,54 +58,22 @@ export function NoteBoardCard({ note, onEdit, onDelete }: NoteBoardCardProps) {
   const dateLabel = shortDate(note.updatedAt)
 
   return (
-    <Card className="group surface-card-hover p-3.5">
-      <div className="flex items-start gap-2">
-        <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
-          <Copy className="size-3.5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <button
-            type="button"
-            onClick={() => onEdit(note)}
-            title="Abrir para editar"
-            className="block w-full text-left"
-          >
-            <span className="flex items-center gap-1.5">
-              <h3 className="truncate text-[13px] font-bold text-foreground transition-colors group-hover:text-primary">
-                {note.title}
-              </h3>
-              {note.favorite && (
-                <Star className="size-3 shrink-0 fill-primary text-primary" />
-              )}
-            </span>
-          </button>
-          {dateLabel && (
-            <p className="truncate text-[11px] text-muted">
-              Actualizada {dateLabel}
-            </p>
-          )}
-        </div>
-      </div>
-
-      <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-[11px] leading-relaxed text-muted">
-        {note.content || 'Sin contenido.'}
-      </p>
-
-      <AttachmentPreview
-        attachments={note.attachments}
-        kind="note"
-        recordId={note.id}
-        compact
-      />
-
-      <div className="mt-2.5 flex items-center gap-1.5">
+    <Card className="group surface-card-hover p-3">
+      <div className="flex items-start gap-1.5">
         <button
           type="button"
           onClick={() => onEdit(note)}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface/70 px-2 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:border-primary/35 hover:bg-primary-soft hover:text-primary"
+          title="Abrir para editar"
+          className="min-w-0 flex-1 text-left"
         >
-          <Pencil className="size-3.5" />
-          Ver / editar
+          <h3 className="truncate text-[13px] font-bold text-foreground">
+            {note.title}
+          </h3>
+          {dateLabel && (
+            <p className="mt-0.5 truncate text-[11px] text-muted">
+              Actualizada {dateLabel}
+            </p>
+          )}
         </button>
         <span className="shrink-0">
           <DropdownMenu
@@ -136,6 +104,25 @@ export function NoteBoardCard({ note, onEdit, onDelete }: NoteBoardCardProps) {
           </DropdownMenu>
         </span>
       </div>
+
+      <p className="mt-1.5 line-clamp-4 whitespace-pre-wrap text-[11px] leading-relaxed text-muted">
+        {note.content || 'Sin contenido.'}
+      </p>
+
+      <AttachmentPreview
+        attachments={note.attachments}
+        kind="note"
+        recordId={note.id}
+        compact
+      />
+
+      {note.favorite && (
+        <div className="mt-1.5 flex items-center gap-x-3 text-[11px]">
+          <span className="inline-flex items-center gap-1 text-primary">
+            <Star className="size-3 fill-primary" /> Favorito
+          </span>
+        </div>
+      )}
     </Card>
   )
 }

@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useMemo, useState } from 'react'
-import { FolderPlus, Plus, X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
@@ -154,7 +154,6 @@ export function BoardHeader({
         onParentChange={setParentId}
         onClose={() => setAdding(false)}
         onSubmit={() => void submitAdd()}
-        onOpen={() => openAdd()}
       />
     </div>
   )
@@ -168,7 +167,6 @@ function AddListForm({
   itemLabel,
   onNameChange,
   onParentChange,
-  onOpen,
   onClose,
   onSubmit,
 }: {
@@ -179,20 +177,15 @@ function AddListForm({
   itemLabel: string
   onNameChange: (value: string) => void
   onParentChange: (value: string) => void
-  onOpen: () => void
   onClose: () => void
   onSubmit: () => void
 }) {
-  if (!open) {
-    return (
-      <div>
-        <Button variant="outline" size="sm" onClick={onOpen}>
-          <FolderPlus className="size-3.5" />
-          Añadir lista
-        </Button>
-      </div>
-    )
-  }
+  /*
+    El formulario de alta de lista ya no tiene botón permanente: se abre desde
+    «+» de una columna (subcategoría) o desde «Añade otra lista» al final del
+    tablero. Por eso, en reposo este componente no renderiza nada.
+  */
+  if (!open) return null
 
   return (
     <div className="flex flex-col gap-2 rounded-2xl border border-primary/25 bg-primary-soft/30 p-3 sm:flex-row sm:items-end">

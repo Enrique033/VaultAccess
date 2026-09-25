@@ -4,7 +4,6 @@ import { KeyRound, Plus, Star, Users2, ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { FilterChips } from '@/components/ui/FilterChips'
 import { StatCard } from '@/components/ui/StatCard'
 import { CardGridSkeleton } from '@/components/ui/Skeleton'
 import { CredentialGrid } from '@/components/credentials/CredentialGrid'
@@ -294,17 +293,11 @@ export function Credentials() {
         </div>
       )}
 
-      {/* Toolbar: Sort & Filters */}
+      {/* El buscador vive en el Header; aquí sólo ordenación y modo de vista. */}
       {credentials.length > 0 && (
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-elevated/50 p-3 rounded-xl border border-border/50">
-          <FilterChips sections={sections} categories={categories} />
-          <div className="flex items-center gap-2 shrink-0">
-            <ViewToggle />
-            <span className="text-xs text-muted hidden sm:inline">
-              Ordenar por:
-            </span>
-            <CredentialSortSelect value={sort} onChange={setSort} />
-          </div>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <ViewToggle />
+          <CredentialSortSelect value={sort} onChange={setSort} />
         </div>
       )}
 

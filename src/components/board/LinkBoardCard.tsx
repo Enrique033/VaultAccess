@@ -1,6 +1,6 @@
 import {
+  AlignLeft,
   ExternalLink,
-  Link2,
   MoreVertical,
   Pencil,
   Star,
@@ -8,7 +8,6 @@ import {
   Trash2,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
-import { CopyButton } from '@/components/ui/CopyButton'
 import { AttachmentPreview } from '@/components/attachments/AttachmentPreview'
 import {
   DropdownMenu,
@@ -17,6 +16,7 @@ import {
 } from '@/components/ui/DropdownMenu'
 import { useVaultStore } from '@/store/vault.store'
 import { toast } from '@/store/ui.store'
+import { copyToClipboard } from '@/lib/clipboard'
 import type { LinkItem } from '@/types'
 
 interface LinkBoardCardProps {
@@ -41,6 +41,12 @@ export function LinkBoardCard({ link, onEdit, onDelete }: LinkBoardCardProps) {
     window.open(link.url, '_blank', 'noopener,noreferrer')
   }
 
+  const handleCopy = async () => {
+    const ok = await copyToClipboard(link.url)
+    if (ok) toast.success('URL copiada')
+    else toast.error('No se pudo copiar la URL')
+  }
+
   const handleToggleFavorite = async () => {
     try {
       await toggleFavorite(link.id)
@@ -53,66 +59,32 @@ export function LinkBoardCard({ link, onEdit, onDelete }: LinkBoardCardProps) {
   }
 
   return (
-    <Card className="group surface-card-hover p-3.5">
-      <div className="flex items-start gap-2">
-        <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
-          <Link2 className="size-3.5" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <button
-            type="button"
-            onClick={() => onEdit(link)}
-            title="Abrir para editar"
-            className="block w-full text-left"
-          >
-            <span className="flex items-center gap-1.5">
-              <h3 className="truncate text-[13px] font-bold text-foreground transition-colors group-hover:text-primary">
-                {link.title}
-              </h3>
-              {link.favorite && (
-                <Star className="size-3 shrink-0 fill-primary text-primary" />
-              )}
-            </span>
-          </button>
-          <p className="truncate text-[11px] text-muted">{hostOf(link.url)}</p>
-        </div>
-      </div>
-
-      {link.description && (
-        <p className="mt-2 line-clamp-2 text-[11px] text-muted">
-          {link.description}
-        </p>
-      )}
-
-      <AttachmentPreview
-        attachments={link.attachments}
-        kind="link"
-        recordId={link.id}
-        compact
-      />
-
-      <div className="mt-2.5 flex items-center gap-1.5">
+    <Card className="group surface-card-hover p-3">
+      <div className="flex items-start gap-1.5">
         <button
           type="button"
-          onClick={handleOpen}
-          className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-surface/70 px-2 py-1.5 text-[11px] font-semibold text-foreground transition-colors hover:border-primary/35 hover:bg-primary-soft hover:text-primary"
+          onClick={() => onEdit(link)}
+          title="Abrir para editar"
+          className="min-w-0 flex-1 text-left"
         >
-          <ExternalLink className="size-3.5" />
-          Abrir
+          <h3 className="truncate text-[13px] font-bold text-foreground">
+            {link.title}
+          </h3>
+          <p className="mt-0.5 truncate text-[11px] text-muted">
+            {hostOf(link.url)}
+          </p>
         </button>
-        <span className="shrink-0">
-          <CopyButton
-            value={link.url}
-            label="Copiar URL"
-            successMessage="URL copiada"
-            className="rounded-md border border-border !p-1.5"
-          />
-        </span>
         <span className="shrink-0">
           <DropdownMenu
             contentClassName="min-w-[13rem]"
             trigger={<MoreVertical className="size-4" />}
           >
+            <DropdownMenuItem onClick={handleOpen}>
+              <ExternalLink className="size-3.5" /> Abrir enlace
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleCopy}>
+              <ExternalLink className="size-3.5" /> Copiar URL
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onEdit(link)}>
               <Pencil className="size-3.5" /> Editar
             </DropdownMenuItem>
@@ -133,6 +105,32 @@ export function LinkBoardCard({ link, onEdit, onDelete }: LinkBoardCardProps) {
             </DropdownMenuItem>
           </DropdownMenu>
         </span>
+      </div>
+
+      {link.description && (
+        <p className="mt-1.5 line-clamp-2 text-[11px] text-muted">
+          {link.description}
+        </p>
+      )}
+
+      <AttachmentPreview
+        attachments={link.attachments}
+        kind="link"
+        recordId={link.id}
+        compact
+      />
+
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
+        {link.favorite && (
+          <span className="inline-flex items-center gap-1 text-primary">
+            <Star className="size-3 fill-primary" /> Favorito
+          </span>
+        )}
+        {link.description && (
+          <span className="inline-flex items-center gap-1">
+            <AlignLeft className="size-3" /> Descripción
+          </span>
+        )}
       </div>
     </Card>
   )
