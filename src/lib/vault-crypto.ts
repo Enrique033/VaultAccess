@@ -122,6 +122,66 @@ function privateKeyAad(userId: string): string {
   return `workvaul:v1:private-key:${userId}`
 }
 
+/**
+ * Bits de una clave AES-256 derivados de un secreto mediante PBKDF2.
+ *
+ * Se separa de `deriveVaultKey` porque la clave de recuperación necesita los
+ * bits en crudo (para envolverlos con las 12 palabras) y porque así ambas
+ * derivaciones pasan exactamente por el mismo cálculo: la clave de la frase
+ * maestra no cambia, de modo que los registros ya cifrados siguen abriéndose.
+ */
+export async function deriveAesKeyBits(
+  secret: string,
+  salt: string,
+  iterations: number,
+): Promise<ArrayBuffer> {
+  const cryptoApi = getCrypto()
+  const material = await cryptoApi.subtle.importKey(
+    'raw',
+    textEncoder.encode(secret),
+    'PBKDF2',
+    false,
+    ['deriveBits'],
+  )
+  return cryptoApi.subtle.deriveBits(
+    {
+      name: 'PBKDF2',
+      salt: toArrayBuffer(base64UrlToBytes(salt)),
+      iterations,
+      hash: 'SHA-256',
+    },
+    material,
+    256,
+  )
+}
+
+/** Importa bits como clave AES-256 no extraíble (no se puede exportar). */
+export async function importAesKeyFromBits(
+  bits: ArrayBuffer | Uint8Array,
+): Promise<CryptoKey> {
+  return getCrypto().subtle.importKey(
+    'raw',
+    toArrayBuffer(bits),
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt'],
+  )
+}
+
+/**
+ * Deriva una clave AES a partir de un secreto, sin mínimo de longitud.
+ *
+ * Se usa con la clave de recuperación, donde el secreto son 12 palabras
+ * generadas por la app (no una contraseña elegida por el usuario).
+ */
+export async function deriveAesKeyFromSecret(
+  secret: string,
+  salt: string,
+  iterations: number,
+): Promise<CryptoKey> {
+  return importAesKeyFromBits(await deriveAesKeyBits(secret, salt, iterations))
+}
+
 export async function deriveVaultKey(
   passphrase: string,
   salt: string,
@@ -130,27 +190,7 @@ export async function deriveVaultKey(
   if (passphrase.length < 12) {
     throw new Error('La frase maestra debe tener al menos 12 caracteres.')
   }
-
-  const cryptoApi = getCrypto()
-  const material = await cryptoApi.subtle.importKey(
-    'raw',
-    textEncoder.encode(passphrase),
-    'PBKDF2',
-    false,
-    ['deriveKey'],
-  )
-  return cryptoApi.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt: toArrayBuffer(base64UrlToBytes(salt)),
-      iterations,
-      hash: 'SHA-256',
-    },
-    material,
-    { name: 'AES-GCM', length: 256 },
-    false,
-    ['encrypt', 'decrypt'],
-  )
+  return deriveAesKeyFromSecret(passphrase, salt, iterations)
 }
 
 export async function encryptBytes(

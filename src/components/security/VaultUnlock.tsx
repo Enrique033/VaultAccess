@@ -1,21 +1,24 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Loader2, LockKeyhole, LogOut, ShieldCheck } from 'lucide-react'
+import { KeyRound, Loader2, LockKeyhole, LogOut, ShieldCheck } from 'lucide-react'
 import { useVaultKey } from '@/app/vault-key-context'
 import { useAuth } from '@/app/auth-context'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
 import { AuthLayout } from '@/components/layout/AuthLayout'
+import { RecoverWithWords } from '@/components/security/RecoveryKeyDialog'
 
 /** Pantalla intermedia: Google autentica, la frase maestra cifra el Vault. */
 export function VaultUnlock() {
-  const { status, error, setup, unlock } = useVaultKey()
+  const { status, error, setup, unlock, hasRecoveryKey } = useVaultKey()
   const { signOut } = useAuth()
   const [passphrase, setPassphrase] = useState('')
   const [confirmation, setConfirmation] = useState('')
   const [busy, setBusy] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+  /** Alterna al formulario de 12 palabras cuando ya no hay clave maestra. */
+  const [recovering, setRecovering] = useState(false)
   const needsSetup = status === 'needs-setup'
 
   if (status === 'loading') {
@@ -88,6 +91,20 @@ export function VaultUnlock() {
           </div>
         </div>
 
+        {recovering ? (
+          <div className="space-y-3">
+            <RecoverWithWords onRecovered={() => setRecovering(false)} />
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full"
+              onClick={() => setRecovering(false)}
+            >
+              Usar mi frase maestra
+            </Button>
+          </div>
+        ) : (
+          <>
         <div className="space-y-1.5">
           <Label htmlFor="vault-passphrase">Frase maestra</Label>
           <Input
@@ -133,6 +150,19 @@ export function VaultUnlock() {
               ? 'Crear Vault cifrado'
               : 'Desbloquear Vault'}
         </Button>
+
+        {!needsSetup && hasRecoveryKey && (
+          <button
+            type="button"
+            onClick={() => setRecovering(true)}
+            className="mx-auto flex items-center gap-1.5 text-xs font-medium text-muted underline-offset-4 transition-colors hover:text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+          >
+            <KeyRound className="size-3.5" />
+            No recuerdo mi frase maestra
+          </button>
+        )}
+          </>
+        )}
       </form>
     </AuthLayout>
   )

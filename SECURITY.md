@@ -21,6 +21,32 @@ modelo evita falsos positivos al reportar vulnerabilidades:
     (XSS o extensión con permiso de lectura sobre la pestaña) puede leer la
     frase cacheada mientras la pestaña está abierta. Es el mismo riesgo que tener
     la clave en memoria, y sigue sin exponerla al servidor ni a terceros.
+- **Clave de recuperación (opcional):** 12 palabras que el usuario anota en papel
+  permiten recuperar la clave AES si olvida la frase maestra.
+  - Se guarda en `vault_crypto_keys.encrypted_recovery_key` una **copia de la
+    clave AES** cifrada con una clave derivada de esas palabras (PBKDF2-SHA-256,
+    600 000 iteraciones, sal propia). **Nunca se guardan la frase maestra ni las
+    palabras.**
+  - No es una puerta trasera al servidor: quien administre Supabase ve un
+    ciphertext tan inútil como el de cualquier registro, porque sin las 12
+    palabras no puede derivar la clave que lo abre. Tampoco ayuda quien controle
+    la cuenta de Google, porque las palabras no se envían a ningún sitio.
+  - Son 12 valores de 9 bits elegidos de una lista de 512 (**108 bits** de
+    entropía) con muestreo por rechazo, sin sesgo de módulo. La lista se escribe
+    sin tildes ni `ñ` y la entrada se normaliza, para que «árbol» se compare con
+    «arbol».
+  - El AAD incluye el `user_id`, así que un sobre no se puede reutilizar en otra
+    cuenta. Antes de aceptar las palabras se valida su verificador y, tras
+    desenvolver la clave, se comprueba contra el verificador del Vault: si la
+    clave recuperada no fuese la correcta, el descifrado fallaría en vez de
+    mostrar datos corruptos.
+  - **Riesgo asumido:** es la misma nota de las 12 palabras de una cartera
+    BIP-39. Si se anotan en el mismo ordenador o junto a la frase maestra,
+    quien tenga acceso a ambos tiene el Vault. Anotarlas fuera del dispositivo y
+    separadas de la frase es parte del modelo.
+  - Al recuperar con las palabras **no** se cachea nada en `sessionStorage`: tras
+    recargar volverá a pedirse la frase (o las palabras). Ver
+    `src/lib/vault-recovery.ts`.
 - **Copia local cifrada (modo sin conexión):** tras cada carga correcta se
   guarda en IndexedDB el `encrypted_payload` tal cual lo devuelve Supabase. Si el
   servidor no responde, la app descifra esa copia con la clave AES de la sesión y
@@ -94,6 +120,7 @@ modelo evita falsos positivos al reportar vulnerabilidades:
 | -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Datos          | RLS activo en las tablas del Vault, sharing, historial y `chat_conversations`, `chat_conversation_participants`, `chat_messages`; `vault-attachments` restringido a `authenticated` y rutas `{auth.uid()}/...`                                                                                |
 | Cifrado        | AES-256-GCM en el navegador, PBKDF2 con frase maestra y claves RSA para compartir; Supabase almacena ciphertext, sal, verificadores y claves envueltas                                                    |
+| Recuperación   | 12 palabras anotadas por el usuario (108 bits) permiten envolver una copia de la clave AES; el servidor sólo ve un sobre cifrado con ellas y nunca la frase maestra ni las palabras              |
 | Privacidad     | `list_workspace_members()` y `get_chat_user_profiles()` ocultan el email a usuarios no globales cuando existe un nombre registrado; solo `elvissebas39@gmail.com` ve nombre + correo                            |
 | Chat           | Las tablas `chat_*` están aisladas de credenciales; lectura y envío exigen ser participante. La creación de chats directos usa una RPC `SECURITY DEFINER` validada y el contenido se sanea antes de persistirse |
 | Notificaciones | `chat_notifications` solo es legible por su destinatario; un registro por mensaje y avisos genéricos de cambios del equipo, sin copiar credenciales                                                             |

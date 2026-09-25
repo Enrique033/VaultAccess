@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { FileSpreadsheet, LogOut, User, Users } from 'lucide-react'
+import { FileSpreadsheet, KeyRound, LogOut, User, Users } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import {
@@ -27,6 +27,7 @@ import { useNotificationStore } from '@/store/notification.store'
 import { toast } from '@/store/ui.store'
 import { usePresenceContext } from '@/hooks/usePresence'
 import { SecureExportDialog } from '@/components/security/SecureExportDialog'
+import { RecoveryKeyDialog } from '@/components/security/RecoveryKeyDialog'
 
 const errorBox =
   'rounded-xl border border-danger/30 bg-danger/10 px-3 py-2.5 text-xs text-danger'
@@ -39,6 +40,7 @@ export function UserMenu() {
   const [busy, setBusy] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [recoveryOpen, setRecoveryOpen] = useState(false)
 
   if (!user) return null
 
@@ -155,6 +157,9 @@ export function UserMenu() {
         <DropdownMenuItem onClick={() => setExportOpen(true)}>
           <FileSpreadsheet className="size-3.5" /> Exportar copia cifrada…
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setRecoveryOpen(true)}>
+          <KeyRound className="size-3.5" /> Clave de recuperación…
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="danger" onClick={handleSignOut}>
           <LogOut className="size-3.5" /> {busy ? 'Saliendo…' : 'Cerrar sesión'}
@@ -167,6 +172,12 @@ export function UserMenu() {
           open={exportOpen}
           onOpenChange={setExportOpen}
           collect={collectForExport}
+        />
+      )}
+      {recoveryOpen && (
+        <RecoveryKeyDialog
+          open={recoveryOpen}
+          onOpenChange={setRecoveryOpen}
         />
       )}
     </>

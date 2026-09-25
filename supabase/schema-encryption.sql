@@ -34,6 +34,35 @@ create policy "own_crypto_keys_all"
 revoke all on table public.vault_crypto_keys from public, anon;
 grant select, insert, update, delete on table public.vault_crypto_keys to authenticated;
 
+-- 1-bis) Clave de recuperación (opcional, la crea el usuario).
+--
+-- Guardar la frase maestra en el servidor permitiría al dueño del proyecto leer
+-- el Vault, así que NO se guarda. En su lugar se guarda una COPIA de la clave
+-- AES del Vault, cifrada con una clave derivada de 12 palabras aleatorias que
+-- sólo el usuario ve y anota.
+--
+-- El servidor almacena un sobre opaco: no conoce las palabras ni la frase
+-- maestra. Si se pierde la frase, las palabras recuperan la clave AES y con
+-- ella se abren los registros ya cifrados (no hay que re-cifrar nada).
+--
+-- Las columnas son nullable: las cuentas creadas antes de esta migración
+-- siguen funcionando y simplemente aún no tienen clave de recuperación.
+alter table public.vault_crypto_keys
+  add column if not exists recovery_salt text;
+
+alter table public.vault_crypto_keys
+  add column if not exists recovery_iterations integer
+  check (recovery_iterations is null or recovery_iterations >= 100000);
+
+alter table public.vault_crypto_keys
+  add column if not exists recovery_verifier text;
+
+alter table public.vault_crypto_keys
+  add column if not exists encrypted_recovery_key text;
+
+comment on column public.vault_crypto_keys.encrypted_recovery_key is
+  'Copia de la clave AES del Vault cifrada con una clave derivada de 12 palabras de recuperación. Vacía = la cuenta no tiene clave de recuperación.';
+
 -- 2) Clave AES de cada espacio, envuelta con la clave pública RSA de cada
 -- miembro. El propietario debe distribuir la clave al invitar o sincronizar.
 create table if not exists public.vault_workspace_keys (

@@ -26,10 +26,12 @@ Auth** (Google OAuth) y protegida con **Row Level Security**.
   columna. Las tarjetas muestran título, dato secundario y *badges*; todas las
   acciones (editar, copiar, abrir, compartir, eliminar) viven en el menú `⋯`.
   No se muestra el filtro de categorías ni botones pesados.
-- **Gestión de categorías desde el tablero**: se crean secciones, categorías y
-  subcategorías desde el encabezado y desde el menú `⋯` de cada columna
-  (añadir subcategoría, eliminar), además del botón final «Añade otra lista».
-  La barra lateral queda sólo con la navegación.
+- **Gestión de categorías desde el tablero**: cada columna es una lista con su
+  título editable, contador y menú `⋯` (añadir subcategoría, eliminar). El
+  tablero **no tiene pestañas de sección**: muestra todas las listas seguidas con
+  desplazamiento horizontal, y «+ Añade otra lista» al final abre el alta con
+  «Anidada en» para crear una subcategoría. La barra lateral queda sólo con la
+  navegación.
 - **Links y Notas** completos: tarjetas, CRUD, favoritos, búsqueda y filtros
   (tablas `vault_links` / `vault_notes` con RLS).
 - **Generador de claves** (crypto.getRandomValues) con longitud 8–48,
@@ -274,7 +276,11 @@ masivas al iniciar. La migración `supabase/schema-scalability.sql` añade:
 5. Ejecuta `supabase/schema-encryption.sql` **después de `schema-scalability.sql`**.
    Es el último script y es idempotente: añade las columnas de cifrado,
    `parent_id`/`sort_order`, el índice de categorías, el bucket privado
-   `vault-attachments` y sus políticas `authenticated`. No elimina filas.
+   `vault-attachments` y sus políticas `authenticated`, y las columnas de la
+   clave de recuperación (`recovery_salt`, `recovery_iterations`,
+   `recovery_verifier`, `encrypted_recovery_key`). No elimina filas.
+   Al ser idempotente, si ya lo habías ejecutado, vuelve a lanzarlo para añadir
+   esas cuatro columnas.
 6. Vuelve a desplegar la aplicación y prueba el menú de cuenta, el chat y una
    conversación.
 
@@ -286,9 +292,12 @@ deployment y la migración pueden ordenarse sin dejar la app rota.
 
 1. Cada usuario inicia sesión con Google.
 2. En la primera pantalla crea una frase maestra de al menos 12 caracteres.
-3. La frase no se envía a Google ni a Supabase y no existe recuperación si se
-   olvida.
-4. Las filas antiguas se cifran de forma progresiva cuando el usuario las abre,
+3. La frase no se envía a Google ni a Supabase.
+4. Desde el menú de cuenta → **Clave de recuperación…** genera 12 palabras y
+   anótalas fuera del ordenador. Sólo después de marcar la casilla se guarda en
+   el servidor una copia de tu clave AES cifrada con ellas. Si pierdes la frase,
+   introduces esas 12 palabras en «No recuerdo mi frase maestra».
+5. Las filas antiguas se cifran de forma progresiva cuando el usuario las abre,
    siempre que la frase maestra siga disponible. No se puede migrar el
    contenido existente desde SQL porque el servidor no conoce esa clave.
 
