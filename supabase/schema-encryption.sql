@@ -151,6 +151,16 @@ create index if not exists idx_categories_section_parent_sort
 alter table public.vault_categories
   add column if not exists module text not null default 'credential';
 
+-- Archivado de columnas: una columna archivada desaparece del tablero pero NO se
+-- borra, y sus registros siguen apuntando a ella. Así, al restaurarla, vuelve
+-- con todas sus tarjetas donde estaban. Sólo se gestionan desde el panel
+-- «Archivados» (icono de cuenta): restaurar o eliminar.
+--
+-- `null` = columna activa. La fecha guarda cuándo se archivó, para poder
+-- ordenarlas por antigüedad en ese panel.
+alter table public.vault_categories
+  add column if not exists archived_at timestamptz;
+
 -- Las categorías existentes se asignan a Access, donde se crearon.
 update public.vault_categories
    set module = 'credential'
@@ -166,11 +176,18 @@ update public.vault_categories
 create index if not exists idx_categories_module_sort
   on public.vault_categories (user_id, module, section_id, parent_id, sort_order);
 
+-- Índice del panel de archivados: sólo las columnas con `archived_at` puesto.
+create index if not exists idx_categories_archived
+  on public.vault_categories (user_id, archived_at desc)
+  where archived_at is not null;
+
 
 comment on column public.vault_categories.parent_id is
   'Categoría padre; null para una raíz de la sección.';
 comment on column public.vault_categories.sort_order is
   'Orden estable entre categorías hermanas.';
+comment on column public.vault_categories.archived_at is
+  'Fecha de archivado. No es un borrado: la columna y sus registros siguen ahí y se recuperan desde el panel de Archivados.';
 
 comment on table public.vault_crypto_keys is
   'Configuración E2EE por usuario. No contiene la frase maestra ni la clave AES en claro.';
@@ -249,6 +266,9 @@ as $$
           'parent_id', c.parent_id,
           'sort_order', c.sort_order,
           'module', c.module,
+          -- Sin `archived_at` el cliente no sabría qué columnas están
+          -- archivadas y las mostraría todas en el tablero.
+          'archived_at', c.archived_at,
           'name', c.name,
           'color', c.color,
           'encrypted_payload', c.encrypted_payload,

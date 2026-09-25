@@ -23,15 +23,22 @@ import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
 import { useWorkspaceStore } from '@/store/workspace.store'
 import { toast, useUIStore } from '@/store/ui.store'
-import { FAVORITES, matchesCategoryFilter } from '@/lib/vault-filters'
+import {
+  FAVORITES,
+  activeCategories,
+  matchesCategoryFilter,
+} from '@/lib/vault-filters'
 import type { Credential } from '@/types'
 
 export function Credentials() {
   const credentials = useVaultStore((s) => s.credentials)
   const allCategories = useVaultStore((s) => s.categories)
-  /** Access sólo ve sus columnas: no comparte ninguna con Links ni Notas. */
+  /**
+   * Access sólo ve sus columnas: no comparte ninguna con Links ni Notas, y las
+   * archivadas quedan fuera hasta recuperarlas desde el panel de Archivados.
+   */
   const categories = useMemo(
-    () => allCategories.filter((c) => c.module === 'credential'),
+    () => activeCategories(allCategories, 'credential'),
     [allCategories],
   )
   const sections = useVaultStore((s) => s.sections)
@@ -159,7 +166,8 @@ export function Credentials() {
   }
 
   /* Ver `useBoardColumnActions`: ahí se resuelve el caso de «Sin categoría». */
-  const { renameColumn, deleteColumn } = useBoardColumnActions('credential')
+  const { renameColumn, archiveColumn, deleteColumn } =
+    useBoardColumnActions('credential')
 
   const handleSubmit = async (
     values: CredentialFormValues,
@@ -360,6 +368,7 @@ export function Credentials() {
             />
           )}
           onRenameColumn={(id, name) => void renameColumn(id, name)}
+          onArchiveColumn={(id) => void archiveColumn(id, 'credenciales')}
           onDeleteColumn={(id) => void deleteColumn(id, 'credenciales')}
           addLabel="Añade una credencial"
         />

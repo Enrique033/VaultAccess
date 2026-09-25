@@ -60,7 +60,7 @@ const SECTION_COLUMNS = 'id, name, encrypted_payload, created_at'
 // `module` debe estar aquí: sin él, una columna creada en Links o Notas se
 // releería sin módulo y aparecería en el tablero de Access.
 const CATEGORY_COLUMNS =
-  'id, section_id, parent_id, sort_order, module, name, color, encrypted_payload, created_at'
+  'id, section_id, parent_id, sort_order, module, archived_at, name, color, encrypted_payload, created_at'
 const CREDENTIAL_COLUMNS =
   'id, title, username, password, url, category_id, notes, favorite, encrypted_payload, created_at, updated_at'
 const LINK_COLUMNS =
@@ -190,6 +190,12 @@ interface VaultState {
 
   addCategory: (input: CategoryInput) => Promise<Category>
   renameCategory: (id: string, name: string) => Promise<void>
+  /**
+   * Archiva o recupera una columna. Archivar **no borra** nada: la columna deja
+   * de salir en el tablero, pero sus registros la siguen apuntando y vuelven a
+   * su sitio al recuperarla desde el panel «Archivados».
+   */
+  setCategoryArchived: (id: string, archived: boolean) => Promise<void>
   moveCategory: (
     id: string,
     sectionId: string,
@@ -256,17 +262,18 @@ async function removeRecordAttachments(
 }
 
 function nextColor(categories: Category[], module: CategoryModule): string {
-  // Los colores se reparten dentro del módulo: cada tablero tiene su propia
-  // paleta para que las columnas de Links no compitan con las de Access.
-  const used = new Set(
-    categories
-      .filter((c) => c.module === module)
-      .map((c) => c.color.toLowerCase()),
+  /*
+    Los colores se reparten dentro del módulo y entre las columnas **activas**:
+    una columna archivada libera su color, así que al recuperarla no aparece una
+    copia inesperada del mismo tono en el tablero.
+  */
+  const active = categories.filter(
+    (c) => c.module === module && !c.archivedAt,
   )
+  const used = new Set(active.map((c) => c.color.toLowerCase()))
   const free = CATEGORY_COLORS.find((color) => !used.has(color.toLowerCase()))
   if (free) return free
-  const total = categories.filter((c) => c.module === module).length
-  return CATEGORY_COLORS[total % CATEGORY_COLORS.length]!
+  return CATEGORY_COLORS[active.length % CATEGORY_COLORS.length]!
 }
 
 function normalizeParentId(
@@ -314,6 +321,8 @@ function nextCategorySortOrder(
   const siblings = categories.filter(
     (category) =>
       category.module === module &&
+      // Una columna archivada no cuenta: al recuperarla no debe saltar de sitio.
+      !category.archivedAt &&
       category.sectionId === sectionId &&
       (category.parentId ?? null) === parentId,
   )
@@ -1530,6 +1539,39 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     }))
   },
 
+  /**
+   * Archivar oculta la columna del tablero sin tocar sus registros: siguen
+   * apuntando a ella, así que al recuperarla vuelven a aparecer en su sitio.
+   * Las subcolumnas se archivan con ella; al recuperarla, también vuelven.
+   */
+  setCategoryArchived: async (id, archived) => {
+    const state = get()
+    if (!state.categories.some((category) => category.id === id)) {
+      throw new Error('La columna ya no existe.')
+    }
+    const at = archived ? new Date().toISOString() : null
+    /*
+      La rama entera (columna + subcolumnas) va y viene junta: una sublista sin
+      su columna madre se quedaría colgando de nada. Al recuperar la madre
+      vuelven también sus subcolumnas. La misma lista de ids se usa para
+      Supabase y para el estado local, así ambos quedan iguales y un refresco
+      no devuelve a la vista una subcolumna que seguía archivada.
+    */
+    const ids = new Set([id, ...categoryDescendantIds(state.categories, id)])
+    const { error } = await supabase
+      .from('vault_categories')
+      .update({ archived_at: at })
+      .in('id', [...ids])
+    if (error) throw new Error(friendlySyncError(error.message))
+    set((s) => ({
+      categories: s.categories.map((category) =>
+        ids.has(category.id)
+          ? { ...category, archivedAt: at ?? undefined }
+          : category,
+      ),
+    }))
+  },
+
   moveCategory: async (id, sectionId, parentId, sortOrder) => {
     const state = get()
     const category = state.categories.find((item) => item.id === id)
@@ -1579,12 +1621,13 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     const category = state.categories.find((item) => item.id === id)
     if (!category) throw new Error('La categoría ya no existe.')
     const parentId = category.parentId ?? null
-    // Los hermanos son las columnas del mismo módulo: Access, Links y Notas
-    // mantienen órdenes independientes.
+    // Los hermanos son las columnas activas del mismo módulo: Access, Links y
+    // Notas mantienen órdenes independientes y las archivadas no se reordenan.
     const siblings = state.categories
       .filter(
         (item) =>
           item.module === category.module &&
+          !item.archivedAt &&
           item.sectionId === category.sectionId &&
           (item.parentId ?? null) === parentId,
       )

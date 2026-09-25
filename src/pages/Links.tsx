@@ -18,16 +18,19 @@ import type { AttachmentDraft } from '@/types'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
 import { toast, useUIStore } from '@/store/ui.store'
-import { matchesCategoryFilter } from '@/lib/vault-filters'
+import { activeCategories, matchesCategoryFilter } from '@/lib/vault-filters'
 import { buildBoardColumns } from '@/lib/vault-board'
 import type { LinkItem } from '@/types'
 
 export function Links() {
   const links = useVaultStore((s) => s.links)
   const allCategories = useVaultStore((s) => s.categories)
-  /** Links sólo ve sus columnas: no comparte ninguna con Access ni Notas. */
+  /**
+   * Links sólo ve sus columnas: no comparte ninguna con Access ni Notas, y las
+   * archivadas quedan fuera hasta recuperarlas desde el panel de Archivados.
+   */
   const categories = useMemo(
-    () => allCategories.filter((c) => c.module === 'link'),
+    () => activeCategories(allCategories, 'link'),
     [allCategories],
   )
   const sections = useVaultStore((s) => s.sections)
@@ -128,7 +131,8 @@ export function Links() {
   }
 
   /* Ver `useBoardColumnActions`: ahí se resuelve el caso de «Sin categoría». */
-  const { renameColumn, deleteColumn } = useBoardColumnActions('link')
+  const { renameColumn, archiveColumn, deleteColumn } =
+    useBoardColumnActions('link')
 
   const handleSubmit = async (values: LinkFormValues, attachments: AttachmentDraft) => {
     const normalized = {
@@ -261,6 +265,7 @@ export function Links() {
             />
           )}
           onRenameColumn={(id, name) => void renameColumn(id, name)}
+          onArchiveColumn={(id) => void archiveColumn(id, 'enlaces')}
           onDeleteColumn={(id) => void deleteColumn(id, 'enlaces')}
           addLabel="Añade un enlace"
         />

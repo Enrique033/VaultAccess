@@ -4,11 +4,8 @@ import {
   type DragEvent,
   type ReactNode,
 } from 'react'
-import { Inbox, MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react'
-import {
-  DropdownMenu,
-  DropdownMenuItem,
-} from '@/components/ui/DropdownMenu'
+import { Archive, Inbox, MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react'
+import { DropdownMenu, DropdownMenuItem } from '@/components/ui/DropdownMenu'
 import { cn } from '@/lib/utils'
 import { UNCATEGORIZED_COLUMN, type BoardColumn } from '@/lib/vault-board'
 
@@ -34,6 +31,8 @@ interface BoardViewProps<T> {
   renderAddColumn?: (close: () => void) => ReactNode
   /** Renombra la categoría de la columna. */
   onRenameColumn?: (categoryId: string, name: string) => void
+  /** Archiva la categoría de la columna (oculta, sin borrar). */
+  onArchiveColumn?: (categoryId: string) => void
   /** Elimina la categoría de la columna. */
   onDeleteColumn?: (categoryId: string) => void
   className?: string
@@ -54,6 +53,7 @@ export function BoardView<T extends { id: string; categoryId?: string }>({
   addLabel,
   renderAddColumn,
   onRenameColumn,
+  onArchiveColumn,
   onDeleteColumn,
   className,
 }: BoardViewProps<T>) {
@@ -110,6 +110,7 @@ export function BoardView<T extends { id: string; categoryId?: string }>({
           addLabel={addLabel}
           onAddCard={onAddCard}
           onRenameColumn={onRenameColumn}
+          onArchiveColumn={onArchiveColumn}
           onDeleteColumn={onDeleteColumn}
           onDragOver={(event) => {
             if (!onMoveCard) return
@@ -180,6 +181,7 @@ interface BoardColumnShellProps<T> {
   addLabel: string
   onAddCard: (categoryId: string) => void
   onRenameColumn?: (categoryId: string, name: string) => void
+  onArchiveColumn?: (categoryId: string) => void
   onDeleteColumn?: (categoryId: string) => void
   onDragOver: (event: DragEvent<HTMLElement>) => void
   onDragLeave: (event: DragEvent<HTMLElement>) => void
@@ -194,6 +196,7 @@ function BoardColumnShell<T>({
   addLabel,
   onAddCard,
   onRenameColumn,
+  onArchiveColumn,
   onDeleteColumn,
   onDragOver,
   onDragLeave,
@@ -302,14 +305,30 @@ function BoardColumnShell<T>({
               trigger={<MoreVertical className="size-4" />}
             >
               {isRealCategory ? (
-                <DropdownMenuItem
-                  variant="danger"
-                  onClick={() => onDeleteColumn(column.id)}
-                >
-                  <Trash2 className="size-3.5" /> Eliminar columna
-                </DropdownMenuItem>
+                <>
+                  {/*
+                    Archivar es la opción "sin compromiso": la columna sale del
+                    tablero pero sus tarjetas no se tocan y se recuperan desde el
+                    panel de Archivados. Eliminar sí las suelta.
+                  */}
+                  {onArchiveColumn && (
+                    <DropdownMenuItem onClick={() => onArchiveColumn(column.id)}>
+                      <Archive className="size-3.5" /> Archivar columna
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem
+                    variant="danger"
+                    onClick={() => onDeleteColumn(column.id)}
+                  >
+                    <Trash2 className="size-3.5" /> Eliminar columna
+                  </DropdownMenuItem>
+                </>
               ) : (
-                // El cajón no existe en la base: al renombrarlo pasa a ser real.
+                /*
+                  El cajón "Sin categoría" no existe en la base, así que no se
+                  puede archivar ni eliminar. Al renombrarlo pasa a ser una
+                  columna real y entonces sí tendrá las tres acciones.
+                */
                 <DropdownMenuItem onClick={startRename}>
                   <Pencil className="size-3.5" /> Renombrar columna
                 </DropdownMenuItem>

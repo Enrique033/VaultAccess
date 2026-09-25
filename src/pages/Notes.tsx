@@ -18,16 +18,19 @@ import type { AttachmentDraft } from '@/types'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
 import { toast, useUIStore } from '@/store/ui.store'
-import { matchesCategoryFilter } from '@/lib/vault-filters'
+import { activeCategories, matchesCategoryFilter } from '@/lib/vault-filters'
 import { buildBoardColumns } from '@/lib/vault-board'
 import type { Note } from '@/types'
 
 export function Notes() {
   const notes = useVaultStore((s) => s.notes)
   const allCategories = useVaultStore((s) => s.categories)
-  /** Notas sólo ve sus columnas: no comparte ninguna con Access ni Links. */
+  /**
+   * Notas sólo ve sus columnas: no comparte ninguna con Access ni Links, y las
+   * archivadas quedan fuera hasta recuperarlas desde el panel de Archivados.
+   */
   const categories = useMemo(
-    () => allCategories.filter((c) => c.module === 'note'),
+    () => activeCategories(allCategories, 'note'),
     [allCategories],
   )
   const sections = useVaultStore((s) => s.sections)
@@ -129,7 +132,8 @@ export function Notes() {
     Renombrar y eliminar columnas vive en un hook compartido: ahí se resuelve
     el caso especial de «Sin categoría», que se convierte en columna real.
   */
-  const { renameColumn, deleteColumn } = useBoardColumnActions('note')
+  const { renameColumn, archiveColumn, deleteColumn } =
+    useBoardColumnActions('note')
 
   const handleSubmit = async (values: NoteFormValues, attachments: AttachmentDraft) => {
     const normalized = {
@@ -263,6 +267,7 @@ export function Notes() {
             />
           )}
           onRenameColumn={(id, name) => void renameColumn(id, name)}
+          onArchiveColumn={(id) => void archiveColumn(id, 'notas')}
           onDeleteColumn={(id) => void deleteColumn(id, 'notas')}
           addLabel="Añade una nota"
         />

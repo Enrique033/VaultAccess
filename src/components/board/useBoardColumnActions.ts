@@ -3,6 +3,7 @@ import { UNCATEGORIZED_COLUMN } from '@/lib/vault-board'
 import { useVaultStore } from '@/store/vault.store'
 import { toast } from '@/store/ui.store'
 import { pickCategoryColor } from '@/lib/category-colors'
+import { activeCategories } from '@/lib/vault-filters'
 
 type Module = 'credential' | 'link' | 'note'
 
@@ -11,26 +12,27 @@ type Module = 'credential' | 'link' | 'note'
  *
  * Cada módulo tiene sus propias columnas: `addCategory` siempre marca la nueva
  * con `module`, así que renombrar o borrar una columna en Access no toca las
- * de Links ni las de Notas.
+ * de Links ni las de Notas. Las columnas archivadas tampoco salen del tablero.
  *
  * Renombrar o borrar una columna real es directo (el store lo resuelve). Lo
  * especial es la columna «Sin categoría»: no es una categoría real, es un
  * cajón sintético. Para que se comporte como las demás, al renombrarla se
  * **crea una categoría de verdad** con ese nombre y se trasladan allí todos
  * los registros sueltos; a partir de ese momento ya es una columna normal
- * (editable y eliminable como el resto).
+ * (editable, archivable y eliminable como el resto).
  */
 export function useBoardColumnActions(module: Module) {
   const sections = useVaultStore((s) => s.sections)
   const allCategories = useVaultStore((s) => s.categories)
-  /** Cada módulo ve sólo sus propias columnas. */
+  /** Cada módulo ve sólo sus propias columnas y ninguna archivada. */
   const categories = useMemo(
-    () => allCategories.filter((c) => c.module === module),
+    () => activeCategories(allCategories, module),
     [allCategories, module],
   )
   const addSection = useVaultStore((s) => s.addSection)
   const addCategory = useVaultStore((s) => s.addCategory)
   const renameCategory = useVaultStore((s) => s.renameCategory)
+  const setCategoryArchived = useVaultStore((s) => s.setCategoryArchived)
   const deleteCategory = useVaultStore((s) => s.deleteCategory)
   const credentials = useVaultStore((s) => s.credentials)
   const links = useVaultStore((s) => s.links)
@@ -135,5 +137,33 @@ export function useBoardColumnActions(module: Module) {
     [categories, deleteCategory],
   )
 
-  return { renameColumn, deleteColumn }
+  /**
+   * Archivar esconde la columna del tablero **sin borrar nada**: sus registros
+   * la siguen apuntando, así que si más adelante la recuperas desde el panel de
+   * Archivados, vuelven a aparecer en la misma columna.
+   */
+  const archiveColumn = useCallback(
+    async (columnId: string, itemLabel: string) => {
+      // El cajón «Sin categoría» no existe en la base: no hay nada que archivar.
+      if (columnId === UNCATEGORIZED_COLUMN) {
+        toast.error('Esa columna no se puede archivar')
+        return
+      }
+      const target = categories.find((c) => c.id === columnId)
+      if (!target) return
+      const confirmed = window.confirm(
+        `¿Archivar la columna "${target.name}"? Desaparece del tablero, pero tus ${itemLabel} no se borran: puedes recuperarla desde tu icono de cuenta → Archivados.`,
+      )
+      if (!confirmed) return
+      try {
+        await setCategoryArchived(columnId, true)
+        toast.success('Columna archivada')
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'No se pudo archivar')
+      }
+    },
+    [categories, setCategoryArchived],
+  )
+
+  return { renameColumn, archiveColumn, deleteColumn }
 }

@@ -75,6 +75,8 @@ export interface CategoryRow extends EncryptedRow {
   parent_id?: string | null
   sort_order?: number | null
   module?: string | null
+  /** `null`/ausente = columna activa. */
+  archived_at?: string | null
   color: string
   name?: string | null
 }
@@ -179,6 +181,8 @@ export async function toEncryptedCategory(
     module: (row.module as Category['module'] | null) ?? 'credential',
     parentId: row.parent_id ?? undefined,
     sortOrder: row.sort_order ?? 0,
+    // Archivada ≠ borrada: se oculta del tablero y se recupera desde el panel.
+    archivedAt: row.archived_at ?? undefined,
   }
 }
 

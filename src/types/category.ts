@@ -17,4 +17,10 @@ export interface Category {
   parentId?: string
   /** Orden estable dentro de la misma sección y padre. */
   sortOrder: number
+  /**
+   * Fecha de archivado (ISO). Una columna archivada no sale en el tablero, pero
+   * **no se borra**: sus registros siguen apuntando a ella y vuelven a su sitio
+   * al restaurarla desde el panel «Archivados». `undefined` = columna activa.
+   */
+  archivedAt?: string
 }

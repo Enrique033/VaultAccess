@@ -1,6 +1,13 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { FileSpreadsheet, KeyRound, LogOut, User, Users } from 'lucide-react'
+import {
+  Archive,
+  FileSpreadsheet,
+  KeyRound,
+  LogOut,
+  User,
+  Users,
+} from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import {
@@ -28,6 +35,7 @@ import { toast } from '@/store/ui.store'
 import { usePresenceContext } from '@/hooks/usePresence'
 import { SecureExportDialog } from '@/components/security/SecureExportDialog'
 import { RecoveryKeyDialog } from '@/components/security/RecoveryKeyDialog'
+import { ArchivedColumnsDialog } from './ArchivedColumnsDialog'
 
 const errorBox =
   'rounded-xl border border-danger/30 bg-danger/10 px-3 py-2.5 text-xs text-danger'
@@ -39,6 +47,7 @@ export function UserMenu() {
   const { globalOnline, isGlobalOwner } = usePresenceContext()
   const [busy, setBusy] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [archivedOpen, setArchivedOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [recoveryOpen, setRecoveryOpen] = useState(false)
 
@@ -153,6 +162,9 @@ export function UserMenu() {
         <DropdownMenuItem onClick={() => setProfileOpen(true)}>
           <User className="size-3.5" /> Editar perfil
         </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setArchivedOpen(true)}>
+          <Archive className="size-3.5" /> Archivados…
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => setExportOpen(true)}>
           <FileSpreadsheet className="size-3.5" /> Exportar copia cifrada…
@@ -167,6 +179,9 @@ export function UserMenu() {
       </DropdownMenu>
 
       {profileOpen && <ProfileDialog onOpenChange={setProfileOpen} />}
+      {archivedOpen && (
+        <ArchivedColumnsDialog open onOpenChange={setArchivedOpen} />
+      )}
       {exportOpen && (
         <SecureExportDialog
           open={exportOpen}

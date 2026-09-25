@@ -43,6 +43,15 @@ Auth** (Google OAuth) y protegida con **Row Level Security**.
   columna nace lista para recibir tarjetas. Las columnas vacías **sí se muestran**,
   como en Trello. No hay selector «Anidada en» ni pestañas de sección, y la barra
   lateral queda sólo con la navegación (Access, Links, Notas, Equipos).
+- **Archivar columnas sin perder nada**: el menú `⋯` de cada columna real ofrece
+  **«Archivar columna»** además de eliminar. Archivar **no borra**: la columna
+  sale del tablero (`vault_categories.archived_at`) y sus tarjetas quedan a la
+  espera sin perder su sitio, visibles en «Sin categoría». Se gestionan desde el
+  **icono de cuenta → Archivados**, el único sitio donde aparecen **Recuperar**
+  (la columna vuelve con todas sus tarjetas) y **Eliminar** (borrado de verdad:
+  sus registros quedan sin columna, nunca se pierden). Las subcolumnas viajan
+  con su columna madre. El cajón «Sin categoría» no se archiva porque no existe
+  en la base: sólo se renombra, y al hacerlo se convierte en columna real.
 - **Sin categorías de ejemplo**: la app ya no siembra secciones ni columnas al
   registrarte. Empiezas con el tablero vacío y creas las columnas que quieras. Si
   quieres tirar las que tienes, `supabase/reset-columns.sql` es un script aparte,

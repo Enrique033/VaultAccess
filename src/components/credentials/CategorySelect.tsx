@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Check, ChevronDown, Hash, Plus, Search } from 'lucide-react'
 import { useVaultStore } from '@/store/vault.store'
 import { CATEGORY_COLORS } from '@/lib/category-colors'
+import { activeCategories } from '@/lib/vault-filters'
 import { cn } from '@/lib/utils'
 import type { Category, CategoryModule } from '@/types'
 
@@ -71,9 +72,9 @@ export function CategorySelect({ value, onChange, id, module = 'credential' }: P
   const addCategory = useVaultStore((s) => s.addCategory)
   const status = useVaultStore((s) => s.status)
 
-  /** Cada tablero lista sólo sus columnas: Access, Links y Notas no comparten nada. */
+  /** Cada tablero lista sólo sus columnas activas: ni de otros ni archivadas. */
   const categories = useMemo(
-    () => allCategories.filter((category) => category.module === module),
+    () => activeCategories(allCategories, module),
     [allCategories, module],
   )
 

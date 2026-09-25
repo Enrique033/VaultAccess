@@ -1,8 +1,43 @@
-import type { Category } from '@/types'
+import type { Category, CategoryModule } from '@/types'
 
 /** Filtros especiales compartidos por Access, Links y Notas. */
 export const FAVORITES = 'favorites'
 export const NONE = 'none'
+
+/**
+ * Una columna archivada está oculta del tablero, pero no borrada: sus registros
+ * siguen apuntando a ella y vuelven a su sitio al restaurarla.
+ */
+export function isArchived(category: Category): boolean {
+  return Boolean(category.archivedAt)
+}
+
+/**
+ * Columnas que se ven en un tablero: las de ese módulo y sin archivar.
+ *
+ * Es el único sitio donde se decide qué columnas existen para el usuario, así
+ * que Access, Links, Notas y el panel de Archivados no pueden discrepar.
+ */
+export function activeCategories(
+  categories: Category[],
+  module: CategoryModule,
+): Category[] {
+  return categories.filter(
+    (category) => category.module === module && !category.archivedAt,
+  )
+}
+
+/** Columnas archivadas de cualquier módulo, de la más reciente a la más antigua. */
+export function archivedCategories(categories: Category[]): Category[] {
+  return categories
+    .filter(isArchived)
+    .sort((a, b) => (b.archivedAt ?? '').localeCompare(a.archivedAt ?? ''))
+}
+
+/** Nombre legible del tablero al que pertenece una columna. */
+export function moduleLabel(module: CategoryModule): string {
+  return module === 'credential' ? 'Access' : module === 'link' ? 'Links' : 'Notas'
+}
 
 export interface CategorizedItem {
   categoryId?: string
