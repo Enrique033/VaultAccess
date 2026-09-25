@@ -12,6 +12,7 @@ import { ViewToggle } from '@/components/board/ViewToggle'
 import { BoardView } from '@/components/board/BoardView'
 import { BoardHeader } from '@/components/board/BoardHeader'
 import { useBoardColumnActions } from '@/components/board/useBoardColumnActions'
+import { ArchivedItemsNotice } from '@/components/board/ArchivedItemsNotice'
 import { LinkBoardCard } from '@/components/board/LinkBoardCard'
 import { ShareItemDialog } from '@/components/sharing/ShareItemDialog'
 import type { AttachmentDraft } from '@/types'
@@ -193,6 +194,14 @@ export function Links() {
           <CredentialSortSelect value={sort} onChange={setSort} />
         </div>
       )}
+
+      {/* Aviso: si hay tarjetas en columnas archivadas, se ve aquí y no en un limbo. */}
+      <ArchivedItemsNotice
+        module="link"
+        items={links}
+        one="enlace"
+        many="enlaces"
+      />
 
       {/* Content */}
       {status === 'loading' || linksLoading || (!linksLoaded && !linksError) ? (

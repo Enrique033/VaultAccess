@@ -31,7 +31,7 @@ import { useVaultStore } from '@/store/vault.store'
 import { useWorkspaceStore } from '@/store/workspace.store'
 import { useChatStore } from '@/store/chat.store'
 import { useNotificationStore } from '@/store/notification.store'
-import { toast } from '@/store/ui.store'
+import { toast, useUIStore } from '@/store/ui.store'
 import { usePresenceContext } from '@/hooks/usePresence'
 import { SecureExportDialog } from '@/components/security/SecureExportDialog'
 import { RecoveryKeyDialog } from '@/components/security/RecoveryKeyDialog'
@@ -47,9 +47,12 @@ export function UserMenu() {
   const { globalOnline, isGlobalOwner } = usePresenceContext()
   const [busy, setBusy] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [archivedOpen, setArchivedOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [recoveryOpen, setRecoveryOpen] = useState(false)
+  // El panel de Archivados es global: también lo abre el aviso de los
+  // tableros cuando hay tarjetas esperando en una columna archivada.
+  const archivedOpen = useUIStore((s) => s.archivedColumnsOpen)
+  const setArchivedOpen = useUIStore((s) => s.setArchivedColumnsOpen)
 
   if (!user) return null
 

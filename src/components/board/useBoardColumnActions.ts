@@ -151,18 +151,36 @@ export function useBoardColumnActions(module: Module) {
       }
       const target = categories.find((c) => c.id === columnId)
       if (!target) return
+      /*
+        Cuenta lo que hay dentro para poder explicarlo: sin ese detalle, archivar
+        una columna con tarjetas parece que hace brotar una columna nueva,
+        cuando en realidad sus tarjetas se ven en «Sin categoría».
+      */
+      const inside =
+        module === 'credential'
+          ? credentials.filter((c) => c.categoryId === columnId).length
+          : module === 'link'
+            ? links.filter((l) => l.categoryId === columnId).length
+            : notes.filter((n) => n.categoryId === columnId).length
+      const plural = inside === 1 ? itemLabel.slice(0, -1) : itemLabel
       const confirmed = window.confirm(
-        `¿Archivar la columna "${target.name}"? Desaparece del tablero, pero tus ${itemLabel} no se borran: puedes recuperarla desde tu icono de cuenta → Archivados.`,
+        inside > 0
+          ? `¿Archivar la columna "${target.name}"? Desaparecerá del tablero y sus ${inside} ${plural} se verán en «Sin categoría» hasta que la recuperes. No se borra nada.`
+          : `¿Archivar la columna "${target.name}"? Desaparecerá del tablero. Puedes recuperarla cuando quieras desde tu icono de cuenta → Archivados.`,
       )
       if (!confirmed) return
       try {
         await setCategoryArchived(columnId, true)
-        toast.success('Columna archivada')
+        toast.success(
+          inside > 0
+            ? `Columna archivada · sus ${inside} ${plural} están en «Sin categoría»`
+            : 'Columna archivada',
+        )
       } catch (e) {
         toast.error(e instanceof Error ? e.message : 'No se pudo archivar')
       }
     },
-    [categories, setCategoryArchived],
+    [categories, credentials, links, module, notes, setCategoryArchived],
   )
 
   return { renameColumn, archiveColumn, deleteColumn }

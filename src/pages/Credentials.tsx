@@ -13,6 +13,7 @@ import { ViewToggle } from '@/components/board/ViewToggle'
 import { BoardView } from '@/components/board/BoardView'
 import { BoardHeader } from '@/components/board/BoardHeader'
 import { useBoardColumnActions } from '@/components/board/useBoardColumnActions'
+import { ArchivedItemsNotice } from '@/components/board/ArchivedItemsNotice'
 import { CredentialBoardCard } from '@/components/board/CredentialBoardCard'
 import { ShareItemDialog } from '@/components/sharing/ShareItemDialog'
 import type { CredentialFormValues } from '@/components/credentials/CredentialForm'
@@ -310,6 +311,14 @@ export function Credentials() {
           <CredentialSortSelect value={sort} onChange={setSort} />
         </div>
       )}
+
+      {/* Aviso: si hay tarjetas en columnas archivadas, se ve aquí y no en un limbo. */}
+      <ArchivedItemsNotice
+        module="credential"
+        items={credentials}
+        one="credencial"
+        many="credenciales"
+      />
 
       {/* Content */}
       {status === 'loading' ? (

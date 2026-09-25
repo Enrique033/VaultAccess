@@ -12,6 +12,7 @@ import { ViewToggle } from '@/components/board/ViewToggle'
 import { BoardView } from '@/components/board/BoardView'
 import { BoardHeader } from '@/components/board/BoardHeader'
 import { useBoardColumnActions } from '@/components/board/useBoardColumnActions'
+import { ArchivedItemsNotice } from '@/components/board/ArchivedItemsNotice'
 import { NoteBoardCard } from '@/components/board/NoteBoardCard'
 import { ShareItemDialog } from '@/components/sharing/ShareItemDialog'
 import type { AttachmentDraft } from '@/types'
@@ -196,7 +197,14 @@ export function Notes() {
         </div>
       )}
 
-      {/* Content */}
+      {/* Aviso: si hay tarjetas en columnas archivadas, se ve aquí y no en un limbo. */}
+      <ArchivedItemsNotice
+        module="note"
+        items={notes}
+        one="nota"
+        many="notas"
+      />
+
       {status === 'loading' || notesLoading || (!notesLoaded && !notesError) ? (
         <CardGridSkeleton />
       ) : status === 'error' ? (

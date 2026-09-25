@@ -23,6 +23,12 @@ interface UIState {
   mobileNavOpen: boolean
   /** Drawer de chat interno. No se persiste entre sesiones. */
   chatOpen: boolean
+  /**
+   * Panel de columnas archivadas (icono de cuenta). Vive aquí, y no en el
+   * UserMenu, para que también pueda abrirlo el aviso de los tableros cuando
+   * hay tarjetas esperando en una columna archivada.
+   */
+  archivedColumnsOpen: boolean
   theme: Theme
   /** Rejilla o tablero por columnas. */
   vaultView: VaultView
@@ -34,6 +40,7 @@ interface UIState {
   setMobileNavOpen: (open: boolean) => void
   toggleChat: () => void
   setChatOpen: (open: boolean) => void
+  setArchivedColumnsOpen: (open: boolean) => void
   toggleTheme: () => void
   setVaultView: (view: VaultView) => void
 
@@ -51,6 +58,7 @@ export const useUIStore = create<UIState>()(
       sidebarCollapsed: false,
       mobileNavOpen: false,
       chatOpen: false,
+      archivedColumnsOpen: false,
       theme: 'light' as Theme,
       vaultView: 'grid' as VaultView,
       toasts: [],
@@ -76,6 +84,9 @@ export const useUIStore = create<UIState>()(
         }),
 
       setVaultView: (vaultView) => set({ vaultView }),
+
+      setArchivedColumnsOpen: (archivedColumnsOpen) =>
+        set({ archivedColumnsOpen }),
 
       addToast: (toast) => {
         const id = generateId()
