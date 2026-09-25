@@ -56,15 +56,6 @@ import type {
   VaultSection,
 } from '@/types'
 
-/** Secciones sugeridas cuando el usuario entra por primera vez (se crean en remoto). */
-const DEFAULT_SECTIONS = ['Trabajo', 'Redes'] as const
-
-const DEFAULT_CATS: { name: string; color: string; section: string }[] = [
-  { name: 'Desarrollo', color: CATEGORY_COLORS[0]!, section: 'Trabajo' },
-  { name: 'Infraestructura', color: CATEGORY_COLORS[2]!, section: 'Trabajo' },
-  { name: 'Social', color: CATEGORY_COLORS[3]!, section: 'Redes' },
-]
-
 const SECTION_COLUMNS = 'id, name, encrypted_payload, created_at'
 const CATEGORY_COLUMNS =
   'id, section_id, parent_id, sort_order, name, color, encrypted_payload, created_at'
@@ -523,10 +514,10 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         vaultGeneration !== getVaultSessionGeneration()
       )
         return
-      let sections = await Promise.all(
+      const sections = await Promise.all(
         sectionRows.map((row) => toEncryptedSection(row, userId)),
       )
-      let categories = sanitizeCategoryHierarchy(
+      const categories = sanitizeCategoryHierarchy(
         await Promise.all(
           categoryRows.map((row) => toEncryptedCategory(row, userId)),
         ),
@@ -535,67 +526,12 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         credentialRows.map((row) => toEncryptedCredential(row, userId)),
       )
 
-      if (sections.length === 0) {
-        if (generation !== vaultLoadGeneration) return
-        const sectionSeeds = await Promise.all(
-          DEFAULT_SECTIONS.map(async (name) => {
-            const id = crypto.randomUUID()
-            const encryptedPayload = await encryptPersonalPayload(
-              'section',
-              id,
-              userId,
-              { name },
-            )
-            return { id, user_id: userId, encrypted_payload: encryptedPayload }
-          }),
-        )
-        const { data: sectionData, error: sectionError } = await supabase
-          .from('vault_sections')
-          .insert(sectionSeeds)
-          .select(SECTION_COLUMNS)
-        if (sectionError) {
-          throw new Error(friendlySyncError(sectionError.message))
-        }
-        sections = await Promise.all(
-          (sectionData ?? []).map((row) => toEncryptedSection(row as SectionRow, userId)),
-        )
-        if (generation !== vaultLoadGeneration) return
-        const byName = new Map(
-          sections.map((section) => [section.name, section.id]),
-        )
-        const categorySeeds = (
-          await Promise.all(
-            DEFAULT_CATS.map(async (seed) => {
-              const sectionId = byName.get(seed.section)
-              if (!sectionId) return null
-              const id = crypto.randomUUID()
-              const encryptedPayload = await encryptPersonalPayload(
-                'category',
-                id,
-                userId,
-                { name: seed.name },
-              )
-              return {
-                id,
-                user_id: userId,
-                section_id: sectionId,
-                color: seed.color,
-                encrypted_payload: encryptedPayload,
-              }
-            }),
-          )
-        ).filter((row): row is NonNullable<typeof row> => row !== null)
-        const { data: categoryData, error: categoryError } = await supabase
-          .from('vault_categories')
-          .insert(categorySeeds)
-          .select(CATEGORY_COLUMNS)
-        if (categoryError) {
-          throw new Error(friendlySyncError(categoryError.message))
-        }
-        categories = await Promise.all(
-          (categoryData ?? []).map((row) => toEncryptedCategory(row as CategoryRow, userId)),
-        )
-      }
+      /*
+        No se crean secciones ni categorías de ejemplo: el usuario empieza con
+        el tablero vacío y las columnas las crea él desde «+ Añade otra lista».
+        Antes se sembraban "Trabajo/Redes" y tres categorías, lo que ensuciaba
+        el tablero con columnas que el usuario no había pedido.
+      */
 
       if (
         generation !== vaultLoadGeneration ||

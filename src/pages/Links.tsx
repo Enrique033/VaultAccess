@@ -11,6 +11,7 @@ import { LinkDialog, type LinkFormValues } from '@/components/links/LinkDialog'
 import { ViewToggle } from '@/components/board/ViewToggle'
 import { BoardView } from '@/components/board/BoardView'
 import { BoardHeader } from '@/components/board/BoardHeader'
+import { useBoardColumnActions } from '@/components/board/useBoardColumnActions'
 import { LinkBoardCard } from '@/components/board/LinkBoardCard'
 import type { AttachmentDraft } from '@/types'
 import { useVaultStore } from '@/store/vault.store'
@@ -30,8 +31,6 @@ export function Links() {
   const linksLoading = useVaultStore((s) => s.linksLoading)
   const linksError = useVaultStore((s) => s.linksError)
   const loadLinks = useVaultStore((s) => s.loadLinks)
-  const renameCategory = useVaultStore((s) => s.renameCategory)
-  const deleteCategory = useVaultStore((s) => s.deleteCategory)
   const addLink = useVaultStore((s) => s.addLink)
   const updateLink = useVaultStore((s) => s.updateLink)
   const deleteLink = useVaultStore((s) => s.deleteLink)
@@ -40,7 +39,6 @@ export function Links() {
   // Sólo filtra la búsqueda: el tablero muestra siempre todas las columnas.
   const sectionId = useSearchStore((s) => s.sectionId)
   const categoryFilter = useSearchStore((s) => s.categoryFilter)
-  const setCategoryFilter = useSearchStore((s) => s.setCategoryFilter)
   const sort = useSearchStore((s) => s.sort)
   const setSort = useSearchStore((s) => s.setSort)
 
@@ -121,34 +119,8 @@ export function Links() {
     }
   }
 
-  /** Renombra la categoría de una columna desde el tablero. */
-  const handleRenameColumn = async (categoryId: string, name: string) => {
-    try {
-      await renameCategory(categoryId, name)
-      toast.success('Lista renombrada')
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo renombrar')
-    }
-  }
-
-  /** Elimina una columna; sus registros quedan sin categoría. */
-  const handleDeleteColumn = async (categoryId: string) => {
-    const target = categories.find((c) => c.id === categoryId)
-    if (!target) return
-    if (
-      !window.confirm(
-        `¿Eliminar la lista "${target.name}"? Sus enlaces quedarán sin categoría.`,
-      )
-    )
-      return
-    if (categoryFilter === categoryId) setCategoryFilter(null)
-    try {
-      await deleteCategory(categoryId)
-      toast.success('Lista eliminada')
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo eliminar')
-    }
-  }
+  /* Ver `useBoardColumnActions`: ahí se resuelve el caso de «Sin categoría». */
+  const { renameColumn, deleteColumn } = useBoardColumnActions('link')
 
   const handleSubmit = async (values: LinkFormValues, attachments: AttachmentDraft) => {
     const normalized = {
@@ -270,8 +242,8 @@ export function Links() {
           renderAddColumn={(close) => (
             <BoardHeader itemLabel="lista" presetParentId="" onClose={close} />
           )}
-          onRenameColumn={(id, name) => void handleRenameColumn(id, name)}
-          onDeleteColumn={(id) => void handleDeleteColumn(id)}
+          onRenameColumn={(id, name) => void renameColumn(id, name)}
+          onDeleteColumn={(id) => void deleteColumn(id, 'enlaces')}
           addLabel="Añade un enlace"
         />
       ) : (

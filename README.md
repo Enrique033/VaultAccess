@@ -28,15 +28,24 @@ Auth** (Google OAuth) y protegida con **Row Level Security**.
 - **Gestión de columnas desde el propio tablero**: cada columna es una lista con
   su título editable, contador y menú `⋯` (eliminar). **«+ Añade otra lista»** al
   final abre un input en la propia columna: escribes el nombre, pulsas Enter y la
-  columna nace lista para recibir tarjetas. No hay selector «Anidada en» ni
-  pestañas de sección, y la barra lateral queda sólo con la navegación
-  (Access, Links, Notas, Equipos).
+  columna nace lista para recibir tarjetas. Las columnas vacías **sí se muestran**,
+  como en Trello. No hay selector «Anidada en» ni pestañas de sección, y la barra
+  lateral queda sólo con la navegación (Access, Links, Notas, Equipos).
+- **Sin categorías de ejemplo**: la app ya no siembra secciones ni columnas al
+  registrarte. Empiezas con el tablero vacío y creas las columnas que quieras. Si
+  quieres tirar las que tienes, `supabase/schema-encryption.sql` trae al final un
+  bloque **opcional** de reseteo (borra columnas y secciones, y deja los registros
+  sin columna; no borra credenciales, enlaces ni notas).
+- **«Sin categoría» se comporta como las demás**: al renombrarla se convierte en
+  una columna real —crea la categoría y traslada allí todo lo que estaba suelto— y
+  a partir de ese momento es editable y eliminable como cualquier otra.
 - **Sin botones «Nuevo» redundantes**: los registros se crean desde el `+` de la
   columna correspondiente o desde el `+` del pie, nunca desde un botón global.
 - **Notas en dos paneles**: al editar una nota, la izquierda es el texto y la
   derecha las imágenes y los comentarios. Ambos lados son editables y las
   imágenes se ven como miniaturas reales (descifradas en memoria, nunca una URL
-  pública). **Las imágenes sólo existen en notas**, no en enlaces ni accesos.
+  pública), descargadas en paralelo y ampliables con un clic. **Las imágenes sólo
+  existen en notas**, no en enlaces ni accesos.
 - **Links y Notas** completos: tarjetas, CRUD, favoritos, búsqueda y filtros
   (tablas `vault_links` / `vault_notes` con RLS).
 - **Generador de claves** (crypto.getRandomValues) con longitud 8–48,

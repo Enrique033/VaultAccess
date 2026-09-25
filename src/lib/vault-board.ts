@@ -128,15 +128,19 @@ export function buildBoardColumns<T extends CategorizedItem>(
     for (const category of orderedCategories(
       categories.filter((c) => c.sectionId === section.id),
     )) {
-      const bucket = byCategory.get(category.id)
-      if (!bucket?.length) continue
+      /*
+        Una columna recién creada está vacía, pero debe verse igual: si se
+        filtrara las que no tienen tarjetas, "Crear columna" no mostraría nada
+        y el usuario creería que falló. Trello también muestra las listas
+        vacías.
+      */
       columns.push({
         id: category.id,
         name: category.name,
         color: category.color,
         sectionId: section.id,
         addCategoryId: category.id,
-        items: bucket,
+        items: byCategory.get(category.id) ?? [],
       })
     }
   }
@@ -150,7 +154,13 @@ export function buildBoardColumns<T extends CategorizedItem>(
       : undefined
     return !section || !sectionIds.has(section)
   })
-  if (loose.length > 0) {
+
+  /*
+    "Sin categoría" se comporta como el resto: aparece siempre que tenga
+    registros, pero también cuando el usuario tiene columnas y aún no ha
+    movido nada, para que sepa dónde acaba lo que cree sin columna.
+  */
+  if (loose.length > 0 || columns.length === 0) {
     columns.push({
       id: UNCATEGORIZED_COLUMN,
       name: 'Sin categoría',
@@ -161,17 +171,5 @@ export function buildBoardColumns<T extends CategorizedItem>(
     })
   }
 
-  if (columns.length === 0) {
-    return [
-      {
-        id: UNCATEGORIZED_COLUMN,
-        name: 'Sin categoría',
-        color: null,
-        sectionId: null,
-        addCategoryId: '',
-        items,
-      },
-    ]
-  }
   return columns
 }

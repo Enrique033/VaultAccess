@@ -11,6 +11,7 @@ import { NoteDialog, type NoteFormValues } from '@/components/notes/NoteDialog'
 import { ViewToggle } from '@/components/board/ViewToggle'
 import { BoardView } from '@/components/board/BoardView'
 import { BoardHeader } from '@/components/board/BoardHeader'
+import { useBoardColumnActions } from '@/components/board/useBoardColumnActions'
 import { NoteBoardCard } from '@/components/board/NoteBoardCard'
 import type { AttachmentDraft } from '@/types'
 import { useVaultStore } from '@/store/vault.store'
@@ -30,8 +31,6 @@ export function Notes() {
   const notesLoading = useVaultStore((s) => s.notesLoading)
   const notesError = useVaultStore((s) => s.notesError)
   const loadNotes = useVaultStore((s) => s.loadNotes)
-  const renameCategory = useVaultStore((s) => s.renameCategory)
-  const deleteCategory = useVaultStore((s) => s.deleteCategory)
   const addNote = useVaultStore((s) => s.addNote)
   const updateNote = useVaultStore((s) => s.updateNote)
   const deleteNote = useVaultStore((s) => s.deleteNote)
@@ -40,7 +39,6 @@ export function Notes() {
   // Sólo filtra la búsqueda: el tablero muestra siempre todas las columnas.
   const sectionId = useSearchStore((s) => s.sectionId)
   const categoryFilter = useSearchStore((s) => s.categoryFilter)
-  const setCategoryFilter = useSearchStore((s) => s.setCategoryFilter)
   const sort = useSearchStore((s) => s.sort)
   const setSort = useSearchStore((s) => s.setSort)
 
@@ -119,34 +117,11 @@ export function Notes() {
     }
   }
 
-  /** Renombra la categoría de una columna desde el tablero. */
-  const handleRenameColumn = async (categoryId: string, name: string) => {
-    try {
-      await renameCategory(categoryId, name)
-      toast.success('Lista renombrada')
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo renombrar')
-    }
-  }
-
-  /** Elimina una columna; sus registros quedan sin categoría. */
-  const handleDeleteColumn = async (categoryId: string) => {
-    const target = categories.find((c) => c.id === categoryId)
-    if (!target) return
-    if (
-      !window.confirm(
-        `¿Eliminar la lista "${target.name}"? Sus notas quedarán sin categoría.`,
-      )
-    )
-      return
-    if (categoryFilter === categoryId) setCategoryFilter(null)
-    try {
-      await deleteCategory(categoryId)
-      toast.success('Lista eliminada')
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo eliminar')
-    }
-  }
+  /*
+    Renombrar y eliminar columnas vive en un hook compartido: ahí se resuelve
+    el caso especial de «Sin categoría», que se convierte en columna real.
+  */
+  const { renameColumn, deleteColumn } = useBoardColumnActions('note')
 
   const handleSubmit = async (values: NoteFormValues, attachments: AttachmentDraft) => {
     const normalized = {
@@ -268,8 +243,8 @@ export function Notes() {
           renderAddColumn={(close) => (
             <BoardHeader itemLabel="lista" presetParentId="" onClose={close} />
           )}
-          onRenameColumn={(id, name) => void handleRenameColumn(id, name)}
-          onDeleteColumn={(id) => void handleDeleteColumn(id)}
+          onRenameColumn={(id, name) => void renameColumn(id, name)}
+          onDeleteColumn={(id) => void deleteColumn(id, 'notas')}
           addLabel="Añade una nota"
         />
       ) : (

@@ -119,8 +119,9 @@ export function RecoveryKeyDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => (next ? onOpenChange(true) : close())}
+      className="sm:max-w-md"
     >
-      <div className="sm:max-w-lg">
+      <div>
         <DialogHeader>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">

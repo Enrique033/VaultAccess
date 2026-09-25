@@ -12,6 +12,7 @@ import { CredentialSortSelect } from '@/components/credentials/CredentialSortSel
 import { ViewToggle } from '@/components/board/ViewToggle'
 import { BoardView } from '@/components/board/BoardView'
 import { BoardHeader } from '@/components/board/BoardHeader'
+import { useBoardColumnActions } from '@/components/board/useBoardColumnActions'
 import { CredentialBoardCard } from '@/components/board/CredentialBoardCard'
 import type { CredentialFormValues } from '@/components/credentials/CredentialForm'
 import type { AttachmentDraft } from '@/types'
@@ -32,8 +33,6 @@ export function Credentials() {
   const offline = useVaultStore((s) => s.offline)
   const syncError = useVaultStore((s) => s.error)
   const retryLoad = useVaultStore((s) => s.load)
-  const renameCategory = useVaultStore((s) => s.renameCategory)
-  const deleteCategory = useVaultStore((s) => s.deleteCategory)
   const addCredential = useVaultStore((s) => s.addCredential)
   const updateCredential = useVaultStore((s) => s.updateCredential)
   const deleteCredential = useVaultStore((s) => s.deleteCredential)
@@ -151,32 +150,8 @@ export function Credentials() {
     setDialogOpen(true)
   }
 
-  /** Renombra la categoría de una columna desde el tablero. */
-  const handleRenameColumn = async (categoryId: string, name: string) => {
-    try {
-      await renameCategory(categoryId, name)
-      toast.success('Lista renombrada')
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo renombrar')
-    }
-  }
-
-  /** Elimina una columna; sus registros quedan sin categoría. */
-  const handleDeleteColumn = async (categoryId: string) => {
-    const target = categories.find((c) => c.id === categoryId)
-    if (!target) return
-    const confirmed = window.confirm(
-      `¿Eliminar la lista "${target.name}"? Sus credenciales quedarán sin categoría.`,
-    )
-    if (!confirmed) return
-    if (categoryFilter === categoryId) setCategoryFilter(null)
-    try {
-      await deleteCategory(categoryId)
-      toast.success('Lista eliminada')
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo eliminar')
-    }
-  }
+  /* Ver `useBoardColumnActions`: ahí se resuelve el caso de «Sin categoría». */
+  const { renameColumn, deleteColumn } = useBoardColumnActions('credential')
 
   const handleSubmit = async (
     values: CredentialFormValues,
@@ -361,8 +336,8 @@ export function Credentials() {
           renderAddColumn={(close) => (
             <BoardHeader itemLabel="lista" presetParentId="" onClose={close} />
           )}
-          onRenameColumn={(id, name) => void handleRenameColumn(id, name)}
-          onDeleteColumn={(id) => void handleDeleteColumn(id)}
+          onRenameColumn={(id, name) => void renameColumn(id, name)}
+          onDeleteColumn={(id) => void deleteColumn(id, 'credenciales')}
           addLabel="Añade una credencial"
         />
       ) : (

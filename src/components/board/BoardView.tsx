@@ -215,6 +215,14 @@ function BoardColumnShell<T>({
     onRenameColumn(column.id, next)
   }
 
+  /*
+    "Sin categoría" también se renombra: el hook la convierte en columna real
+    al darle nombre (crea la categoría y traslada lo que estaba suelto). Sólo
+    se oculta el menú de eliminar, porque ese cajón no existe en la base.
+  */
+  const canEdit = Boolean(onRenameColumn)
+  const canDelete = isRealCategory && Boolean(onDeleteColumn)
+
   return (
     <section
       role="listitem"
@@ -243,11 +251,11 @@ function BoardColumnShell<T>({
           {renameValue === null ? (
             <button
               type="button"
-              onClick={isRealCategory ? startRename : undefined}
-              title={isRealCategory ? 'Clic para renombrar' : undefined}
+              onClick={canEdit ? startRename : undefined}
+              title={canEdit ? 'Clic para renombrar' : undefined}
               className={cn(
                 'block w-full truncate text-left',
-                isRealCategory &&
+                canEdit &&
                   'rounded-md px-1 py-0.5 transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
               )}
             >
@@ -284,7 +292,7 @@ function BoardColumnShell<T>({
           >
             <Plus className="size-4" />
           </button>
-          {isRealCategory && onDeleteColumn && (
+          {canDelete && onDeleteColumn && (
             <DropdownMenu
               contentClassName="min-w-[13rem]"
               trigger={<MoreVertical className="size-4" />}
@@ -293,7 +301,7 @@ function BoardColumnShell<T>({
                 variant="danger"
                 onClick={() => onDeleteColumn(column.id)}
               >
-                <Trash2 className="size-3.5" /> Eliminar lista
+                <Trash2 className="size-3.5" /> Eliminar columna
               </DropdownMenuItem>
             </DropdownMenu>
           )}
