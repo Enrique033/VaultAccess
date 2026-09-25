@@ -22,6 +22,8 @@ interface CredentialDialogProps {
   onSubmit: (values: CredentialFormValues, attachments: AttachmentDraft) => void
   /** Categoría preseleccionada al crear desde una columna del tablero. */
   defaultCategoryId?: string
+  /** Abre el diálogo de compartir con esta credencial ya guardada. */
+  onShareRequest?: (credential: Credential) => void
 }
 
 export function CredentialDialog({
@@ -30,6 +32,7 @@ export function CredentialDialog({
   credential,
   onSubmit,
   defaultCategoryId,
+  onShareRequest,
 }: CredentialDialogProps) {
   const isEditing = Boolean(credential)
   const [tab, setTab] = useState<Tab>('data')
@@ -107,6 +110,7 @@ export function CredentialDialog({
             credential={credential}
             passwordSeed={passwordSeed}
             defaultCategoryId={defaultCategoryId}
+            onShareRequest={onShareRequest}
             onSubmit={onSubmit}
             onCancel={() => onOpenChange(false)}
           />

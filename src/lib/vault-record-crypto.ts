@@ -74,6 +74,7 @@ export interface CategoryRow extends EncryptedRow {
   section_id: string
   parent_id?: string | null
   sort_order?: number | null
+  module?: string | null
   color: string
   name?: string | null
 }
@@ -174,6 +175,8 @@ export async function toEncryptedCategory(
     name: payload.name,
     color: row.color,
     sectionId: row.section_id,
+    // Las columnas antiguas no tenían módulo: se asignan a Access.
+    module: (row.module as Category['module'] | null) ?? 'credential',
     parentId: row.parent_id ?? undefined,
     sortOrder: row.sort_order ?? 0,
   }

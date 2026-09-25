@@ -27,7 +27,7 @@ import {
   uploadEncryptedAttachments,
   MAX_ATTACHMENTS_PER_RECORD,
 } from '@/lib/vault-attachments'
-import type { Attachment, AttachmentDraft } from '@/types'
+import type { Attachment, AttachmentDraft, CategoryModule } from '@/types'
 import {
   clearCachedSnapshot,
   readCachedSnapshot,
@@ -107,6 +107,8 @@ export interface CategoryInput {
   sectionId: string
   parentId?: string
   sortOrder?: number
+  /** Módulo propietario. Si falta, se deduce del primer registro enlazado. */
+  module?: CategoryModule
 }
 
 export type LinkInput = Omit<
@@ -1435,6 +1437,9 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         section_id: input.sectionId,
         parent_id: parentId,
         sort_order: sortOrder,
+        // Cada módulo tiene sus propias columnas: Access, Links y Notas no
+        // comparten nada. Por defecto la columna pertenece al módulo actual.
+        module: input.module,
         color: input.color ?? nextColor(state.categories),
         encrypted_payload: encryptedPayload,
       })

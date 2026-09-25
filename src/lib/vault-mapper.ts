@@ -1,5 +1,6 @@
 import type {
   Category,
+  CategoryModule,
   Credential,
   LinkItem,
   Note,
@@ -22,6 +23,7 @@ export interface CategoryRow {
   section_id: string
   parent_id?: string | null
   sort_order?: number | null
+  module?: string | null
   name: string
   color: string
   created_at?: string
@@ -52,6 +54,7 @@ export function toCategory(row: CategoryRow): Category {
     name: row.name,
     color: row.color,
     sectionId: row.section_id,
+    module: (row.module as CategoryModule | null) ?? 'credential',
     parentId: row.parent_id ?? undefined,
     sortOrder: row.sort_order ?? 0,
   }

@@ -4,7 +4,7 @@ import {
   type DragEvent,
   type ReactNode,
 } from 'react'
-import { Inbox, MoreVertical, Plus, Trash2 } from 'lucide-react'
+import { Inbox, MoreVertical, Pencil, Plus, Trash2 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -221,7 +221,6 @@ function BoardColumnShell<T>({
     se oculta el menú de eliminar, porque ese cajón no existe en la base.
   */
   const canEdit = Boolean(onRenameColumn)
-  const canDelete = isRealCategory && Boolean(onDeleteColumn)
 
   return (
     <section
@@ -283,8 +282,9 @@ function BoardColumnShell<T>({
           {column.items.length}
         </span>
         {/*
-          Controles siempre visibles: antes sólo aparecían al pasar el cursor, y
-          en columnas sin tarjetas pasaban desapercibidos.
+          Controles de la columna. Los 3 puntitos también aparecen en
+          «Sin categoría»: al elegir "Renombrar" se convierte en una columna
+          real (el hook crea la categoría y traslada lo que estaba suelto).
         */}
         <div className="flex shrink-0 items-center gap-0.5">
           <button
@@ -296,17 +296,24 @@ function BoardColumnShell<T>({
           >
             <Plus className="size-4" />
           </button>
-          {canDelete && onDeleteColumn && (
+          {onDeleteColumn && (
             <DropdownMenu
               contentClassName="min-w-[13rem]"
               trigger={<MoreVertical className="size-4" />}
             >
-              <DropdownMenuItem
-                variant="danger"
-                onClick={() => onDeleteColumn(column.id)}
-              >
-                <Trash2 className="size-3.5" /> Eliminar columna
-              </DropdownMenuItem>
+              {isRealCategory ? (
+                <DropdownMenuItem
+                  variant="danger"
+                  onClick={() => onDeleteColumn(column.id)}
+                >
+                  <Trash2 className="size-3.5" /> Eliminar columna
+                </DropdownMenuItem>
+              ) : (
+                // El cajón no existe en la base: al renombrarlo pasa a ser real.
+                <DropdownMenuItem onClick={startRename}>
+                  <Pencil className="size-3.5" /> Renombrar columna
+                </DropdownMenuItem>
+              )}
             </DropdownMenu>
           )}
         </div>

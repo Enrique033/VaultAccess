@@ -83,7 +83,7 @@ export function LinkBoardCard({ link, onEdit, onDelete }: LinkBoardCardProps) {
               {hostOf(link.url)}
             </p>
           </button>
-          <span className="shrink-0">
+          <span className="shrink-0 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
             <DropdownMenu
               contentClassName="min-w-[13rem]"
               trigger={<MoreVertical className="size-4" />}

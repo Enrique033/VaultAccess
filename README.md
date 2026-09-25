@@ -18,15 +18,24 @@ Auth** (Google OAuth) y protegida con **Row Level Security**.
   **arrastran entre columnas** para cambiar de categoría, sin tocar el cifrado
   ni los adjuntos. Alterna con la rejilla mediante el conmutador Rejilla/Tablero,
   que recuerda tu preferencia.
+- **Columnas independientes por módulo**: Access, Links y Notas **no comparten
+  nada**. Cada columna pertenece a un módulo (`vault_categories.module`), así que
+  renombrar o borrar una columna en Access no toca las de Links ni las de Notas.
+  Sólo el buscador ve los tres módulos y Equipos es quien reparte los registros.
+- **Compartir en equipo desde cualquier lugar**: los 3 puntitos de cada tarjeta
+  (Access, Links y Notas) incluyen «Compartir en equipo», el diálogo de edición
+  tiene un botón directo, y al crear un registro nuevo se abre automáticamente
+  el diálogo de compartir para no tener que ir a buscarlo al tablero.
 - **Interfaz de tablero minimalista, al estilo Trello**: el encabezado de cada
   columna muestra **sólo el título (editable con un clic) y el contador**; los
   controles aparecen al pasar el cursor. El botón **«+» sólo se despliega en el
   hueco exacto entre dos tarjetas** y hay un **«+ Añade…» fijo al pie** de la
   columna. Las tarjetas muestran título, dato secundario y *badges*; todas las
-  acciones (editar, copiar, abrir, compartir, eliminar) viven en el menú `⋯`.
+  acciones (editar, copiar, abrir, compartir, eliminar) viven en el menú `⋯`,
+  que aparece **sólo al pasar el cursor por la tarjeta**.
   No se muestra el filtro de categorías ni botones pesados.
 - **Gestión de columnas desde el propio tablero**: cada columna es una lista con
-  su título editable, contador y menú `⋯` (eliminar). **«+ Añade otra lista»** al
+  su título editable, contador y menú `⋯`. **«+ Añade otra lista»** al
   final abre un input en la propia columna: escribes el nombre, pulsas Enter y la
   columna nace lista para recibir tarjetas. Las columnas vacías **sí se muestran**,
   como en Trello. No hay selector «Anidada en» ni pestañas de sección, y la barra

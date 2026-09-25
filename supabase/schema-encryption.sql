@@ -137,6 +137,48 @@ alter table public.vault_categories
   add column if not exists sort_order integer not null default 0;
 
 create index if not exists idx_categories_section_parent_sort
+-- =====================================================================
+-- COLUMNAS INDEPENDIENTES POR MÓDULO
+-- ---------------------------------------------------------------------
+-- `vault_categories` era una única bolsa compartida por Access, Links y
+-- Notas: renombrar una columna en Access la renombraba en los tres sitios.
+-- Cada módulo (credential | link | note) tiene ahora sus propias columnas.
+--
+-- Idempotente: se puede reejecutar sin efectos.
+-- =====================================================================
+
+alter table public.vault_categories
+  add column if not exists module text not null default 'credential';
+
+-- Las categorías existentes se asignan a Access, que es donde se crearon.
+update public.vault_categories
+   set module = 'credential'
+ where module is null;
+
+-- Un registro de links/notas que apuntara a una columna de Access queda
+-- suelto: así aparece en su propio «Sin categoría» en vez de desaparecer.
+update public.vault_links
+   set category_id = null
+ where user_id = auth.uid()
+   and category_id is not null
+   and category_id in (
+     select id from public.vault_categories
+      where user_id = auth.uid() and module = 'credential'
+   );
+
+update public.vault_notes
+   set category_id = null
+ where user_id = auth.uid()
+   and category_id is not null
+   and category_id in (
+     select id from public.vault_categories
+      where user_id = auth.uid() and module = 'credential'
+   );
+
+create index if not exists idx_categories_module_sort
+  on public.vault_categories (user_id, module, section_id, parent_id, sort_order);
+
+
   on public.vault_categories (section_id, parent_id, sort_order, id);
 
 comment on column public.vault_categories.parent_id is
@@ -220,6 +262,7 @@ as $$
           'section_id', c.section_id,
           'parent_id', c.parent_id,
           'sort_order', c.sort_order,
+          'module', c.module,
           'name', c.name,
           'color', c.color,
           'encrypted_payload', c.encrypted_payload,

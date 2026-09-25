@@ -13,6 +13,7 @@ import { BoardView } from '@/components/board/BoardView'
 import { BoardHeader } from '@/components/board/BoardHeader'
 import { useBoardColumnActions } from '@/components/board/useBoardColumnActions'
 import { LinkBoardCard } from '@/components/board/LinkBoardCard'
+import { ShareItemDialog } from '@/components/sharing/ShareItemDialog'
 import type { AttachmentDraft } from '@/types'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
@@ -23,7 +24,12 @@ import type { LinkItem } from '@/types'
 
 export function Links() {
   const links = useVaultStore((s) => s.links)
-  const categories = useVaultStore((s) => s.categories)
+  const allCategories = useVaultStore((s) => s.categories)
+  /** Links sólo ve sus columnas: no comparte ninguna con Access ni Notas. */
+  const categories = useMemo(
+    () => allCategories.filter((c) => c.module === 'link'),
+    [allCategories],
+  )
   const sections = useVaultStore((s) => s.sections)
   const status = useVaultStore((s) => s.status)
   const syncError = useVaultStore((s) => s.error)
@@ -48,6 +54,8 @@ export function Links() {
   const [deleting, setDeleting] = useState<LinkItem | null>(null)
   /** Categoría preseleccionada al crear desde el botón «+» de una columna. */
   const [createCategoryId, setCreateCategoryId] = useState('')
+  /** Enlace abierto en el diálogo de compartir con el equipo. */
+  const [shareTarget, setShareTarget] = useState<LinkItem | null>(null)
   const vaultView = useUIStore((s) => s.vaultView)
 
   useEffect(() => {
@@ -134,8 +142,13 @@ export function Links() {
         await updateLink(editing.id, normalized, attachments)
         toast.success('Enlace actualizado')
       } else {
-        await addLink(normalized, attachments)
+        // El enlace recién creado se ofrece para compartir en equipo.
+        const created = await addLink(normalized, attachments)
         toast.success('Enlace creado')
+        setDialogOpen(false)
+        setEditing(null)
+        setShareTarget(created)
+        return
       }
       setDialogOpen(false)
       setEditing(null)
@@ -274,6 +287,16 @@ export function Links() {
         link={editing ?? undefined}
         defaultCategoryId={editing ? undefined : createCategoryId}
         onSubmit={handleSubmit}
+        onShareRequest={setShareTarget}
+      />
+
+      <ShareItemDialog
+        open={shareTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setShareTarget(null)
+        }}
+        kind="link"
+        item={shareTarget}
       />
 
       <ConfirmDialog

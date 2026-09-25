@@ -13,6 +13,7 @@ import {
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Label } from '@/components/ui/Label'
+import { Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { AttachmentPicker } from '@/components/attachments/AttachmentPicker'
 import { AttachmentGallery } from '@/components/attachments/AttachmentGallery'
@@ -45,6 +46,8 @@ interface NoteDialogProps {
   onSubmit: (values: NoteFormValues, attachments: AttachmentDraft) => void
   /** Categoría preseleccionada al crear desde una columna del tablero. */
   defaultCategoryId?: string
+  /** Abre el diálogo de compartir con esta nota ya guardada. */
+  onShareRequest?: (note: Note) => void
 }
 
 export function NoteDialog({
@@ -53,6 +56,7 @@ export function NoteDialog({
   note,
   onSubmit,
   defaultCategoryId,
+  onShareRequest,
 }: NoteDialogProps) {
   const isEditing = Boolean(note)
   const [attachmentDraft, setAttachmentDraft] = useState<AttachmentDraft>({
@@ -185,13 +189,35 @@ export function NoteDialog({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 md:col-span-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" variant="primary" disabled={isSubmitting}>
-              {isEditing ? 'Guardar cambios' : 'Crear nota'}
-            </Button>
+          <div className="flex flex-wrap items-center justify-between gap-2 md:col-span-2">
+            {/*
+              Compartir en equipo. Con `note` ya guardado se puede compartir
+              desde aquí; al crear todavía no existe, así que el tablero
+              ofrece compartir en sus 3 puntitos.
+            */}
+            {isEditing ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onShareRequest?.(note!)}
+                disabled={!onShareRequest}
+              >
+                <Share2 className="size-3.5" /> Compartir en equipo
+              </Button>
+            ) : (
+              <span className="text-xs text-muted">
+                Podrás compartirla en equipo desde los 3 puntitos de la tarjeta.
+              </span>
+            )}
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" variant="primary" disabled={isSubmitting}>
+                {isEditing ? 'Guardar cambios' : 'Crear nota'}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>

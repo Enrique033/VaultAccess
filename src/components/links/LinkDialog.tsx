@@ -13,6 +13,7 @@ import {
 import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Label } from '@/components/ui/Label'
+import { Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import type { AttachmentDraft, LinkItem } from '@/types'
 
@@ -48,6 +49,8 @@ interface LinkDialogProps {
   onSubmit: (values: LinkFormValues, attachments: AttachmentDraft) => void
   /** Categoría preseleccionada al crear desde una columna del tablero. */
   defaultCategoryId?: string
+  /** Abre el diálogo de compartir con este enlace ya guardado. */
+  onShareRequest?: (link: LinkItem) => void
 }
 
 export function LinkDialog({
@@ -56,6 +59,7 @@ export function LinkDialog({
   link,
   onSubmit,
   defaultCategoryId,
+  onShareRequest,
 }: LinkDialogProps) {
   const isEditing = Boolean(link)
   const [attachmentDraft, setAttachmentDraft] = useState<AttachmentDraft>({
@@ -147,13 +151,30 @@ export function LinkDialog({
             )}
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" variant="primary" disabled={isSubmitting}>
-              {isEditing ? 'Guardar cambios' : 'Crear enlace'}
-            </Button>
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+            {isEditing ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onShareRequest?.(link!)}
+                disabled={!onShareRequest}
+              >
+                <Share2 className="size-3.5" /> Compartir en equipo
+              </Button>
+            ) : (
+              <span className="text-xs text-muted">
+                Podrás compartirlo desde los 3 puntitos de la tarjeta.
+              </span>
+            )}
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" variant="primary" disabled={isSubmitting}>
+                {isEditing ? 'Guardar cambios' : 'Crear enlace'}
+              </Button>
+            </div>
           </div>
         </form>
       </DialogContent>

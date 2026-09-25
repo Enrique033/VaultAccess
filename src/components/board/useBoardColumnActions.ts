@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useMemo } from 'react'
 import { UNCATEGORIZED_COLUMN } from '@/lib/vault-board'
 import { useVaultStore } from '@/store/vault.store'
 import { toast } from '@/store/ui.store'
@@ -9,6 +9,10 @@ type Module = 'credential' | 'link' | 'note'
 /**
  * Acciones compartidas por los tableros de Access, Links y Notas.
  *
+ * Cada módulo tiene sus propias columnas: `addCategory` siempre marca la nueva
+ * con `module`, así que renombrar o borrar una columna en Access no toca las
+ * de Links ni las de Notas.
+ *
  * Renombrar o borrar una columna real es directo (el store lo resuelve). Lo
  * especial es la columna «Sin categoría»: no es una categoría real, es un
  * cajón sintético. Para que se comporte como las demás, al renombrarla se
@@ -18,7 +22,12 @@ type Module = 'credential' | 'link' | 'note'
  */
 export function useBoardColumnActions(module: Module) {
   const sections = useVaultStore((s) => s.sections)
-  const categories = useVaultStore((s) => s.categories)
+  const allCategories = useVaultStore((s) => s.categories)
+  /** Cada módulo ve sólo sus propias columnas. */
+  const categories = useMemo(
+    () => allCategories.filter((c) => c.module === module),
+    [allCategories, module],
+  )
   const addSection = useVaultStore((s) => s.addSection)
   const addCategory = useVaultStore((s) => s.addCategory)
   const renameCategory = useVaultStore((s) => s.renameCategory)
@@ -68,6 +77,7 @@ export function useBoardColumnActions(module: Module) {
         const created = await addCategory({
           name: trimmed,
           sectionId,
+          module,
           color: pickCategoryColor(categories.length),
         })
 

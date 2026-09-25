@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Share2 } from 'lucide-react'
 import { Input } from '@/components/ui/Input'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Textarea } from '@/components/ui/Textarea'
@@ -49,6 +50,8 @@ interface CredentialFormProps {
   passwordSeed?: string
   /** Categoría preseleccionada al crear desde una columna del tablero. */
   defaultCategoryId?: string
+  /** Abre el diálogo de compartir con esta credencial ya guardada. */
+  onShareRequest?: (credential: Credential) => void
 }
 
 export function CredentialForm({
@@ -57,6 +60,7 @@ export function CredentialForm({
   onCancel,
   passwordSeed,
   defaultCategoryId,
+  onShareRequest,
 }: CredentialFormProps) {
   const allCategories = useVaultStore((s) => s.categories)
   const status = useVaultStore((s) => s.status)
@@ -186,13 +190,30 @@ export function CredentialForm({
         )}
       </div>
 
-      <div className="flex justify-end gap-2 pt-2">
-        <Button type="button" variant="ghost" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button type="submit" variant="primary" disabled={isSubmitting}>
-          {credential ? 'Guardar cambios' : 'Crear credencial'}
-        </Button>
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+        {credential ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onShareRequest?.(credential)}
+            disabled={!onShareRequest}
+          >
+            <Share2 className="size-3.5" /> Compartir en equipo
+          </Button>
+        ) : (
+          <span className="text-xs text-muted">
+            Podrás compartirla desde los 3 puntitos de la tarjeta.
+          </span>
+        )}
+        <div className="flex gap-2">
+          <Button type="button" variant="ghost" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button type="submit" variant="primary" disabled={isSubmitting}>
+            {credential ? 'Guardar cambios' : 'Crear credencial'}
+          </Button>
+        </div>
       </div>
     </form>
   )

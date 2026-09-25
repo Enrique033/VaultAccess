@@ -14,6 +14,7 @@ import { BoardView } from '@/components/board/BoardView'
 import { BoardHeader } from '@/components/board/BoardHeader'
 import { useBoardColumnActions } from '@/components/board/useBoardColumnActions'
 import { CredentialBoardCard } from '@/components/board/CredentialBoardCard'
+import { ShareItemDialog } from '@/components/sharing/ShareItemDialog'
 import type { CredentialFormValues } from '@/components/credentials/CredentialForm'
 import type { AttachmentDraft } from '@/types'
 import { evaluatePassword } from '@/lib/password-strength'
@@ -27,7 +28,12 @@ import type { Credential } from '@/types'
 
 export function Credentials() {
   const credentials = useVaultStore((s) => s.credentials)
-  const categories = useVaultStore((s) => s.categories)
+  const allCategories = useVaultStore((s) => s.categories)
+  /** Access sólo ve sus columnas: no comparte ninguna con Links ni Notas. */
+  const categories = useMemo(
+    () => allCategories.filter((c) => c.module === 'credential'),
+    [allCategories],
+  )
   const sections = useVaultStore((s) => s.sections)
   const status = useVaultStore((s) => s.status)
   const offline = useVaultStore((s) => s.offline)
@@ -52,6 +58,8 @@ export function Credentials() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editing, setEditing] = useState<Credential | null>(null)
   const [deleting, setDeleting] = useState<Credential | null>(null)
+  /** Credencial abierta en el diálogo de compartir con el equipo. */
+  const [shareTarget, setShareTarget] = useState<Credential | null>(null)
   /** Categoría preseleccionada al crear desde el botón «+» de una columna. */
   const [createCategoryId, setCreateCategoryId] = useState('')
   const vaultView = useUIStore((s) => s.vaultView)
@@ -171,8 +179,13 @@ export function Credentials() {
         await updateCredential(editing.id, normalized, attachments)
         toast.success('Credencial actualizada')
       } else {
-        await addCredential(normalized, attachments)
+        // La credencial recién creada se ofrece para compartir en equipo.
+        const created = await addCredential(normalized, attachments)
         toast.success('Credencial creada')
+        setDialogOpen(false)
+        setEditing(null)
+        setShareTarget(created)
+        return
       }
       setDialogOpen(false)
       setEditing(null)
@@ -366,6 +379,16 @@ export function Credentials() {
         credential={editing ?? undefined}
         defaultCategoryId={editing ? undefined : createCategoryId}
         onSubmit={handleSubmit}
+        onShareRequest={setShareTarget}
+      />
+
+      <ShareItemDialog
+        open={shareTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setShareTarget(null)
+        }}
+        kind="credential"
+        item={shareTarget}
       />
 
       {/* Delete confirmation */}
