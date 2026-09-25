@@ -28,6 +28,11 @@ import {
   MAX_ATTACHMENTS_PER_RECORD,
 } from '@/lib/vault-attachments'
 import type { Attachment, AttachmentDraft } from '@/types'
+import {
+  clearCachedSnapshot,
+  readCachedSnapshot,
+  writeCachedSnapshot,
+} from '@/lib/vault-offline'
 
 async function encryptPersonalPayload<T>(
   kind: VaultRecordKind,
@@ -147,6 +152,11 @@ interface VaultState {
 
   status: SyncStatus
   error: string | null
+  /**
+   * `true` cuando los datos visibles provienen de la copia local cifrada
+   * porque Supabase no respondió. En ese modo sólo se puede leer.
+   */
+  offline: boolean
   /** Carga los datos del usuario logueado. Crea seeds si es su primera vez. */
   load: (knownUserId?: string) => Promise<void>
   loadLinks: () => Promise<void>
@@ -422,6 +432,7 @@ async function recordPasswordChange(credential: Credential): Promise<void> {
 }
 
 export const useVaultStore = create<VaultState>()((set, get) => ({
+  offline: false,
   credentials: [],
   links: [],
   notes: [],
@@ -453,7 +464,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       })
       return
     }
-    set({ status: 'loading', error: null })
+    set({ status: 'loading', error: null, offline: false })
     try {
       const userId = knownUserId ?? (await requireUserId())
       const snapshotResult = await supabase.rpc('get_vault_snapshot')
@@ -502,6 +513,9 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         sectionRows = snapshot.sections
         categoryRows = snapshot.categories
         credentialRows = snapshot.credentials
+        // El snapshot viene cifrado por registro, así que se puede copiar tal
+        // cual a IndexedDB: sin red, la app lo descifra con la clave de sesión.
+        void writeCachedSnapshot(snapshot)
       }
 
       if (
@@ -588,7 +602,14 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         vaultGeneration !== getVaultSessionGeneration()
       )
         return
-      set({ status: 'ready', error: null, sections, categories, credentials })
+      set({
+        status: 'ready',
+        error: null,
+        offline: false,
+        sections,
+        categories,
+        credentials,
+      })
     } catch (e) {
       if (
         generation !== vaultLoadGeneration ||
@@ -597,6 +618,60 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
         return
       const message =
         e instanceof Error ? e.message : 'Error al cargar tus datos.'
+
+      /*
+        Sin red: se intenta la copia local cifrada. `readCachedSnapshot`
+        devuelve `null` si no hay caché o si el Vault está bloqueado, así que
+        aquí sólo se llega a esta rama con la sesión ya abierta.
+      */
+      const cached = await readCachedSnapshot()
+      if (
+        cached &&
+        generation === vaultLoadGeneration &&
+        vaultGeneration === getVaultSessionGeneration()
+      ) {
+        const offline = cached as {
+          sections?: SectionRow[]
+          categories?: CategoryRow[]
+          credentials?: CredentialRow[]
+        }
+        if (
+          Array.isArray(offline.sections) &&
+          Array.isArray(offline.categories) &&
+          Array.isArray(offline.credentials)
+        ) {
+          const userId = knownUserId ?? ''
+          try {
+            const sections = await Promise.all(
+              offline.sections.map((row) => toEncryptedSection(row, userId)),
+            )
+            const categories = sanitizeCategoryHierarchy(
+              await Promise.all(
+                offline.categories.map((row) =>
+                  toEncryptedCategory(row, userId),
+                ),
+              ),
+            )
+            const credentials = await Promise.all(
+              offline.credentials.map((row) =>
+                toEncryptedCredential(row, userId),
+              ),
+            )
+            set({
+              status: 'ready',
+              error: null,
+              offline: true,
+              sections,
+              categories,
+              credentials,
+            })
+            return
+          } catch {
+            // La copia local estaba dañada: se cae al error de red normal.
+          }
+        }
+      }
+
       set({ status: 'error', error: message })
     }
   },
@@ -701,6 +776,9 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
 
   reset: () => {
     vaultLoadGeneration += 1
+    // La copia local es del usuario que acaba de salir: se borra para no dejar
+    // ciphertext de otra cuenta en el navegador.
+    void clearCachedSnapshot()
     set({
       credentials: [],
       categories: [],
@@ -719,6 +797,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       historyError: null,
       status: 'idle',
       error: null,
+      offline: false,
     })
   },
 

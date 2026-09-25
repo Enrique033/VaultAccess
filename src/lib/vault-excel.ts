@@ -63,10 +63,11 @@ function detailSheet(
   }
 }
 
-/** Genera el .xlsx y lo descarga al instante. */
-export async function exportVaultToExcel(
-  input: VaultExcelInput,
-): Promise<void> {
+/**
+ * Construye el libro en memoria y devuelve sus bytes, sin descargarlos.
+ * Así la exportación puede cifrarse ANTES de tocar el disco.
+ */
+export async function buildVaultXlsx(input: VaultExcelInput): Promise<ArrayBuffer> {
   const { sections, categories, credentials, links, notes } = input
 
   const wb = new ExcelJS.Workbook()
@@ -321,6 +322,17 @@ export async function exportVaultToExcel(
   )
 
   const buffer = await wb.xlsx.writeBuffer()
+  return buffer as ArrayBuffer
+}
+
+/**
+ * Descarga el .xlsx en TEXTO PLANO. Se mantiene sólo para cuando el usuario
+ * elige conscientemente el modo sin cifrar en `SecureExportDialog`.
+ */
+export async function exportVaultToExcel(
+  input: VaultExcelInput,
+): Promise<void> {
+  const buffer = await buildVaultXlsx(input)
   const blob = new Blob([buffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   })

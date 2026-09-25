@@ -26,6 +26,7 @@ import { useChatStore } from '@/store/chat.store'
 import { useNotificationStore } from '@/store/notification.store'
 import { toast } from '@/store/ui.store'
 import { usePresenceContext } from '@/hooks/usePresence'
+import { SecureExportDialog } from '@/components/security/SecureExportDialog'
 
 const errorBox =
   'rounded-xl border border-danger/30 bg-danger/10 px-3 py-2.5 text-xs text-danger'
@@ -37,6 +38,7 @@ export function UserMenu() {
   const { globalOnline, isGlobalOwner } = usePresenceContext()
   const [busy, setBusy] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
 
   if (!user) return null
 
@@ -63,39 +65,33 @@ export function UserMenu() {
     }
   }
 
-  const handleExport = async () => {
-    try {
-      const before = useVaultStore.getState()
-      if (before.linksLoading || before.notesLoading) {
-        toast.error('Espera a que terminen de cargar enlaces y notas.')
-        return
-      }
-      await Promise.all([
-        useVaultStore.getState().loadLinks(),
-        useVaultStore.getState().loadNotes(),
-      ])
-      const state = useVaultStore.getState()
-      if (state.linksError || state.notesError) {
-        throw new Error(
-          state.linksError ??
-            state.notesError ??
-            'No se pudieron cargar todos los datos.',
-        )
-      }
-      const { exportVaultToExcel } = await import('@/lib/vault-excel')
-      await exportVaultToExcel({
-        sections: state.sections,
-        categories: state.categories,
-        credentials: state.credentials,
-        links: state.links,
-        notes: state.notes,
-      })
-      toast.success(
-        'Datos exportados a Excel',
-        'El archivo contiene tus claves en texto plano: guárdalo en un lugar seguro.',
+  /*
+    La exportación se hace desde un diálogo que cifra la copia por defecto.
+    `collect` reutiliza el mismo estado ya descifrado que hay en memoria, así
+    que no hay que volver a consultar Supabase ni a decryptar de nuevo.
+  */
+  const collectForExport = async () => {
+    const before = useVaultStore.getState()
+    if (before.linksLoading || before.notesLoading) {
+      toast.error('Espera a que terminen de cargar enlaces y notas.')
+      throw new Error('Carga en curso.')
+    }
+    await Promise.all([
+      useVaultStore.getState().loadLinks(),
+      useVaultStore.getState().loadNotes(),
+    ])
+    const state = useVaultStore.getState()
+    if (state.linksError || state.notesError) {
+      throw new Error(
+        state.linksError ?? state.notesError ?? 'No se pudieron cargar todos los datos.',
       )
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'No se pudo exportar')
+    }
+    return {
+      sections: state.sections,
+      categories: state.categories,
+      credentials: state.credentials,
+      links: state.links,
+      notes: state.notes,
     }
   }
 
@@ -156,8 +152,8 @@ export function UserMenu() {
           <User className="size-3.5" /> Editar perfil
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => void handleExport()}>
-          <FileSpreadsheet className="size-3.5" /> Exportar a Excel…
+        <DropdownMenuItem onClick={() => setExportOpen(true)}>
+          <FileSpreadsheet className="size-3.5" /> Exportar copia cifrada…
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="danger" onClick={handleSignOut}>
@@ -166,6 +162,13 @@ export function UserMenu() {
       </DropdownMenu>
 
       {profileOpen && <ProfileDialog onOpenChange={setProfileOpen} />}
+      {exportOpen && (
+        <SecureExportDialog
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+          collect={collectForExport}
+        />
+      )}
     </>
   )
 }

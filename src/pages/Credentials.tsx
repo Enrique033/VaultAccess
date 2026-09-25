@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { KeyRound, Plus, Star, Users2, ShieldAlert } from 'lucide-react'
+import { CloudOff, KeyRound, Plus, Star, Users2, ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -29,6 +29,7 @@ export function Credentials() {
   const categories = useVaultStore((s) => s.categories)
   const sections = useVaultStore((s) => s.sections)
   const status = useVaultStore((s) => s.status)
+  const offline = useVaultStore((s) => s.offline)
   const syncError = useVaultStore((s) => s.error)
   const retryLoad = useVaultStore((s) => s.load)
   const renameCategory = useVaultStore((s) => s.renameCategory)
@@ -255,6 +256,21 @@ export function Credentials() {
           </Button>
         </div>
       </div>
+
+      {/* Aviso de sin conexión: los datos vienen de la copia local cifrada. */}
+      {offline && (
+        <div
+          role="status"
+          className="flex items-start gap-2.5 rounded-2xl border border-primary/25 bg-primary-soft/60 px-4 py-3 text-[13px] text-foreground"
+        >
+          <CloudOff className="mt-0.5 size-4 shrink-0 text-primary" />
+          <p>
+            <span className="font-semibold">Sin conexión con el servidor.</span>{' '}
+            Estás viendo tu copia local cifrada y no puedes guardar cambios
+            hasta que vuelva la conexión.
+          </p>
+        </div>
+      )}
 
       {/* KPIs: también funcionan como filtros rápidos */}
       {status === 'ready' && credentials.length > 0 && (

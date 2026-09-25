@@ -21,7 +21,27 @@ modelo evita falsos positivos al reportar vulnerabilidades:
     (XSS o extensión con permiso de lectura sobre la pestaña) puede leer la
     frase cacheada mientras la pestaña está abierta. Es el mismo riesgo que tener
     la clave en memoria, y sigue sin exponerla al servidor ni a terceros.
-  - Si la caché se pierde o la pestaña se cierra, el Vault vuelve a pedirla.
+- **Copia local cifrada (modo sin conexión):** tras cada carga correcta se
+  guarda en IndexedDB el `encrypted_payload` tal cual lo devuelve Supabase. Si el
+  servidor no responde, la app descifra esa copia con la clave AES de la sesión y
+  entra en **modo lectura**, con un aviso visible. Nunca se escriben claves en
+  claro en el navegador y la copia se borra al cerrar sesión. Ver
+  `src/lib/vault-offline.ts`.
+- **Exportación cifrada:** la copia de seguridad ya **no** se descarga en texto
+  plano por defecto. El `.xlsx` se genera en memoria, se cifra con AES-GCM
+  (PBKDF2, 400 000 iteraciones) usando una contraseña que elige el usuario y se
+  descarga un sobre opaco `.wvexport`. El modo plano sigue disponible, pero
+  exige marcar una casilla de confirmación. Ver `src/lib/vault-export.ts`.
+- **Bloqueo por pestaña en segundo plano:** tras 60 s fuera de foco el Vault se
+  bloquea (sin cerrar la sesión de Google). Antes seguía desbloqueado con la
+  ventana oculta, lo que bastaba para exponerlo en un equipo compartido.
+- **Cabeceras:** `Cache-Control: no-store` evita que respuestas con datos
+  descifrados queden en cachés del navegador o intermedias. La CSP añade
+  `manifest-src`, `worker-src` y `upgrade-insecure-requests`.
+- **No se implementó Trusted Types** (`require-trusted-types-for 'script'`) porque
+  rompería `document.createElement` y `document.execCommand` que usa el portapapeles
+  en navegadores sin soporte. Queda anotado como mejora pendiente.
+- Si la caché se pierde o la pestaña se cierra, el Vault vuelve a pedirla.
 - **RLS sigue activo** en las tablas del Vault, sharing, historial y chat:
   `using`/`with check` con `auth.uid()` y la participación/rol que corresponda.
   La `anon key` es pública por diseño; RLS y el cifrado son capas distintas.

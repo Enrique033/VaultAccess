@@ -7,7 +7,10 @@ import { toast } from '@/store/ui.store'
  * Cierra la sesión tras un periodo de inactividad (default 15 min).
  * Se monta una vez en el AppShell. En modo local (sin Supabase) no hace nada.
  */
-export function useIdleSignOut(timeoutMs = 15 * 60_000) {
+export function useIdleSignOut(
+  timeoutMs = 15 * 60_000,
+  hiddenTimeoutMs = 60_000,
+) {
   const { status, signOut } = useAuth()
   const { lock } = useVaultKey()
   const signOutRef = useRef(signOut)
@@ -64,4 +67,53 @@ export function useIdleSignOut(timeoutMs = 15 * 60_000) {
       }
     }
   }, [status, timeoutMs, lock])
+
+  /*
+    Bloqueo por pestaña en segundo plano.
+
+    Sin esto, el Vault seguía desbloqueado mientras la ventana estaba oculta:
+    bastaba con abrir la app en un equipo compartido y mirar a otro lado. Aquí se
+    bloquea tras un periodo corto fuera de foco, sin cerrar la sesión de Google:
+    el usuario vuelve, escribe su frase y sigue donde estaba.
+
+    `lock()` borra la caché de sessionStorage, así que no queda ninguna llave
+    escrita mientras el Vault está bloqueado.
+  */
+  useEffect(() => {
+    if (status !== 'signed-in') return
+
+    let timer: number | null = null
+    const start = () => {
+      if (timer !== null) return
+      timer = window.setTimeout(() => {
+        timer = null
+        if (document.visibilityState !== 'visible') {
+          lock()
+          toast.show('Vault bloqueado', 'La pestaña estuvo en segundo plano.')
+        }
+      }, hiddenTimeoutMs)
+    }
+    const cancel = () => {
+      if (timer !== null) {
+        window.clearTimeout(timer)
+        timer = null
+      }
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') cancel()
+      else start()
+    }
+
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('blur', start)
+    window.addEventListener('focus', cancel)
+    if (document.visibilityState === 'hidden') start()
+
+    return () => {
+      cancel()
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('blur', start)
+      window.removeEventListener('focus', cancel)
+    }
+  }, [status, hiddenTimeoutMs, lock])
 }
