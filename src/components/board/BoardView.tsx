@@ -282,7 +282,11 @@ function BoardColumnShell<T>({
         <span className="shrink-0 rounded-full bg-surface/80 px-2 py-0.5 text-[11px] font-semibold text-muted tabular-nums">
           {column.items.length}
         </span>
-        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/hdr:opacity-100">
+        {/*
+          Controles siempre visibles: antes sólo aparecían al pasar el cursor, y
+          en columnas sin tarjetas pasaban desapercibidos.
+        */}
+        <div className="flex shrink-0 items-center gap-0.5">
           <button
             type="button"
             onClick={() => onAddCard(targetId)}

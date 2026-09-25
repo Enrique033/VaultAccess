@@ -10,4 +10,5 @@ export type {
   WorkspaceItemReference,
   WorkspaceMember,
   WorkspaceRole,
+  SharedItemKind,
 } from './workspace'

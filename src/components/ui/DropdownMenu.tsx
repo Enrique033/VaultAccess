@@ -3,10 +3,12 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
 } from 'react'
+import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
 
 interface DropdownContextValue {
@@ -14,6 +16,9 @@ interface DropdownContextValue {
 }
 
 const DropdownContext = createContext<DropdownContextValue | null>(null)
+
+/** Panel de 180 px de ancho mínimo; evita que se salga de la ventana. */
+const MENU_WIDTH = 200
 
 interface DropdownMenuProps {
   trigger: ReactNode
@@ -32,22 +37,66 @@ export function DropdownMenu({
   onOpenChange,
 }: DropdownMenuProps) {
   const [open, setOpen] = useState(false)
+  const [style, setStyle] = useState<{ top: number; left: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const close = useCallback(() => {
     setOpen(false)
+    setStyle(null)
     onOpenChange?.(false)
   }, [onOpenChange])
+
+  /*
+    El panel se mide y se coloca en coordenadas de ventana con `fixed`, y se
+    monta en un portal. Antes era `absolute` dentro de la tarjeta: al estar la
+    columna con `overflow-y-auto`, el menú se recortaba y saltaba de sitio al
+    desplazarse, y el parpadeo que se veía era el recorte del contenedor.
+  */
+  const reposition = useCallback(() => {
+    const anchor = containerRef.current?.getBoundingClientRect()
+    const panel = panelRef.current?.getBoundingClientRect()
+    if (!anchor) return
+    const height = panel?.height ?? 0
+    const margin = 8
+
+    let left =
+      align === 'end'
+        ? anchor.right - (panel?.width ?? MENU_WIDTH)
+        : anchor.left
+    left = Math.min(
+      Math.max(margin, left),
+      window.innerWidth - (panel?.width ?? MENU_WIDTH) - margin,
+    )
+
+    // Si no cabe abajo, se abre hacia arriba.
+    const spaceBelow = window.innerHeight - anchor.bottom - margin
+    const top =
+      spaceBelow < height && anchor.top - margin - height > 0
+        ? anchor.top - margin - height
+        : anchor.bottom + margin
+
+    setStyle({ top, left })
+  }, [align])
+
+  useLayoutEffect(() => {
+    if (!open) return
+    reposition()
+    window.addEventListener('scroll', reposition, true)
+    window.addEventListener('resize', reposition)
+    return () => {
+      window.removeEventListener('scroll', reposition, true)
+      window.removeEventListener('resize', reposition)
+    }
+  }, [open, reposition])
 
   useEffect(() => {
     if (!open) return
 
     const handleClickOutside = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        close()
-      }
+      const target = e.target as Node
+      if (containerRef.current?.contains(target)) return
+      if (panelRef.current?.contains(target)) return
+      close()
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -81,18 +130,25 @@ export function DropdownMenu({
           {trigger}
         </button>
 
-        {open && (
-          <div
-            role="menu"
-            className={cn(
-              'animate-fade-in absolute top-full z-50 mt-2 min-w-[180px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-border bg-surface p-1.5 shadow-[0_18px_45px_-24px_color-mix(in_srgb,var(--c-foreground)_55%,transparent)]',
-              align === 'end' ? 'right-0' : 'left-0',
-              contentClassName,
-            )}
-          >
-            {children}
-          </div>
-        )}
+        {open &&
+          createPortal(
+            <div
+              ref={panelRef}
+              role="menu"
+              style={{
+                top: style?.top ?? -9999,
+                left: style?.left ?? -9999,
+                minWidth: MENU_WIDTH,
+              }}
+              className={cn(
+                'animate-fade-in fixed z-[100] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-2xl border border-border bg-surface p-1.5 shadow-[0_18px_45px_-24px_color-mix(in_srgb,var(--c-foreground)_55%,transparent)]',
+                contentClassName,
+              )}
+            >
+              {children}
+            </div>,
+            document.body,
+          )}
       </div>
     </DropdownContext.Provider>
   )

@@ -62,6 +62,62 @@ create index if not exists idx_ws_items_ws on public.vault_workspace_items (work
 create index if not exists idx_ws_items_credential on public.vault_workspace_items (credential_id);
 
 -- 4) updated_at automático (reutiliza la función creada en schema.sql)
+-- =====================================================================
+-- COMPARTIR ENLACES Y NOTAS (además de credenciales)
+-- ---------------------------------------------------------------------
+-- La tabla nació sólo para credenciales: `credential_id` con FK a
+-- vault_credentials y las columnas `username`/`password` en NOT NULL. Para
+-- compartir links y notas hay que generalizarla.
+--
+-- Idempotente: se puede reejecutar sin efectos.
+-- =====================================================================
+
+-- 1) Tipo de elemento: credential | link | note.
+alter table public.vault_workspace_items
+  add column if not exists item_kind text not null default 'credential';
+
+-- 2) Referencias de origen, equivalentes a `credential_id` para el resto.
+alter table public.vault_workspace_items
+  add column if not exists link_id uuid
+    references public.vault_links (id) on delete set null;
+alter table public.vault_workspace_items
+  add column if not exists note_id uuid
+    references public.vault_notes (id) on delete set null;
+
+-- 3) `username` y `password` dejan de ser obligatorios: un enlace o una nota
+--    no tienen usuario ni clave. Se rellenan con cadena vacía en las filas
+--    antiguas para no romper el CHECK de longitud.
+update public.vault_workspace_items
+   set username = coalesce(username, ''),
+       password = coalesce(password, '')
+ where username is null or password is null;
+
+alter table public.vault_workspace_items
+  alter column username drop not null;
+alter table public.vault_workspace_items
+  alter column password drop not null;
+
+-- 4) Solo un tipo de origen a la vez.
+alter table public.vault_workspace_items
+  drop constraint if exists chk_ws_items_single_origin;
+alter table public.vault_workspace_items
+  add constraint chk_ws_items_single_origin check (
+    (num_nonnulls(credential_id, link_id, note_id) <= 1)
+  );
+
+-- 5) Índice para no repetir un enlace/nota en el mismo equipo.
+create unique index if not exists uniq_ws_item_link
+  on public.vault_workspace_items (workspace_id, link_id)
+  where link_id is not null;
+create unique index if not exists uniq_ws_item_note
+  on public.vault_workspace_items (workspace_id, note_id)
+  where note_id is not null;
+
+-- 6) Los índices de lectura de la vista de equipo.
+create index if not exists idx_ws_items_link on public.vault_workspace_items (link_id);
+create index if not exists idx_ws_items_note on public.vault_workspace_items (note_id);
+
+
 drop trigger if exists trg_ws_items_updated on public.vault_workspace_items;
 create trigger trg_ws_items_updated
   before update on public.vault_workspace_items

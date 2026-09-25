@@ -11,6 +11,7 @@ import {
 import type { WorkspaceItemPayload } from './vault-payloads'
 import type { WorkspaceItem } from '@/types'
 import type { WorkspaceItemRow } from './workspace-mapper'
+import { originOf } from './workspace-mapper'
 
 function required(value: string | null | undefined, field: string): string {
   if (typeof value !== 'string') {
@@ -27,6 +28,7 @@ export async function toEncryptedWorkspaceItem(
   const aad = workspaceRecordAad(workspaceId, row.id)
   const vaultGeneration = getVaultSessionGeneration()
   requireActiveVaultSession()
+  const { kind, sourceId } = originOf(row)
   let payload: WorkspaceItemPayload
   if (row.encrypted_payload) {
     payload = await decryptJson<WorkspaceItemPayload>(
@@ -38,12 +40,19 @@ export async function toEncryptedWorkspaceItem(
       throw new Error('La sesión del Vault cambió durante el descifrado.')
     }
   } else {
+    /*
+      Fila heredada en claro (creada antes del cifrado). Los enlaces y las
+      notas no tienen usuario ni clave, así que sólo se exigen si el tipo es
+      credencial.
+    */
     payload = {
       title: required(row.title, 'el título compartido'),
-      username: required(row.username, 'el usuario compartido'),
-      password: required(row.password, 'la contraseña compartida'),
+      username: kind === 'credential' ? required(row.username, 'el usuario compartido') : '',
+      password: kind === 'credential' ? required(row.password, 'la contraseña compartida') : '',
       url: row.url ?? undefined,
       notes: row.notes ?? undefined,
+      description: row.description ?? undefined,
+      content: row.content ?? undefined,
     }
     const encryptedPayload = await encryptJson(payload, key, aad)
     if (vaultGeneration !== getVaultSessionGeneration()) {
@@ -58,6 +67,8 @@ export async function toEncryptedWorkspaceItem(
         password: null,
         url: null,
         notes: null,
+        description: null,
+        content: null,
       })
       .eq('id', row.id)
     if (error) {
@@ -74,13 +85,16 @@ export async function toEncryptedWorkspaceItem(
   return {
     id: row.id,
     workspaceId: row.workspace_id,
-    credentialId: row.credential_id ?? undefined,
+    kind,
+    sourceId,
     createdBy: row.created_by,
     title: payload.title,
     username: payload.username,
     password: payload.password,
     url: payload.url,
     notes: payload.notes,
+    description: payload.description,
+    content: payload.content,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

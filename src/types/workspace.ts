@@ -22,24 +22,38 @@ export interface WorkspaceMember {
   createdAt: string
 }
 
+/** Tipo de registro que se puede compartir en un espacio de equipo. */
+export type SharedItemKind = 'credential' | 'link' | 'note'
+
 export interface WorkspaceItemReference {
   id: string
   workspaceId: string
-  credentialId?: string
+  kind: SharedItemKind
+  /** Id del registro de origen en el Vault personal. */
+  sourceId?: string
 }
 
-/** Copia compartida de una credencial dentro de un espacio. */
+/** Copia compartida de un registro dentro de un espacio. */
 export interface WorkspaceItem {
   id: string
   workspaceId: string
-  /** Credencial de origen, si sigue existiendo en el vault personal. */
-  credentialId?: string
+  kind: SharedItemKind
+  /** Registro de origen, si sigue existiendo en el vault personal. */
+  sourceId?: string
   createdBy: string
   title: string
+  /** Sólo credenciales. */
   username: string
+  /** Sólo credenciales. */
   password: string
+  /** Credenciales y enlaces. */
   url?: string
+  /** Credenciales: notas libres. */
   notes?: string
+  /** Enlaces. */
+  description?: string
+  /** Notas. */
+  content?: string
   createdAt: string
   updatedAt: string
 }

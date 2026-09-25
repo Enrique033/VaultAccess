@@ -5,7 +5,6 @@ import { z } from 'zod'
 import { Input } from '@/components/ui/Input'
 import { PasswordInput } from '@/components/ui/PasswordInput'
 import { Textarea } from '@/components/ui/Textarea'
-import { CategorySelect } from './CategorySelect'
 import { Label } from '@/components/ui/Label'
 import { Button } from '@/components/ui/Button'
 import { useVaultStore } from '@/store/vault.store'
@@ -60,7 +59,6 @@ export function CredentialForm({
   defaultCategoryId,
 }: CredentialFormProps) {
   const allCategories = useVaultStore((s) => s.categories)
-  const sections = useVaultStore((s) => s.sections)
   const status = useVaultStore((s) => s.status)
   /**
    * Las credenciales ya no admiten imágenes (sólo las notas), pero la firma de
@@ -172,21 +170,6 @@ export function CredentialForm({
         />
         {errors.url && (
           <p className="text-xs text-red-400">{errors.url.message}</p>
-        )}
-      </div>
-
-      <div className="space-y-1.5">
-        <Label htmlFor="credential-category">Categoría</Label>
-        <CategorySelect
-          id="credential-category"
-          value={watch('categoryId')}
-          onChange={(id) => setValue('categoryId', id, { shouldDirty: true })}
-        />
-        {allCategories.length === 0 && sections.length === 0 && (
-          <p className="text-xs text-muted">Aún no hay categorías: créala aquí mismo.</p>
-        )}
-      {errors.categoryId && (
-          <p className="text-xs text-red-400">{errors.categoryId.message}</p>
         )}
       </div>
 

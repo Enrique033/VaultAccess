@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Label } from '@/components/ui/Label'
 import { Button } from '@/components/ui/Button'
-import { CategorySelect } from '@/components/credentials/CategorySelect'
 import type { AttachmentDraft, LinkItem } from '@/types'
 
 const linkSchema = z.object({
@@ -68,8 +67,6 @@ export function LinkDialog({
     register,
     handleSubmit,
     reset,
-    watch,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<LinkFormValues>({
     resolver: zodResolver(linkSchema),
@@ -135,15 +132,6 @@ export function LinkDialog({
             {errors.url && (
               <p className="text-xs text-red-400">{errors.url.message}</p>
             )}
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="link-category">Categoría</Label>
-            <CategorySelect
-              id="link-category"
-              value={watch('categoryId')}
-              onChange={(id) => setValue('categoryId', id, { shouldDirty: true })}
-            />
           </div>
 
           <div className="space-y-1.5">

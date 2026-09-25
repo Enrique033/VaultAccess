@@ -54,6 +54,8 @@ const ALL_ROLES: WorkspaceRole[] = ['owner', 'editor', 'viewer']
 export function Workspaces() {
   const { user } = useAuth()
   const credentials = useVaultStore((s) => s.credentials)
+const links = useVaultStore((s) => s.links)
+const notes = useVaultStore((s) => s.notes)
 
   const workspaces = useWorkspaceStore((s) => s.workspaces)
   const members = useWorkspaceStore((s) => s.members)
@@ -377,9 +379,14 @@ export function Workspaces() {
       ) : (
         <ul className="mt-3 space-y-2">
           {activeItems.map((item) => {
-            const source = item.credentialId
-              ? credentials.find((c) => c.id === item.credentialId)
-              : undefined
+            // Cada módulo trae su propio registro de origen; si aún existe en
+            // el Vault personal se muestra su estado, si no, sólo la copia.
+            const source =
+              item.kind === 'credential'
+                ? credentials.find((c) => c.id === item.sourceId)
+                : item.kind === 'link'
+                  ? links.find((l) => l.id === item.sourceId)
+                  : notes.find((n) => n.id === item.sourceId)
             const creator = activeMembers.find(
               (m) => m.userId === item.createdBy,
             )

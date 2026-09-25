@@ -11,37 +11,57 @@ import {
 } from '@/components/ui/Dialog'
 import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/app/auth-context'
-import { useWorkspaceStore } from '@/store/workspace.store'
+import { useWorkspaceStore, type SharedSource } from '@/store/workspace.store'
 import { toast } from '@/store/ui.store'
-import type { Credential, WorkspaceRole } from '@/types'
+import type { SharedItemKind, WorkspaceRole } from '@/types'
 
-interface ShareCredentialDialogProps {
+interface ShareItemDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  credential: Credential | null
+  /** Módulo del registro que se comparte. */
+  kind: SharedItemKind
+  /** Registro ya descifrado; `null` cuando no hay nada seleccionado. */
+  item: SharedSource | null
+}
+
+const KIND_LABEL: Record<SharedItemKind, string> = {
+  credential: 'credencial',
+  link: 'enlace',
+  note: 'nota',
 }
 
 /**
- * Comparte una credencial en uno o varios espacios de trabajo.
- * Se envía una copia del dato al espacio; el vault personal no se expone.
+ * Comparte una credencial, un enlace o una nota en uno o varios espacios de
+ * trabajo. Se envía una copia del dato al espacio; el vault personal no se
+ * expone. Es el mismo diálogo para los tres módulos: sólo cambia el payload.
  */
-export function ShareCredentialDialog({
+export function ShareItemDialog({
   open,
   onOpenChange,
-  credential,
-}: ShareCredentialDialogProps) {
+  kind,
+  item,
+}: ShareItemDialogProps) {
   const { user } = useAuth()
   const workspaces = useWorkspaceStore((s) => s.workspaces)
   const members = useWorkspaceStore((s) => s.members)
   const itemReferences = useWorkspaceStore((s) => s.itemReferences)
-  const shareCredential = useWorkspaceStore((s) => s.shareCredential)
+  const shareItem = useWorkspaceStore((s) => s.shareItem)
   const updateSharedItem = useWorkspaceStore((s) => s.updateSharedItem)
   const removeSharedItem = useWorkspaceStore((s) => s.removeSharedItem)
   const [busyId, setBusyId] = useState<string | null>(null)
 
-  if (!credential) return null
-  // Alias tipado: dentro de los callbacks no hay que volver a comprobar nada.
-  const target: Credential = credential
+  if (!item) return null
+  const target = item
+  const label = KIND_LABEL[kind]
+
+  /** Busca la copia ya existente de este registro en un espacio. */
+  const findReference = (workspaceId: string) =>
+    itemReferences.find(
+      (i) =>
+        i.workspaceId === workspaceId &&
+        i.kind === kind &&
+        i.sourceId === target.id,
+    )
 
   const run = async (workspaceId: string, action: () => Promise<void>) => {
     setBusyId(workspaceId)
@@ -60,9 +80,9 @@ export function ShareCredentialDialog({
         <div>
           <DialogTitle>Compartir en equipo</DialogTitle>
           <DialogDescription>
-            Se guarda una copia de “{credential.title}” en el espacio elegido.
-            Los miembros autorizados podrán verla; el resto de tu contenido no
-            se comparte.
+            Se guarda una copia de “{target.title}” en el espacio elegido. Los
+            miembros autorizados podrán verla; el resto de tu contenido no se
+            comparte.
           </DialogDescription>
         </div>
         <DialogCloseButton onClick={() => onOpenChange(false)} />
@@ -99,45 +119,31 @@ export function ShareCredentialDialog({
                 )?.role ??
                 (workspace.ownerId === user?.id ? 'owner' : undefined)
               }
-              shared={Boolean(
-                itemReferences.find(
-                  (i) =>
-                    i.workspaceId === workspace.id &&
-                    i.credentialId === target.id,
-                ),
-              )}
+              shared={Boolean(findReference(workspace.id))}
               busy={busyId === workspace.id}
               onShare={() =>
                 void run(workspace.id, async () => {
-                  await shareCredential(workspace.id, target)
+                  await shareItem(workspace.id, kind, target)
                   toast.success(
-                    'Credencial compartida',
+                    `${label[0]?.toUpperCase()}${label.slice(1)} compartida`,
                     'Los miembros del espacio ya pueden verla.',
                   )
                 })
               }
               onUpdate={() =>
                 void run(workspace.id, async () => {
-                  const item = itemReferences.find(
-                    (i) =>
-                      i.workspaceId === workspace.id &&
-                      i.credentialId === target.id,
-                  )
-                  if (!item) return
-                  await updateSharedItem(item.id, target)
+                  const ref = findReference(workspace.id)
+                  if (!ref) return
+                  await updateSharedItem(ref.id, target)
                   toast.success('Copia actualizada en el espacio')
                 })
               }
               onRemove={() =>
                 void run(workspace.id, async () => {
-                  const item = itemReferences.find(
-                    (i) =>
-                      i.workspaceId === workspace.id &&
-                      i.credentialId === target.id,
-                  )
-                  if (!item) return
-                  await removeSharedItem(item.id)
-                  toast.success('Credencial retirada del espacio')
+                  const ref = findReference(workspace.id)
+                  if (!ref) return
+                  await removeSharedItem(ref.id)
+                  toast.success(`${label} retirada del espacio`)
                 })
               }
             />

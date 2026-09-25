@@ -21,7 +21,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '@/components/ui/DropdownMenu'
-import { ShareCredentialDialog } from './ShareCredentialDialog'
+import { ShareItemDialog } from '@/components/sharing/ShareItemDialog'
 import { useVaultStore } from '@/store/vault.store'
 import {
   useWorkspaceStore,
@@ -175,10 +175,11 @@ export function CredentialCard({
         </div>
       </Card>
 
-      <ShareCredentialDialog
+      <ShareItemDialog
         open={shareOpen}
         onOpenChange={setShareOpen}
-        credential={credential}
+        kind="credential"
+        item={credential}
       />
     </>
   )

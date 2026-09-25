@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/Input'
 import { Textarea } from '@/components/ui/Textarea'
 import { Label } from '@/components/ui/Label'
 import { Button } from '@/components/ui/Button'
-import { CategorySelect } from '@/components/credentials/CategorySelect'
 import { AttachmentPicker } from '@/components/attachments/AttachmentPicker'
 import { AttachmentGallery } from '@/components/attachments/AttachmentGallery'
 import type { AttachmentDraft, Note } from '@/types'
@@ -66,7 +65,6 @@ export function NoteDialog({
     handleSubmit,
     reset,
     watch,
-    setValue,
     formState: { errors, isSubmitting },
   } = useForm<NoteFormValues>({
     resolver: zodResolver(noteSchema),
@@ -145,14 +143,10 @@ export function NoteDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label htmlFor="note-category">Categoría</Label>
-              <CategorySelect
-                id="note-category"
-                value={watch('categoryId')}
-                onChange={(id) =>
-                  setValue('categoryId', id, { shouldDirty: true })
-                }
-              />
+              <Label htmlFor="note-category">Columna</Label>
+              <p className="text-[13px] text-muted">
+                La columna se cambia arrastrando la tarjeta en el tablero.
+              </p>
             </div>
           </div>
 

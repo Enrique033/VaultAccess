@@ -54,6 +54,10 @@ export interface WorkspaceItemPayload {
   password: string
   url?: string
   notes?: string
+  /** Enlaces. */
+  description?: string
+  /** Notas. */
+  content?: string
 }
 
 export async function encryptPersonal<T>(

@@ -17,8 +17,9 @@ import type {
   WorkspaceMemberRow,
   WorkspaceRow,
 } from '@/lib/workspace-mapper'
-import type { Credential } from '@/types'
+import type { WorkspaceItemPayload } from '@/lib/vault-payloads'
 import type {
+  SharedItemKind,
   Workspace,
   WorkspaceItem,
   WorkspaceItemReference,
@@ -89,14 +90,59 @@ interface WorkspaceState {
   setMemberRole: (memberId: string, role: WorkspaceRole) => Promise<void>
   removeMember: (memberId: string) => Promise<void>
 
-  /** Comparte una credencial (crea o actualiza su copia en el espacio). */
-  shareCredential: (
+  /**
+   * Comparte un registro (crea o actualiza su copia en el espacio).
+   * admitting credenciales, enlaces y notas.
+   */
+  shareItem: (
     workspaceId: string,
-    credential: Credential,
+    kind: SharedItemKind,
+    source: SharedSource,
   ) => Promise<void>
-  /** Vuelve a subir los datos actuales de la credencial a la copia. */
-  updateSharedItem: (itemId: string, credential: Credential) => Promise<void>
+  /** Vuelve a subir los datos actuales del registro a la copia. */
+  updateSharedItem: (itemId: string, source: SharedSource) => Promise<void>
   removeSharedItem: (itemId: string) => Promise<void>
+}
+
+/** Datos que se copian al espacio, ya descifrados desde el Vault personal. */
+export type SharedSource =
+  | { id: string; title: string; username: string; password: string; url?: string; notes?: string }
+  | { id: string; title: string; url: string; description?: string }
+  | { id: string; title: string; content: string; comments?: string }
+
+/** Convierte un registro en el payload cifrado del elemento compartido. */
+function sharedPayload(
+  kind: SharedItemKind,
+  source: SharedSource,
+): WorkspaceItemPayload {
+  if (kind === 'credential') {
+    const c = source as Extract<SharedSource, { username: string }>
+    return {
+      title: c.title,
+      username: c.username,
+      password: c.password,
+      url: c.url,
+      notes: c.notes,
+    }
+  }
+  if (kind === 'link') {
+    const l = source as Extract<SharedSource, { url: string }>
+    return {
+      title: l.title,
+      username: '',
+      password: '',
+      url: l.url,
+      description: l.description,
+    }
+  }
+  const n = source as Extract<SharedSource, { content: string }>
+  return {
+    title: n.title,
+    username: '',
+    password: '',
+    content: n.content,
+    notes: n.comments,
+  }
 }
 
 export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
@@ -474,19 +520,15 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
     set((s) => ({ members: s.members.filter((m) => m.id !== memberId) }))
   },
 
-  shareCredential: async (workspaceId, credential) => {
+  shareItem: async (workspaceId, kind, source) => {
     const userId = await requireUserId()
     const workspaceKey = await ensureWorkspaceKey(workspaceId)
-    const payload = {
-      title: credential.title,
-      username: credential.username,
-      password: credential.password,
-      url: credential.url ?? undefined,
-      notes: credential.notes ?? undefined,
-    }
+    const payload = sharedPayload(kind, source)
     const existing = get().itemReferences.find(
       (item) =>
-        item.workspaceId === workspaceId && item.credentialId === credential.id,
+        item.workspaceId === workspaceId &&
+        item.kind === kind &&
+        item.sourceId === source.id,
     )
     const itemId = existing?.id ?? crypto.randomUUID()
     const encryptedPayload = await encryptJson(
@@ -494,16 +536,29 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
       workspaceKey,
       workspaceRecordAad(workspaceId, itemId),
     )
+    /*
+      Sólo se rellena la columna de origen que corresponde al tipo: la tabla
+      tiene una por módulo y un CHECK garantiza que no haya más de una.
+    */
+    const origin = {
+      credential_id: kind === 'credential' ? source.id : null,
+      link_id: kind === 'link' ? source.id : null,
+      note_id: kind === 'note' ? source.id : null,
+    }
     const request = existing
       ? supabase
           .from('vault_workspace_items')
           .update({
+            item_kind: kind,
+            ...origin,
             encrypted_payload: encryptedPayload,
             title: null,
             username: null,
             password: null,
             url: null,
             notes: null,
+            description: null,
+            content: null,
           })
           .eq('id', itemId)
           .select(ITEM_COLUMNS)
@@ -513,7 +568,8 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
           .insert({
             id: itemId,
             workspace_id: workspaceId,
-            credential_id: credential.id,
+            item_kind: kind,
+            ...origin,
             created_by: userId,
             encrypted_payload: encryptedPayload,
           })
@@ -530,7 +586,10 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
     const reference = toWorkspaceItemReference({
       id: item.id,
       workspace_id: item.workspaceId,
-      credential_id: item.credentialId ?? null,
+      item_kind: item.kind,
+      credential_id: item.kind === 'credential' ? (item.sourceId ?? null) : null,
+      link_id: item.kind === 'link' ? (item.sourceId ?? null) : null,
+      note_id: item.kind === 'note' ? (item.sourceId ?? null) : null,
     })
     set((s) => ({
       itemReferences: [
@@ -544,18 +603,12 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
     }))
   },
 
-  updateSharedItem: async (itemId, credential) => {
+  updateSharedItem: async (itemId, source) => {
     const current = get().items.find((item) => item.id === itemId)
     if (!current) throw new Error('El elemento compartido ya no existe.')
     const workspaceKey = await getWorkspaceKey(current.workspaceId)
     const encryptedPayload = await encryptJson(
-      {
-        title: credential.title,
-        username: credential.username,
-        password: credential.password,
-        url: credential.url ?? undefined,
-        notes: credential.notes ?? undefined,
-      },
+      sharedPayload(current.kind, source),
       workspaceKey,
       workspaceRecordAad(current.workspaceId, itemId),
     )
@@ -568,6 +621,8 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
         password: null,
         url: null,
         notes: null,
+        description: null,
+        content: null,
       })
       .eq('id', itemId)
       .select(ITEM_COLUMNS)
@@ -598,19 +653,29 @@ export const useWorkspaceStore = create<WorkspaceState>()((set, get) => ({
   },
 }))
 
-/** Espacios en los que está compartida una credencial. */
-export function workspacesOfCredential(
+/** Espacios en los que está compartido un registro del Vault personal. */
+export function workspacesOfItem(
   items: WorkspaceItemReference[],
   workspaces: Workspace[],
-  credentialId: string,
+  kind: SharedItemKind,
+  sourceId: string,
 ): Workspace[] {
   const ids = new Set(
     items
-      .filter((item) => item.credentialId === credentialId)
+      .filter(
+        (item) => item.kind === kind && item.sourceId === sourceId,
+      )
       .map((item) => item.workspaceId),
   )
   return workspaces.filter((workspace) => ids.has(workspace.id))
 }
+
+/** Atajo para credenciales, que es el caso más usado en las tarjetas. */
+export const workspacesOfCredential = (
+  items: WorkspaceItemReference[],
+  workspaces: Workspace[],
+  credentialId: string,
+): Workspace[] => workspacesOfItem(items, workspaces, 'credential', credentialId)
 
 /** Una sola carga por cambio de sesión; AuthContext ya resuelve getSession. */
 export function useWorkspaceSync() {

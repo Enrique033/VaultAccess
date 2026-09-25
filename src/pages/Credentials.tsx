@@ -203,7 +203,12 @@ export function Credentials() {
   )
   /** Credenciales distintas que están en algún espacio de equipo. */
   const sharedCount = useMemo(
-    () => new Set(sharedItems.map((item) => item.credentialId)).size,
+    () =>
+      new Set(
+        sharedItems
+          .filter((item) => item.kind === 'credential')
+          .map((item) => item.sourceId),
+      ).size,
     [sharedItems],
   )
 
