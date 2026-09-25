@@ -162,31 +162,14 @@ grant execute on function public.get_global_presence_count() to authenticated;
 -- políticas RLS del usuario llamante. No se conceden tablas adicionales.
 -- ============================================================
 
-create or replace function public.get_vault_snapshot()
-returns jsonb
-language sql
-stable
-security invoker
-set search_path = public
-as $$
-  select jsonb_build_object(
-    'sections', coalesce(
-      (select jsonb_agg(to_jsonb(v) order by v.created_at, v.id)
-       from public.vault_sections v),
-      '[]'::jsonb
-    ),
-    'categories', coalesce(
-      (select jsonb_agg(to_jsonb(c) order by c.created_at, c.id)
-       from public.vault_categories c),
-      '[]'::jsonb
-    ),
-    'credentials', coalesce(
-      (select jsonb_agg(to_jsonb(cr) order by cr.updated_at desc, cr.id desc)
-       from public.vault_credentials cr),
-      '[]'::jsonb
-    )
-  );
-$$;
+-- OJO: get_vault_snapshot() NO se define aquí a propósito.
+--
+-- Antes este script traía una versión sin `encrypted_payload` ni `module`, y eso
+-- rompía el Vault: al reejecutar schema-scalability.sql se sobrescribía la
+-- versión correcta de schema-encryption.sql y el cliente se quedaba sin
+-- ciphertext para descifrar y sin el módulo de las columnas.
+--
+-- La dueña de esa función es schema-encryption.sql, que se ejecuta después.
 
 -- El snapshot anterior no se conserva: la app usa v2 y nunca necesita
 -- descargar copias compartidas completas durante el arranque.

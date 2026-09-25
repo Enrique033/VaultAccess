@@ -123,6 +123,8 @@ cp .env.example .env      # completa VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY
 # IMPORTANTE: si ya habías aplicado 4) y 8) antes de compartir enlaces y notas,
 # vuelve a ejecutar schema-sharing.sql (añade item_kind, link_id y note_id) y
 # después schema-scalability.sql (su RPC debe devolver esas columnas nuevas).
+# schema-scalability.sql ya NO redefine get_vault_snapshot(): esa función es de
+# schema-encryption.sql y sobrescribirla dejaba el Vault sin descifrar.
 
 # 4. Desarrollo
 npm run dev               # http://localhost:5173
