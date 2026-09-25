@@ -137,6 +137,7 @@ alter table public.vault_categories
   add column if not exists sort_order integer not null default 0;
 
 create index if not exists idx_categories_section_parent_sort
+  on public.vault_categories (section_id, parent_id, sort_order, id);
 -- =====================================================================
 -- COLUMNAS INDEPENDIENTES POR MÓDULO
 -- ---------------------------------------------------------------------
@@ -150,13 +151,13 @@ create index if not exists idx_categories_section_parent_sort
 alter table public.vault_categories
   add column if not exists module text not null default 'credential';
 
--- Las categorías existentes se asignan a Access, que es donde se crearon.
+-- Las categorías existentes se asignan a Access, donde se crearon.
 update public.vault_categories
    set module = 'credential'
  where module is null;
 
--- Un registro de links/notas que apuntara a una columna de Access queda
--- suelto: así aparece en su propio «Sin categoría» en vez de desaparecer.
+-- Un enlace o nota que apuntara a una columna de Access queda suelto: así
+-- aparece en su propio "Sin categoría" en vez de desaparecer.
 update public.vault_links
    set category_id = null
  where user_id = auth.uid()
@@ -178,8 +179,6 @@ update public.vault_notes
 create index if not exists idx_categories_module_sort
   on public.vault_categories (user_id, module, section_id, parent_id, sort_order);
 
-
-  on public.vault_categories (section_id, parent_id, sort_order, id);
 
 comment on column public.vault_categories.parent_id is
   'Categoría padre; null para una raíz de la sección.';
