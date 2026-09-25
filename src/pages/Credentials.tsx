@@ -55,8 +55,6 @@ export function Credentials() {
   const [deleting, setDeleting] = useState<Credential | null>(null)
   /** Categoría preseleccionada al crear desde el botón «+» de una columna. */
   const [createCategoryId, setCreateCategoryId] = useState('')
-  /** Petición de alta de lista lanzada desde una columna del tablero. */
-  const [listPresetParent, setListPresetParent] = useState<string | null>(null)
   const vaultView = useUIStore((s) => s.vaultView)
 
   // Abre el dialog automáticamente cuando el Header navega con ?new=1
@@ -180,9 +178,6 @@ export function Credentials() {
     }
   }
 
-  /** Abre el alta de lista del encabezado; opcionalmente anidada. */
-  const handleAddList = (parentId: string) => setListPresetParent(parentId)
-
   const handleSubmit = async (
     values: CredentialFormValues,
     attachments: AttachmentDraft,
@@ -251,10 +246,7 @@ export function Credentials() {
         </div>
 
         <div className="page-actions">
-          <Button variant="primary" onClick={handleOpenCreate}>
-            <Plus className="size-3.5" />
-            Nueva credencial
-          </Button>
+          <ViewToggle />
         </div>
       </div>
 
@@ -351,33 +343,28 @@ export function Credentials() {
           description="No se encontraron credenciales que coincidan con la búsqueda."
         />
       ) : vaultView === 'board' ? (
-        <>
-          <BoardHeader
-            itemLabel="credencial"
-            presetParentId={listPresetParent}
-            className="mb-3"
-          />
-          <BoardView
-            columns={buildBoardColumns(filtered, {
-              sections,
-              categories,
-              filter: categoryFilter,
-            })}
-            renderCard={(credential) => (
-              <CredentialBoardCard
-                credential={credential}
-                onEdit={handleOpenEdit}
-                onDelete={setDeleting}
-              />
-            )}
-            onAddCard={handleOpenCreateIn}
-            onMoveCard={handleMoveCard}
-            onAddSubcategory={handleAddList}
-            onRenameColumn={(id, name) => void handleRenameColumn(id, name)}
-            onDeleteColumn={(id) => void handleDeleteColumn(id)}
-            addLabel="Añade una credencial"
-          />
-        </>
+        <BoardView
+          columns={buildBoardColumns(filtered, {
+            sections,
+            categories,
+            filter: categoryFilter,
+          })}
+          renderCard={(credential) => (
+            <CredentialBoardCard
+              credential={credential}
+              onEdit={handleOpenEdit}
+              onDelete={setDeleting}
+            />
+          )}
+          onAddCard={handleOpenCreateIn}
+          onMoveCard={handleMoveCard}
+          renderAddColumn={(close) => (
+            <BoardHeader itemLabel="lista" presetParentId="" onClose={close} />
+          )}
+          onRenameColumn={(id, name) => void handleRenameColumn(id, name)}
+          onDeleteColumn={(id) => void handleDeleteColumn(id)}
+          addLabel="Añade una credencial"
+        />
       ) : (
         <CredentialGrid
           credentials={filtered}

@@ -8,7 +8,6 @@ import {
   Trash2,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
-import { AttachmentPreview } from '@/components/attachments/AttachmentPreview'
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -112,13 +111,6 @@ export function LinkBoardCard({ link, onEdit, onDelete }: LinkBoardCardProps) {
           {link.description}
         </p>
       )}
-
-      <AttachmentPreview
-        attachments={link.attachments}
-        kind="link"
-        recordId={link.id}
-        compact
-      />
 
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">
         {link.favorite && (

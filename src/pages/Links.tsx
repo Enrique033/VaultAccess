@@ -50,8 +50,6 @@ export function Links() {
   const [deleting, setDeleting] = useState<LinkItem | null>(null)
   /** Categoría preseleccionada al crear desde el botón «+» de una columna. */
   const [createCategoryId, setCreateCategoryId] = useState('')
-  /** Petición de alta de lista lanzada desde una columna del tablero. */
-  const [listPresetParent, setListPresetParent] = useState<string | null>(null)
   const vaultView = useUIStore((s) => s.vaultView)
 
   useEffect(() => {
@@ -122,9 +120,6 @@ export function Links() {
       toast.error(e instanceof Error ? e.message : 'No se pudo mover')
     }
   }
-
-  /** Abre el alta de lista del encabezado; opcionalmente anidada. */
-  const handleAddList = (parentId: string) => setListPresetParent(parentId)
 
   /** Renombra la categoría de una columna desde el tablero. */
   const handleRenameColumn = async (categoryId: string, name: string) => {
@@ -200,10 +195,6 @@ export function Links() {
               : `${links.length} enlace${links.length === 1 ? '' : 's'} guardado${links.length === 1 ? '' : 's'}.`}
           </p>
         </div>
-        <Button variant="primary" onClick={handleOpenCreate}>
-          <Plus className="size-3.5" />
-          Nuevo enlace
-        </Button>
       </div>
 
       {/* El buscador vive en el Header; aquí sólo ordenación y modo de vista. */}
@@ -258,36 +249,31 @@ export function Links() {
           description="No se encontraron enlaces que coincidan con la búsqueda."
         />
       ) : vaultView === 'board' ? (
-        <>
-          <BoardHeader
-            itemLabel="enlace"
-            presetParentId={listPresetParent}
-            className="mb-3"
-          />
-          <BoardView
-            columns={buildBoardColumns(filtered, {
-              sections,
-              categories,
-              filter: categoryFilter,
-            })}
-            renderCard={(link) => (
-              <LinkBoardCard
-                link={link}
-                onEdit={(l) => {
-                  setEditing(l)
-                  setDialogOpen(true)
-                }}
-                onDelete={setDeleting}
-              />
-            )}
-            onAddCard={handleOpenCreateIn}
-            onMoveCard={handleMoveCard}
-            onAddSubcategory={handleAddList}
-            onRenameColumn={(id, name) => void handleRenameColumn(id, name)}
-            onDeleteColumn={(id) => void handleDeleteColumn(id)}
-            addLabel="Añade un enlace"
-          />
-        </>
+        <BoardView
+          columns={buildBoardColumns(filtered, {
+            sections,
+            categories,
+            filter: categoryFilter,
+          })}
+          renderCard={(link) => (
+            <LinkBoardCard
+              link={link}
+              onEdit={(l) => {
+                setEditing(l)
+                setDialogOpen(true)
+              }}
+              onDelete={setDeleting}
+            />
+          )}
+          onAddCard={handleOpenCreateIn}
+          onMoveCard={handleMoveCard}
+          renderAddColumn={(close) => (
+            <BoardHeader itemLabel="lista" presetParentId="" onClose={close} />
+          )}
+          onRenameColumn={(id, name) => void handleRenameColumn(id, name)}
+          onDeleteColumn={(id) => void handleDeleteColumn(id)}
+          addLabel="Añade un enlace"
+        />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filtered.map((link) => (

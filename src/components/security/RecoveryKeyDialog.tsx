@@ -24,9 +24,6 @@ import {
 const errorBox =
   'rounded-xl border border-danger/30 bg-danger/10 px-3 py-2.5 text-xs text-danger'
 
-const infoBox =
-  'rounded-xl border border-border bg-elevated/60 px-3 py-3'
-
 interface RecoveryKeyDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -140,36 +137,9 @@ export function RecoveryKeyDialog({
         <DialogContent className="space-y-4">
           {!words ? (
             <>
-              <div className={infoBox}>
-                <p className="text-xs font-semibold text-foreground">
-                  Cómo funciona
-                </p>
-                <ul className="mt-2 space-y-1.5 text-xs leading-relaxed text-muted">
-                  <li>
-                    1. La app genera {RECOVERY_WORD_COUNT} palabras al azar.
-                  </li>
-                  <li>2. Tú las anotas en papel y las guardas.</li>
-                  <li>
-                    3. Sólo entonces se guarda en el servidor una copia de tu
-                    clave cifrada{' '}
-                    <strong className="text-foreground">con esas palabras</strong>.
-                  </li>
-                </ul>
-                <p className="mt-3 text-xs leading-relaxed text-muted">
-                  El servidor no puede leer tus credenciales: almacena un
-                  ciphertext que sin las palabras no sirve para nada. Y si
-                  alguien entra en tu cuenta de Google tampoco puede leerlas,
-                  porque nunca se guardan en ningún sitio.
-                </p>
-              </div>
-
-              <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary-soft/60 px-3 py-2.5">
-                <ShieldAlert className="mt-0.5 size-4 shrink-0 text-primary" />
-                <p className="text-xs leading-relaxed text-muted">
-                  Necesitas el Vault desbloqueado: sin la clave AES en memoria
-                  no hay forma segura de envolverla.
-                </p>
-              </div>
+              <p className="text-xs leading-relaxed text-muted">
+                Anótalas en papel. Sin ellas no podrás volver a abrir el Vault.
+              </p>
 
               {error && <p className={errorBox}>{error}</p>}
 

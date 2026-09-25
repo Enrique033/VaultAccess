@@ -13,7 +13,6 @@ import {
   Users2,
 } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
-import { AttachmentPreview } from '@/components/attachments/AttachmentPreview'
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -149,13 +148,6 @@ export function CredentialBoardCard({
             </DropdownMenu>
           </span>
         </div>
-
-        <AttachmentPreview
-          attachments={credential.attachments}
-          kind="credential"
-          recordId={credential.id}
-          compact
-        />
 
         {/* Badges: en lugar de campos pesados, sólo lo relevante. */}
         <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted">

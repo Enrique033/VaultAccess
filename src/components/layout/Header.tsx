@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
-import { Menu, MessageCircle, Plus, Search } from 'lucide-react'
-import { useLocation, useNavigate } from 'react-router'
+import { Menu, MessageCircle, Search } from 'lucide-react'
+import { useLocation } from 'react-router'
 import { Button } from '@/components/ui/Button'
 import { useSearchStore } from '@/store/search.store'
 import { useUIStore } from '@/store/ui.store'
@@ -12,7 +12,6 @@ import { NotificationBell } from '@/components/chat/NotificationBell'
 const SEARCHABLE_ROUTES = ['/credentials', '/links', '/notes']
 
 export function Header() {
-  const navigate = useNavigate()
   const location = useLocation()
   const query = useSearchStore((s) => s.query)
   const setQuery = useSearchStore((s) => s.setQuery)
@@ -20,7 +19,7 @@ export function Header() {
   const toggleChat = useUIStore((s) => s.toggleChat)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  /** Módulo actual para el placeholder y el botón "Nuevo". */
+  /** Módulo actual para el placeholder del buscador. */
   const searchRoute = SEARCHABLE_ROUTES.find((r) =>
     location.pathname.startsWith(r),
   )
@@ -32,10 +31,6 @@ export function Header() {
         '/notes': 'Buscar notas...',
       }[searchRoute]
     : 'Buscar...'
-
-  const handleNew = () => {
-    navigate({ pathname: searchRoute ?? '/credentials', search: '?new=1' })
-  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -88,15 +83,6 @@ export function Header() {
           <MessageCircle className="size-4" />
         </Button>
         <ThemeToggle />
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={handleNew}
-          aria-label="Nuevo elemento"
-        >
-          <Plus className="size-3.5" />
-          <span className="hidden sm:inline">Nuevo</span>
-        </Button>
         <UserMenu />
       </div>
     </header>

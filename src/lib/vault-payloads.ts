@@ -40,6 +40,7 @@ export interface LinkPayload {
 export interface NotePayload {
   title: string
   content: string
+  comments?: string
   attachments?: AttachmentMetadata[]
 }
 

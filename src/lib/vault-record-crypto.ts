@@ -236,12 +236,14 @@ export async function toEncryptedNote(
   const payload = await readPayload<NotePayload>('note', row, userId, () => ({
     title: required(row.title, 'el título de la nota'),
     content: required(row.content, 'el contenido de la nota'),
+    comments: undefined,
     attachments: [],
   }))
   return {
     id: row.id,
     title: payload.title,
     content: payload.content,
+    comments: payload.comments,
     categoryId: row.category_id ?? undefined,
     attachments: payload.attachments ?? [],
     favorite: row.favorite,

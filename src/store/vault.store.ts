@@ -1254,6 +1254,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       encryptedPayload = await encryptPersonalPayload('note', id, userId, {
         title: input.title,
         content: input.content,
+        comments: input.comments,
         attachments,
       })
     } catch (cause) {
@@ -1297,6 +1298,7 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
     const next = {
       title: input.title ?? previous.title,
       content: input.content ?? previous.content,
+      comments: input.comments ?? previous.comments,
       attachments,
     }
     const categoryId =

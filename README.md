@@ -13,9 +13,8 @@ Auth** (Google OAuth) y protegida con **Row Level Security**.
 - **Categorías jerárquicas**: las secciones agrupan categorías raíz y
   subcategorías anidadas, plegables, ordenables y movibles entre secciones
   (`parent_id` + `sort_order`, ver `supabase/schema-encryption.sql`).
-- **Vista de tablero tipo Trello** en credenciales, enlaces y notas: pestañas de
-  sección en el encabezado (como los tableros de Trello) y una columna por
-  categoría con desplazamiento vertical independiente. Las tarjetas se
+- **Vista de tablero tipo Trello** en credenciales, enlaces y notas: una columna
+  por categoría con desplazamiento vertical independiente. Las tarjetas se
   **arrastran entre columnas** para cambiar de categoría, sin tocar el cifrado
   ni los adjuntos. Alterna con la rejilla mediante el conmutador Rejilla/Tablero,
   que recuerda tu preferencia.
@@ -26,12 +25,18 @@ Auth** (Google OAuth) y protegida con **Row Level Security**.
   columna. Las tarjetas muestran título, dato secundario y *badges*; todas las
   acciones (editar, copiar, abrir, compartir, eliminar) viven en el menú `⋯`.
   No se muestra el filtro de categorías ni botones pesados.
-- **Gestión de categorías desde el tablero**: cada columna es una lista con su
-  título editable, contador y menú `⋯` (añadir subcategoría, eliminar). El
-  tablero **no tiene pestañas de sección**: muestra todas las listas seguidas con
-  desplazamiento horizontal, y «+ Añade otra lista» al final abre el alta con
-  «Anidada en» para crear una subcategoría. La barra lateral queda sólo con la
-  navegación.
+- **Gestión de columnas desde el propio tablero**: cada columna es una lista con
+  su título editable, contador y menú `⋯` (eliminar). **«+ Añade otra lista»** al
+  final abre un input en la propia columna: escribes el nombre, pulsas Enter y la
+  columna nace lista para recibir tarjetas. No hay selector «Anidada en» ni
+  pestañas de sección, y la barra lateral queda sólo con la navegación
+  (Access, Links, Notas, Equipos).
+- **Sin botones «Nuevo» redundantes**: los registros se crean desde el `+` de la
+  columna correspondiente o desde el `+` del pie, nunca desde un botón global.
+- **Notas en dos paneles**: al editar una nota, la izquierda es el texto y la
+  derecha las imágenes y los comentarios. Ambos lados son editables y las
+  imágenes se ven como miniaturas reales (descifradas en memoria, nunca una URL
+  pública). **Las imágenes sólo existen en notas**, no en enlaces ni accesos.
 - **Links y Notas** completos: tarjetas, CRUD, favoritos, búsqueda y filtros
   (tablas `vault_links` / `vault_notes` con RLS).
 - **Generador de claves** (crypto.getRandomValues) con longitud 8–48,
@@ -116,7 +121,8 @@ Ver **[SECURITY.md](./SECURITY.md)** para el modelo completo. Resumen:
 
 - **RLS activo** en todas las tablas de Vault y chat: `using`/`with check` con
   `auth.uid()` y la participación/rol que corresponda a cada tabla.
-- **Imágenes cifradas para credenciales, enlaces y notas**: se cifran en el
+- **Imágenes cifradas sólo en notas**: las notas admiten imágenes adjuntas; los
+  enlaces y los accesos no. Se cifran en el
   navegador antes de subirlas al bucket privado `vault-attachments`. Los bytes de
   la imagen en claro nunca se guardan en Supabase (sólo el sobre cifrado) y los
   metadatos (nombre, MIME, tamaño

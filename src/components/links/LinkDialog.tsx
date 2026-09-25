@@ -15,7 +15,6 @@ import { Textarea } from '@/components/ui/Textarea'
 import { Label } from '@/components/ui/Label'
 import { Button } from '@/components/ui/Button'
 import { CategorySelect } from '@/components/credentials/CategorySelect'
-import { AttachmentPicker } from '@/components/attachments/AttachmentPicker'
 import type { AttachmentDraft, LinkItem } from '@/types'
 
 const linkSchema = z.object({
@@ -159,12 +158,6 @@ export function LinkDialog({
               <p className="text-xs text-red-400">{errors.description.message}</p>
             )}
           </div>
-
-          <AttachmentPicker
-            existing={link?.attachments}
-            value={attachmentDraft}
-            onChange={setAttachmentDraft}
-          />
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

@@ -8,7 +8,6 @@ import { Inbox, MoreVertical, Plus, Trash2 } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuItem,
-  DropdownMenuSeparator,
 } from '@/components/ui/DropdownMenu'
 import { cn } from '@/lib/utils'
 import { UNCATEGORIZED_COLUMN, type BoardColumn } from '@/lib/vault-board'
@@ -31,8 +30,8 @@ interface BoardViewProps<T> {
   onMoveCard?: (item: T, toCategoryId: string | undefined) => void
   /** Texto del botón de creación (p. ej. "Añade una credencial"). */
   addLabel: string
-  /** Abre el alta de una subcategoría bajo la columna. */
-  onAddSubcategory?: (categoryId: string) => void
+  /** Renderiza el formulario de alta de columna dentro de la columna nueva. */
+  renderAddColumn?: (close: () => void) => ReactNode
   /** Renombra la categoría de la columna. */
   onRenameColumn?: (categoryId: string, name: string) => void
   /** Elimina la categoría de la columna. */
@@ -53,13 +52,15 @@ export function BoardView<T extends { id: string; categoryId?: string }>({
   onAddCard,
   onMoveCard,
   addLabel,
-  onAddSubcategory,
+  renderAddColumn,
   onRenameColumn,
   onDeleteColumn,
   className,
 }: BoardViewProps<T>) {
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [dropTarget, setDropTarget] = useState<string | null>(null)
+  /** `true` mientras se escribe el nombre de la columna nueva del final. */
+  const [addingColumn, setAddingColumn] = useState(false)
 
   const resetDrag = useCallback(() => {
     setDraggingId(null)
@@ -108,7 +109,6 @@ export function BoardView<T extends { id: string; categoryId?: string }>({
           isTarget={dropTarget === column.id}
           addLabel={addLabel}
           onAddCard={onAddCard}
-          onAddSubcategory={onAddSubcategory}
           onRenameColumn={onRenameColumn}
           onDeleteColumn={onDeleteColumn}
           onDragOver={(event) => {
@@ -147,20 +147,26 @@ export function BoardView<T extends { id: string; categoryId?: string }>({
       ))}
 
       {/*
-        "Añade otra lista" al final del tablero, como el botón homónimo de
-        Trello. Crea la lista en la sección activa mediante el callback de la
-        página (que abre el formulario del encabezado).
+        Columna nueva al final del tablero, como en Trello. Al pulsarla aparece
+        el input en su sitio; al crear, la columna queda con su nombre editable
+        desde el encabezado.
       */}
-      {onAddSubcategory && (
+      {renderAddColumn && (
         <div className="shrink-0 snap-start" style={{ width: COLUMN_WIDTH }}>
-          <button
-            type="button"
-            onClick={() => onAddSubcategory('')}
-            className="flex w-full items-center gap-2 rounded-2xl border border-dashed border-border bg-elevated/30 px-3 py-3 text-left text-[12px] font-semibold text-muted transition-colors hover:border-primary/40 hover:bg-elevated/60 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-          >
-            <Plus className="size-4 shrink-0" />
-            Añade otra lista
-          </button>
+          {addingColumn ? (
+            <div className="rounded-2xl border border-primary/40 bg-elevated/40 p-2">
+              {renderAddColumn(() => setAddingColumn(false))}
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAddingColumn(true)}
+              className="flex w-full items-center gap-2 rounded-2xl border border-dashed border-border bg-elevated/30 px-3 py-3 text-left text-[12px] font-semibold text-muted transition-colors hover:border-primary/40 hover:bg-elevated/60 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+            >
+              <Plus className="size-4 shrink-0" />
+              Añade otra lista
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -173,7 +179,6 @@ interface BoardColumnShellProps<T> {
   isTarget: boolean
   addLabel: string
   onAddCard: (categoryId: string) => void
-  onAddSubcategory?: (categoryId: string) => void
   onRenameColumn?: (categoryId: string, name: string) => void
   onDeleteColumn?: (categoryId: string) => void
   onDragOver: (event: DragEvent<HTMLElement>) => void
@@ -188,7 +193,6 @@ function BoardColumnShell<T>({
   isTarget,
   addLabel,
   onAddCard,
-  onAddSubcategory,
   onRenameColumn,
   onDeleteColumn,
   onDragOver,
@@ -280,27 +284,17 @@ function BoardColumnShell<T>({
           >
             <Plus className="size-4" />
           </button>
-          {isRealCategory && (onAddSubcategory || onDeleteColumn) && (
+          {isRealCategory && onDeleteColumn && (
             <DropdownMenu
               contentClassName="min-w-[13rem]"
               trigger={<MoreVertical className="size-4" />}
             >
-              {onAddSubcategory && (
-                <DropdownMenuItem onClick={() => onAddSubcategory(column.id)}>
-                  <Plus className="size-3.5" /> Añadir subcategoría
-                </DropdownMenuItem>
-              )}
-              {onDeleteColumn && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    variant="danger"
-                    onClick={() => onDeleteColumn(column.id)}
-                  >
-                    <Trash2 className="size-3.5" /> Eliminar lista
-                  </DropdownMenuItem>
-                </>
-              )}
+              <DropdownMenuItem
+                variant="danger"
+                onClick={() => onDeleteColumn(column.id)}
+              >
+                <Trash2 className="size-3.5" /> Eliminar lista
+              </DropdownMenuItem>
             </DropdownMenu>
           )}
         </div>

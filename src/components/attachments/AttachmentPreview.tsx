@@ -65,7 +65,6 @@ export function AttachmentPreview({
       setLoadingId(null)
     }
   }
-
   const closePreview = () => {
     if (preview) URL.revokeObjectURL(preview.url)
     setPreview(null)

@@ -50,14 +50,11 @@ export function Notes() {
   const [deleting, setDeleting] = useState<Note | null>(null)
   /** Categoría preseleccionada al crear desde el botón «+» de una columna. */
   const [createCategoryId, setCreateCategoryId] = useState('')
-  /** Petición de alta de lista lanzada desde una columna del tablero. */
-  const [listPresetParent, setListPresetParent] = useState<string | null>(null)
   const vaultView = useUIStore((s) => s.vaultView)
 
   useEffect(() => {
     void loadNotes()
   }, [loadNotes])
-
   // Abre el diálogo cuando el Header navega con ?new=1
   const newParam = searchParams.get('new')
   useEffect(() => {
@@ -122,9 +119,6 @@ export function Notes() {
     }
   }
 
-  /** Abre el alta de lista del encabezado; opcionalmente anidada. */
-  const handleAddList = (parentId: string) => setListPresetParent(parentId)
-
   /** Renombra la categoría de una columna desde el tablero. */
   const handleRenameColumn = async (categoryId: string, name: string) => {
     try {
@@ -158,6 +152,7 @@ export function Notes() {
     const normalized = {
       title: values.title.trim(),
       content: values.content,
+      comments: values.comments.trim() || undefined,
       categoryId: values.categoryId || undefined,
     }
     try {
@@ -198,10 +193,6 @@ export function Notes() {
               : `${notes.length} nota${notes.length === 1 ? '' : 's'} guardada${notes.length === 1 ? '' : 's'}.`}
           </p>
         </div>
-        <Button variant="primary" onClick={handleOpenCreate}>
-          <Plus className="size-3.5" />
-          Nueva nota
-        </Button>
       </div>
 
       {/* El buscador vive en el Header; aquí sólo ordenación y modo de vista. */}
@@ -256,36 +247,31 @@ export function Notes() {
           description="No se encontraron notas que coincidan con la búsqueda."
         />
       ) : vaultView === 'board' ? (
-        <>
-          <BoardHeader
-            itemLabel="nota"
-            presetParentId={listPresetParent}
-            className="mb-3"
-          />
-          <BoardView
-            columns={buildBoardColumns(filtered, {
-              sections,
-              categories,
-              filter: categoryFilter,
-            })}
-            renderCard={(note) => (
-              <NoteBoardCard
-                note={note}
-                onEdit={(n) => {
-                  setEditing(n)
-                  setDialogOpen(true)
-                }}
-                onDelete={setDeleting}
-              />
-            )}
-            onAddCard={handleOpenCreateIn}
-            onMoveCard={handleMoveCard}
-            onAddSubcategory={handleAddList}
-            onRenameColumn={(id, name) => void handleRenameColumn(id, name)}
-            onDeleteColumn={(id) => void handleDeleteColumn(id)}
-            addLabel="Añade una nota"
-          />
-        </>
+        <BoardView
+          columns={buildBoardColumns(filtered, {
+            sections,
+            categories,
+            filter: categoryFilter,
+          })}
+          renderCard={(note) => (
+            <NoteBoardCard
+              note={note}
+              onEdit={(n) => {
+                setEditing(n)
+                setDialogOpen(true)
+              }}
+              onDelete={setDeleting}
+            />
+          )}
+          onAddCard={handleOpenCreateIn}
+          onMoveCard={handleMoveCard}
+          renderAddColumn={(close) => (
+            <BoardHeader itemLabel="lista" presetParentId="" onClose={close} />
+          )}
+          onRenameColumn={(id, name) => void handleRenameColumn(id, name)}
+          onDeleteColumn={(id) => void handleDeleteColumn(id)}
+          addLabel="Añade una nota"
+        />
       ) : (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filtered.map((note) => (

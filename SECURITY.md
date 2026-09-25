@@ -80,13 +80,13 @@ modelo evita falsos positivos al reportar vulnerabilidades:
   limpian progresivamente cuando el usuario las abre tras desbloquear el Vault;
   hasta entonces, el propietario de Supabase puede ver esas filas heredadas en
   claro.
-- **Adjuntos cifrados:** las imágenes de credenciales, enlaces y notas se cifran
+- **Adjuntos cifrados (sólo notas):** las imágenes adjuntas a una nota se cifran
   con AES-GCM en el navegador antes de subirlas al bucket privado
-  `vault-attachments`. Supabase almacena el sobre opaco, nunca los bytes de la
-  imagen; nombre, MIME, tamaño e ID se guardan únicamente dentro del
-  `encrypted_payload` del registro. La descarga requiere una sesión autenticada
-  y se descifra en memoria; la UI usa un `Blob URL` temporal y lo revoca al
-  cerrar. No se usa `getPublicUrl`.
+  `vault-attachments`. Los enlaces y los accesos no admiten imágenes. Supabase
+  almacena el sobre opaco, nunca los bytes de la imagen; nombre, MIME, tamaño e ID
+  se guardan únicamente dentro del `encrypted_payload` del registro. La descarga
+  requiere una sesión autenticada y se descifra en memoria; la UI usa un
+  `Blob URL` temporal y lo revoca al cerrar. No se usa `getPublicUrl`.
 - **Storage privado:** las políticas de `vault-attachments` sólo admiten
   `authenticated` y exige que la primera carpeta sea `{auth.uid()}`. No hay
   políticas públicas para imágenes. Si una eliminación de Storage falla, el

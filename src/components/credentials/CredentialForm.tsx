@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -9,7 +9,6 @@ import { CategorySelect } from './CategorySelect'
 import { Label } from '@/components/ui/Label'
 import { Button } from '@/components/ui/Button'
 import { useVaultStore } from '@/store/vault.store'
-import { AttachmentPicker } from '@/components/attachments/AttachmentPicker'
 import type { AttachmentDraft, Credential } from '@/types'
 
 const credentialSchema = z.object({
@@ -63,10 +62,11 @@ export function CredentialForm({
   const allCategories = useVaultStore((s) => s.categories)
   const sections = useVaultStore((s) => s.sections)
   const status = useVaultStore((s) => s.status)
-  const [attachmentDraft, setAttachmentDraft] = useState<AttachmentDraft>({
-    newFiles: [],
-    removedIds: [],
-  })
+  /**
+   * Las credenciales ya no admiten imágenes (sólo las notas), pero la firma de
+   * `onSubmit` se conserva para no tocar el store ni la página.
+   */
+  const attachmentDraft: AttachmentDraft = { newFiles: [], removedIds: [] }
 
   const {
     register,
@@ -93,7 +93,6 @@ export function CredentialForm({
   }, [allCategories, setValue, status, watch])
 
   useEffect(() => {
-    setAttachmentDraft({ newFiles: [], removedIds: [] })
     if (credential) {
       reset({
         title: credential.title,
@@ -203,12 +202,6 @@ export function CredentialForm({
           <p className="text-xs text-red-400">{errors.notes.message}</p>
         )}
       </div>
-
-      <AttachmentPicker
-        existing={credential?.attachments}
-        value={attachmentDraft}
-        onChange={setAttachmentDraft}
-      />
 
       <div className="flex justify-end gap-2 pt-2">
         <Button type="button" variant="ghost" onClick={onCancel}>

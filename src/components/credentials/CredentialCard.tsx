@@ -15,7 +15,6 @@ import { Card } from '@/components/ui/Card'
 import { CategoryBadge } from '@/components/ui/CategoryBadge'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { PasswordField } from '@/components/ui/PasswordField'
-import { AttachmentPreview } from '@/components/attachments/AttachmentPreview'
 import { Button } from '@/components/ui/Button'
 import {
   DropdownMenu,
@@ -160,13 +159,6 @@ export function CredentialCard({
             {credential.notes}
           </p>
         )}
-
-        <AttachmentPreview
-          attachments={credential.attachments}
-          kind="credential"
-          recordId={credential.id}
-          compact
-        />
 
         {/* Footer */}
         <div className="mt-auto pt-4">

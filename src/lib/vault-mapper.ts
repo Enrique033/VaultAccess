@@ -117,6 +117,7 @@ export function toNote(row: NoteRow): Note {
     id: row.id,
     title: row.title,
     content: row.content,
+    comments: undefined,
     categoryId: row.category_id ?? undefined,
     attachments: [],
     favorite: row.favorite,

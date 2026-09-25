@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/Label'
 import { Button } from '@/components/ui/Button'
 import { CategorySelect } from '@/components/credentials/CategorySelect'
 import { AttachmentPicker } from '@/components/attachments/AttachmentPicker'
+import { AttachmentGallery } from '@/components/attachments/AttachmentGallery'
 import type { AttachmentDraft, Note } from '@/types'
 
 const noteSchema = z.object({
@@ -25,12 +26,18 @@ const noteSchema = z.object({
     .min(1, 'El título es obligatorio')
     .max(80, 'Máximo 80 caracteres'),
   content: z.string().max(5000, 'Máximo 5000 caracteres'),
+  comments: z.string().max(5000, 'Máximo 5000 caracteres'),
   categoryId: z.string(),
 })
 
 export type NoteFormValues = z.infer<typeof noteSchema>
 
-const EMPTY: NoteFormValues = { title: '', content: '', categoryId: '' }
+const EMPTY: NoteFormValues = {
+  title: '',
+  content: '',
+  comments: '',
+  categoryId: '',
+}
 
 interface NoteDialogProps {
   open: boolean
@@ -67,6 +74,7 @@ export function NoteDialog({
   })
 
   const contentLength = watch('content').length
+  const commentsLength = watch('comments').length
 
   useEffect(() => {
     if (!open) return
@@ -75,6 +83,7 @@ export function NoteDialog({
       reset({
         title: note.title,
         content: note.content,
+        comments: note.comments ?? '',
         categoryId: note.categoryId ?? '',
       })
     } else {
@@ -83,7 +92,7 @@ export function NoteDialog({
   }, [open, note, defaultCategoryId, reset])
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} className="max-w-xl">
+    <Dialog open={open} onOpenChange={onOpenChange} className="max-w-4xl">
       <DialogHeader>
         <div>
           <DialogTitle>{isEditing ? 'Editar nota' : 'Nueva nota'}</DialogTitle>
@@ -99,54 +108,90 @@ export function NoteDialog({
       <DialogContent>
         <form
           onSubmit={handleSubmit((values) => onSubmit(values, attachmentDraft))}
-          className="space-y-4"
+          className="grid gap-4 md:grid-cols-2"
         >
-          <div className="space-y-1.5">
-            <Label htmlFor="note-title">Título</Label>
-            <Input
-              id="note-title"
-              placeholder="Ideas del sprint"
-              autoFocus
-              {...register('title')}
-            />
-            {errors.title && (
-              <p className="text-xs text-red-400">{errors.title.message}</p>
-            )}
-          </div>
+          {/* Izquierda: el texto de la nota. */}
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="note-title">Título</Label>
+              <Input
+                id="note-title"
+                placeholder="Ideas del sprint"
+                autoFocus
+                {...register('title')}
+              />
+              {errors.title && (
+                <p className="text-xs text-red-400">{errors.title.message}</p>
+              )}
+            </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="note-content">Contenido</Label>
-            <Textarea
-              id="note-content"
-              rows={8}
-              placeholder="Escribe aquí…"
-              className="max-h-64"
-              {...register('content')}
-            />
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-red-400">{errors.content?.message}</span>
-              <span className="font-mono text-[11px] text-muted">
-                {contentLength}/5000
-              </span>
+            <div className="space-y-1.5">
+              <Label htmlFor="note-content">Contenido</Label>
+              <Textarea
+                id="note-content"
+                rows={10}
+                placeholder="Escribe aquí…"
+                className="min-h-56"
+                {...register('content')}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-red-400">
+                  {errors.content?.message}
+                </span>
+                <span className="font-mono text-[11px] text-muted">
+                  {contentLength}/5000
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="note-category">Categoría</Label>
+              <CategorySelect
+                id="note-category"
+                value={watch('categoryId')}
+                onChange={(id) =>
+                  setValue('categoryId', id, { shouldDirty: true })
+                }
+              />
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="note-category">Categoría</Label>
-            <CategorySelect
-              id="note-category"
-              value={watch('categoryId')}
-              onChange={(id) => setValue('categoryId', id, { shouldDirty: true })}
+          {/* Derecha: imágenes visibles y comentarios. */}
+          <div className="space-y-3">
+            <AttachmentPicker
+              existing={note?.attachments}
+              value={attachmentDraft}
+              onChange={setAttachmentDraft}
             />
+
+            <AttachmentGallery
+              attachments={note?.attachments}
+              newFiles={attachmentDraft.newFiles}
+              removedIds={attachmentDraft.removedIds}
+              kind="note"
+              recordId={note?.id}
+            />
+
+            <div className="space-y-1.5">
+              <Label htmlFor="note-comments">Comentarios</Label>
+              <Textarea
+                id="note-comments"
+                rows={6}
+                placeholder="Comentarios, enlaces o recordatorios…"
+                {...register('comments')}
+              />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-red-400">
+                  {errors.comments?.message}
+                </span>
+                <span className="font-mono text-[11px] text-muted">
+                  {commentsLength}/5000
+                </span>
+              </div>
+            </div>
           </div>
 
-          <AttachmentPicker
-            existing={note?.attachments}
-            value={attachmentDraft}
-            onChange={setAttachmentDraft}
-          />
-
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex justify-end gap-2 md:col-span-2">
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancelar
             </Button>

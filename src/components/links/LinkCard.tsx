@@ -10,7 +10,6 @@ import {
 import { Card } from '@/components/ui/Card'
 import { CategoryBadge } from '@/components/ui/CategoryBadge'
 import { CopyButton } from '@/components/ui/CopyButton'
-import { AttachmentPreview } from '@/components/attachments/AttachmentPreview'
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -114,13 +113,6 @@ export function LinkCard({ link, onEdit, onDelete }: LinkCardProps) {
           {link.description}
         </p>
       )}
-
-      <AttachmentPreview
-        attachments={link.attachments}
-        kind="link"
-        recordId={link.id}
-        compact
-      />
 
       <div className="mt-auto flex items-center gap-2 pt-4">
         <Button
