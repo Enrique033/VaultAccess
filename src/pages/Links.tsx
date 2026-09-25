@@ -37,6 +37,7 @@ export function Links() {
   const deleteLink = useVaultStore((s) => s.deleteLink)
 
   const query = useSearchStore((s) => s.query)
+  // Sólo filtra la búsqueda: el tablero muestra siempre todas las columnas.
   const sectionId = useSearchStore((s) => s.sectionId)
   const categoryFilter = useSearchStore((s) => s.categoryFilter)
   const setCategoryFilter = useSearchStore((s) => s.setCategoryFilter)
@@ -268,7 +269,6 @@ export function Links() {
               sections,
               categories,
               filter: categoryFilter,
-              sectionId,
             })}
             renderCard={(link) => (
               <LinkBoardCard

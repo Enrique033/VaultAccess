@@ -37,6 +37,7 @@ export function Notes() {
   const deleteNote = useVaultStore((s) => s.deleteNote)
 
   const query = useSearchStore((s) => s.query)
+  // Sólo filtra la búsqueda: el tablero muestra siempre todas las columnas.
   const sectionId = useSearchStore((s) => s.sectionId)
   const categoryFilter = useSearchStore((s) => s.categoryFilter)
   const setCategoryFilter = useSearchStore((s) => s.setCategoryFilter)
@@ -266,7 +267,6 @@ export function Notes() {
               sections,
               categories,
               filter: categoryFilter,
-              sectionId,
             })}
             renderCard={(note) => (
               <NoteBoardCard

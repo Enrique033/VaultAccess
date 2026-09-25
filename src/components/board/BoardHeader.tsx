@@ -1,8 +1,6 @@
-import { type ReactNode, useEffect, useMemo, useState } from 'react'
-import { Plus, X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { useVaultStore } from '@/store/vault.store'
-import { useSearchStore } from '@/store/search.store'
 import { toast } from '@/store/ui.store'
 import { cn } from '@/lib/utils'
 
@@ -18,8 +16,12 @@ interface BoardHeaderProps {
 }
 
 /**
- * Encabezado del tablero: pestañas de sección (como los tableros de Trello) y
- * alta de columnas. Desde aquí se crean categorías raíz y subcategorías.
+ * Encabezado del tablero: sólo el alta de columnas, a la Trello.
+ *
+ * A diferencia de la versión anterior, NO hay pestañas de sección: el tablero
+ * muestra todas las listas seguidas con desplazamiento horizontal y la
+ * jerarquía se marca con la columna «Anidada en». Una lista nueva nace en la
+ * primera sección.
  */
 export function BoardHeader({
   itemLabel,
@@ -30,19 +32,13 @@ export function BoardHeader({
   const categories = useVaultStore((s) => s.categories)
   const addSection = useVaultStore((s) => s.addSection)
   const addCategory = useVaultStore((s) => s.addCategory)
-  const setSectionId = useSearchStore((s) => s.setSectionId)
-  const setCategoryFilter = useSearchStore((s) => s.setCategoryFilter)
-  const activeSectionId = useSearchStore((s) => s.sectionId)
-  const activeCategoryFilter = useSearchStore((s) => s.categoryFilter)
 
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
   const [parentId, setParentId] = useState('')
-  const [newSectionName, setNewSectionName] = useState('')
-  const [creatingSection, setCreatingSection] = useState(false)
 
-  /** Sección destino: la pestaña activa o, si no hay, la primera disponible. */
-  const effectiveSectionId = activeSectionId ?? sections[0]?.id ?? ''
+  /** Sección destino: la primera disponible, o «General» si no hay ninguna. */
+  const effectiveSectionId = sections[0]?.id ?? ''
 
   const parentOptions = useMemo(
     () =>
@@ -95,55 +91,8 @@ export function BoardHeader({
     }
   }
 
-  const submitSection = async () => {
-    const trimmed = newSectionName.trim()
-    if (!trimmed) return
-    setCreatingSection(false)
-    setNewSectionName('')
-    try {
-      await addSection(trimmed)
-      toast.success('Sección creada')
-    } catch (e) {
-      toast.error(
-        e instanceof Error ? e.message : 'No se pudo crear la sección',
-      )
-    }
-  }
-
-  const selectSection = (id: string | null) => {
-    setSectionId(id)
-    setCategoryFilter(null)
-  }
-
   return (
     <div className={cn('flex flex-col gap-2', className)}>
-      <div className="-mx-4 flex snap-x gap-1.5 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        <SectionTab
-          active={activeSectionId === null && activeCategoryFilter === null}
-          onClick={() => selectSection(null)}
-        >
-          Todas
-        </SectionTab>
-        {sections.map((section) => (
-          <SectionTab
-            key={section.id}
-            active={activeSectionId === section.id}
-            onClick={() =>
-              selectSection(activeSectionId === section.id ? null : section.id)
-            }
-          >
-            {section.name}
-          </SectionTab>
-        ))}
-        <NewSectionControl
-          creating={creatingSection}
-          value={newSectionName}
-          onValueChange={setNewSectionName}
-          onStart={() => setCreatingSection(true)}
-          onCancel={() => setCreatingSection(false)}
-          onSubmit={() => void submitSection()}
-        />
-      </div>
       <AddListForm
         open={adding}
         name={name}
@@ -240,88 +189,6 @@ function AddListForm({
           Cancelar
         </Button>
       </div>
-    </div>
-  )
-}
-
-function SectionTab({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean
-  onClick: () => void
-  children: ReactNode
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'shrink-0 snap-start rounded-xl border px-3 py-1.5 text-xs font-semibold transition-colors',
-        active
-          ? 'border-primary/45 bg-primary-soft text-primary'
-          : 'border-border bg-surface/70 text-muted hover:bg-elevated hover:text-foreground',
-      )}
-    >
-      {children}
-    </button>
-  )
-}
-
-function NewSectionControl({
-  creating,
-  value,
-  onValueChange,
-  onStart,
-  onCancel,
-  onSubmit,
-}: {
-  creating: boolean
-  value: string
-  onValueChange: (value: string) => void
-  onStart: () => void
-  onCancel: () => void
-  onSubmit: () => void
-}) {
-  if (!creating) {
-    return (
-      <button
-        type="button"
-        onClick={onStart}
-        className="inline-flex shrink-0 snap-start items-center gap-1.5 rounded-xl border border-dashed border-border px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:border-primary/40 hover:text-primary"
-      >
-        <Plus className="size-3.5" />
-        Sección
-      </button>
-    )
-  }
-  return (
-    <div className="flex shrink-0 snap-start items-center gap-1">
-      <input
-        autoFocus
-        value={value}
-        onChange={(e) => onValueChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') onSubmit()
-          if (e.key === 'Escape') onCancel()
-        }}
-        placeholder="Nueva sección"
-        aria-label="Nombre de la nueva sección"
-        className="h-8 w-36 rounded-lg border border-border bg-surface px-2.5 text-xs text-foreground placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-primary/30"
-      />
-      <Button size="sm" variant="primary" onClick={onSubmit}>
-        Añadir
-      </Button>
-      <button
-        type="button"
-        onClick={onCancel}
-        aria-label="Cancelar"
-        className="rounded-lg p-1.5 text-muted hover:bg-elevated hover:text-foreground"
-      >
-        <X className="size-3.5" />
-      </button>
     </div>
   )
 }
