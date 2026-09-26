@@ -8,26 +8,12 @@
 -- la versión más reciente. Si lo partes o usas una copia antigua, puede fallar
 -- con "column archived_at does not exist": las columnas y la función que las
 -- lee tienen que estar en la misma ejecución.
+--
+-- Este archivo NO lleva consultas de comprobación a propósito: cualquier
+-- sentencia que falle aquí aborta la migración entera. Para revisar el estado
+-- de la base antes de ejecutarlo, usa supabase/check-archive-schema.sql (sólo
+-- SELECT, se puede lanzar cuando quieras y nunca rompe nada).
 -- ============================================================
-
--- 0) Diagnóstico previo. Debe devolver 4 filas con "si"; si alguna sale en
---    "no", para y vuelve a ejecutar el archivo completo desde arriba.
-select
-  t.tabla,
-  coalesce(cols.c ? 'archived_at', false) as tiene_archived_at
-from (values
-  ('vault_categories'), ('vault_credentials'),
-  ('vault_links'),       ('vault_notes')
-) as t(tabla)
-cross join lateral (
-  -- to_regclass devuelve NULL si la tabla no existe, en vez de fallar: así el
-  -- diagnóstico nunca se rompe, que es justo cuando más falta hace.
-  select array_agg(a.attname) as c
-  from pg_attribute a
-  where a.attrelid = to_regclass(format('public.%I', t.tabla))
-    and a.attnum > 0
-    and not a.attisdropped
-) as cols;
 
 -- 1) Configuración criptográfica por usuario.
 -- La clave privada se almacena cifrada con la clave AES derivada de la
