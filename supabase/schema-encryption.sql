@@ -266,6 +266,35 @@ alter table public.vault_credentials add column if not exists archived_at timest
 alter table public.vault_links       add column if not exists archived_at timestamptz;
 alter table public.vault_notes       add column if not exists archived_at timestamptz;
 
+-- Sincroniza lo que quedó a medias antes de que existiera el archivado de
+-- registros: si la columna ya estaba archivada, sus tarjetas también lo están.
+-- Sin esto, la app las muestra en «Sin categoría», que es justo lo que chirría.
+-- Es idempotente y no destructivo: sólo marca `archived_at`, y todo lo marcado
+-- se recupera desde el panel de Archivados.
+update public.vault_credentials cr
+   set archived_at = coalesce(cr.archived_at, now())
+ where cr.archived_at is null
+   and cr.category_id in (
+     select c.id from public.vault_categories c
+      where c.archived_at is not null
+   );
+
+update public.vault_links l
+   set archived_at = coalesce(l.archived_at, now())
+ where l.archived_at is null
+   and l.category_id in (
+     select c.id from public.vault_categories c
+      where c.archived_at is not null
+   );
+
+update public.vault_notes n
+   set archived_at = coalesce(n.archived_at, now())
+ where n.archived_at is null
+   and n.category_id in (
+     select c.id from public.vault_categories c
+      where c.archived_at is not null
+   );
+
 create index if not exists idx_credentials_archived
   on public.vault_credentials (user_id, archived_at desc)
   where archived_at is not null;

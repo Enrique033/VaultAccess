@@ -19,16 +19,26 @@ import type { AttachmentDraft } from '@/types'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
 import { toast, useUIStore } from '@/store/ui.store'
-import { activeCategories, matchesCategoryFilter } from '@/lib/vault-filters'
+import {
+  activeCategories,
+  archivedCategoryIds,
+  isArchivedItem,
+  matchesCategoryFilter,
+} from '@/lib/vault-filters'
 import { buildBoardColumns } from '@/lib/vault-board'
 import type { LinkItem } from '@/types'
 
 export function Links() {
   const allLinks = useVaultStore((s) => s.links)
-  /** El tablero sólo muestra lo activo: lo archivado vive en su propio panel. */
+  const allLinks = useVaultStore((s) => s.links)
+  /** Tablero sin lo archivado, ni el propio ni por columna (ver Notes). */
+  const archivedIds = useMemo(
+    () => archivedCategoryIds(allCategories),
+    [allCategories],
+  )
   const links = useMemo(
-    () => allLinks.filter((link) => !link.archivedAt),
-    [allLinks],
+    () => allLinks.filter((link) => !isArchivedItem(link, archivedIds)),
+    [allLinks, archivedIds],
   )
   const allCategories = useVaultStore((s) => s.categories)
   /**

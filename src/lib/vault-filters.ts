@@ -27,6 +27,31 @@ export function activeCategories(
   )
 }
 
+/** Ids de las columnas archivadas, para aplicar esa misma regla a sus tarjetas. */
+export function archivedCategoryIds(categories: Category[]): Set<string> {
+  return new Set(
+    categories
+      .filter(isArchived)
+      .map((category) => category.id),
+  )
+}
+
+/**
+ * ¿Esta tarjeta está archivada?
+ *
+ * Además del propio `archivedAt`, se considera archivada si su columna lo está.
+ * Es una red de seguridad: la regla es que archivar una columna se lleva sus
+ * tarjetas, y así una tarjeta no puede quedarse a la vista en «Sin categoría»
+ * aunque se colara un registro antiguo sin la marca.
+ */
+export function isArchivedItem(
+  item: ArchivedItem,
+  archivedIds: Set<string>,
+): boolean {
+  if (item.archivedAt) return true
+  return Boolean(item.categoryId && archivedIds.has(item.categoryId))
+}
+
 /** Columnas archivadas de cualquier módulo, de la más reciente a la más antigua. */
 export function archivedCategories(categories: Category[]): Category[] {
   return categories

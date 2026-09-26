@@ -27,16 +27,23 @@ import { toast, useUIStore } from '@/store/ui.store'
 import {
   FAVORITES,
   activeCategories,
+  archivedCategoryIds,
+  isArchivedItem,
   matchesCategoryFilter,
 } from '@/lib/vault-filters'
 import type { Credential } from '@/types'
 
 export function Credentials() {
   const allCredentials = useVaultStore((s) => s.credentials)
-  /** El tablero sólo muestra lo activo: lo archivado vive en su propio panel. */
+  const allCredentials = useVaultStore((s) => s.credentials)
+  /** Tablero sin lo archivado, ni el propio ni por columna (ver Notes). */
+  const archivedIds = useMemo(
+    () => archivedCategoryIds(allCategories),
+    [allCategories],
+  )
   const credentials = useMemo(
-    () => allCredentials.filter((credential) => !credential.archivedAt),
-    [allCredentials],
+    () => allCredentials.filter((c) => !isArchivedItem(c, archivedIds)),
+    [allCredentials, archivedIds],
   )
   const allCategories = useVaultStore((s) => s.categories)
   /**

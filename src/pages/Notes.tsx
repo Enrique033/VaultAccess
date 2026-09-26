@@ -19,18 +19,31 @@ import type { AttachmentDraft } from '@/types'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
 import { toast, useUIStore } from '@/store/ui.store'
-import { activeCategories, matchesCategoryFilter } from '@/lib/vault-filters'
+import {
+  activeCategories,
+  archivedCategoryIds,
+  isArchivedItem,
+  matchesCategoryFilter,
+} from '@/lib/vault-filters'
 import { buildBoardColumns } from '@/lib/vault-board'
 import type { Note } from '@/types'
 
 export function Notes() {
   const allNotes = useVaultStore((s) => s.notes)
-  /** El tablero sólo muestra lo activo: lo archivado vive en su propio panel. */
-  const notes = useMemo(
-    () => allNotes.filter((note) => !note.archivedAt),
-    [allNotes],
-  )
   const allCategories = useVaultStore((s) => s.categories)
+  /**
+   * Tablero sin lo archivado. Una tarjeta cuenta como archivada si ella misma
+   * lo está o si su columna lo está: así ninguna se queda a la vista en
+   * «Sin categoría» por el camino.
+   */
+  const archivedIds = useMemo(
+    () => archivedCategoryIds(allCategories),
+    [allCategories],
+  )
+  const notes = useMemo(
+    () => allNotes.filter((note) => !isArchivedItem(note, archivedIds)),
+    [allNotes, archivedIds],
+  )
   /**
    * Notas sólo ve sus columnas: no comparte ninguna con Access ni Links, y las
    * archivadas quedan fuera hasta recuperarlas desde el panel de Archivados.
