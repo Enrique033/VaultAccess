@@ -44,6 +44,14 @@ export interface CategorizedItem {
   favorite: boolean
 }
 
+/**
+ * Un registro del Vault: credencial, enlace o nota. `archivedAt` significa que
+ * sale del tablero y espera en el panel de Archivados, no que se haya borrado.
+ */
+export interface ArchivedItem extends CategorizedItem {
+  archivedAt?: string
+}
+
 export function categoryForItem(
   item: CategorizedItem,
   categories: Category[],

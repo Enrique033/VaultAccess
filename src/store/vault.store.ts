@@ -62,12 +62,27 @@ const SECTION_COLUMNS = 'id, name, encrypted_payload, created_at'
 const CATEGORY_COLUMNS =
   'id, section_id, parent_id, sort_order, module, archived_at, name, color, encrypted_payload, created_at'
 const CREDENTIAL_COLUMNS =
-  'id, title, username, password, url, category_id, notes, favorite, encrypted_payload, created_at, updated_at'
+  'id, title, username, password, url, category_id, notes, favorite, archived_at, encrypted_payload, created_at, updated_at'
 const LINK_COLUMNS =
-  'id, title, url, description, category_id, favorite, encrypted_payload, created_at, updated_at'
+  'id, title, url, description, category_id, favorite, archived_at, encrypted_payload, created_at, updated_at'
 const NOTE_COLUMNS =
-  'id, title, content, category_id, favorite, encrypted_payload, created_at, updated_at'
+  'id, title, content, category_id, favorite, archived_at, encrypted_payload, created_at, updated_at'
 const HISTORY_COLUMNS = 'id, credential_id, password, encrypted_payload, changed_at'
+
+/** Tipo de registro de cada módulo: Access→credenciales, Links→enlaces, Notas→notas. */
+export type RecordKind = 'credential' | 'link' | 'note'
+
+const MODULE_KIND: Record<CategoryModule, RecordKind> = {
+  credential: 'credential',
+  link: 'link',
+  note: 'note',
+}
+
+const TABLE_BY_KIND: Record<RecordKind, string> = {
+  credential: 'vault_credentials',
+  link: 'vault_links',
+  note: 'vault_notes',
+}
 
 function isMissingRpcError(message: string): boolean {
   return /PGRST202|schema cache|function .*does not exist|could not find the function/i.test(
@@ -191,11 +206,22 @@ interface VaultState {
   addCategory: (input: CategoryInput) => Promise<Category>
   renameCategory: (id: string, name: string) => Promise<void>
   /**
-   * Archiva o recupera una columna. Archivar **no borra** nada: la columna deja
-   * de salir en el tablero, pero sus registros la siguen apuntando y vuelven a
-   * su sitio al recuperarla desde el panel «Archivados».
+   * Archiva o recupera una columna. Archivar **no borra** nada: la columna sale
+   * del tablero y **sus registros se archivan con ella** (pasan al panel
+   * «Archivados» en lugar de aparecer de golpe en «Sin categoría»). Al
+   * recuperarla, vuelven a su sitio. Devuelve cuántas tarjetas se movieron.
    */
-  setCategoryArchived: (id: string, archived: boolean) => Promise<void>
+  setCategoryArchived: (id: string, archived: boolean) => Promise<number>
+  /**
+   * Archiva o recupera un registro suelto (credencial, enlace o nota). No lo
+   * borra: sale del tablero y aparece en el panel «Archivados», conservando su
+   * columna de origen y sus imágenes.
+   */
+  setRecordArchived: (
+    kind: RecordKind,
+    id: string,
+    archived: boolean,
+  ) => Promise<void>
   moveCategory: (
     id: string,
     sectionId: string,
@@ -1544,30 +1570,88 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
    * apuntando a ella, así que al recuperarla vuelven a aparecer en su sitio.
    * Las subcolumnas se archivan con ella; al recuperarla, también vuelven.
    */
+  /**
+   * Archivar una columna se lleva sus registros.
+   *
+   * Si sólo se ocultara la columna, sus tarjetas seguirían apuntando a ella y el
+   * tablero las mostraría en «Sin categoría», que parece que aparece una columna
+   * nueva de la nada. Al archivarlas van al panel de Archivados, que es donde
+   * el usuario puede recuperarlas o borrarlas.
+   *
+   * Al recuperar la columna vuelven las tarjetas que sigan archivadas y tengan su
+   * columna de destino: cada una a la suya, y sin tocar las demás.
+   */
   setCategoryArchived: async (id, archived) => {
     const state = get()
-    if (!state.categories.some((category) => category.id === id)) {
-      throw new Error('La columna ya no existe.')
-    }
+    const target = state.categories.find((category) => category.id === id)
+    if (!target) throw new Error('La columna ya no existe.')
+
     const at = archived ? new Date().toISOString() : null
     /*
       La rama entera (columna + subcolumnas) va y viene junta: una sublista sin
-      su columna madre se quedaría colgando de nada. Al recuperar la madre
-      vuelven también sus subcolumnas. La misma lista de ids se usa para
-      Supabase y para el estado local, así ambos quedan iguales y un refresco
+      su columna madre se quedaría colgando de nada. La misma lista de ids se usa
+      para Supabase y para el estado local, así ambos quedan iguales y un refresco
       no devuelve a la vista una subcolumna que seguía archivada.
     */
     const ids = new Set([id, ...categoryDescendantIds(state.categories, id)])
+
+    // Cada módulo sólo tiene registros de su tipo: no hay que tocar los demás.
+    const kind = MODULE_KIND[target.module]
+    const table = TABLE_BY_KIND[kind]
+    const items = state[`${kind}s`] as { id: string; categoryId?: string; archivedAt?: string }[]
+
+    // Al archivar: todos los que cuelgan de la columna. Al recuperar: sólo los
+    // que sigan archivados (no se resucita lo que el usuario archivó por su cuenta).
+    const recordIds = items
+      .filter((item) => item.categoryId && ids.has(item.categoryId))
+      .filter((item) => (archived ? true : Boolean(item.archivedAt)))
+      .map((item) => item.id)
+    const recordAt = archived ? new Date().toISOString() : null
+
+    const { error: recordError } = recordIds.length
+      ? await supabase
+          .from(table)
+          .update({ archived_at: recordAt })
+          .in('id', recordIds)
+      : { error: null }
+    if (recordError) throw new Error(friendlySyncError(recordError.message))
+
     const { error } = await supabase
       .from('vault_categories')
       .update({ archived_at: at })
       .in('id', [...ids])
     if (error) throw new Error(friendlySyncError(error.message))
+
+    const recordSet = new Set(recordIds)
     set((s) => ({
       categories: s.categories.map((category) =>
         ids.has(category.id)
           ? { ...category, archivedAt: at ?? undefined }
           : category,
+      ),
+      [`${kind}s`]: (s[`${kind}s`] as typeof items).map((item) =>
+        recordSet.has(item.id)
+          ? { ...item, archivedAt: recordAt ?? undefined }
+          : item,
+      ),
+    }))
+    return recordIds.length
+  },
+
+  setRecordArchived: async (kind, id, archived) => {
+    const list = get()[`${kind}s`] as { id: string; archivedAt?: string }[]
+    if (!list.some((item) => item.id === id)) {
+      throw new Error('El registro ya no existe.')
+    }
+    const at = archived ? new Date().toISOString() : null
+    const { error } = await supabase
+      .from(TABLE_BY_KIND[kind])
+      .update({ archived_at: at })
+      .eq('id', id)
+    if (error) throw new Error(friendlySyncError(error.message))
+    set((s) => ({
+      [`${kind}s`]: (s[`${kind}s`] as typeof list).map((item) =>
+        item.id === id ? { ...item, archivedAt: at ?? undefined } : item,
       ),
     }))
   },

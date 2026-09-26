@@ -32,7 +32,12 @@ import {
 import type { Credential } from '@/types'
 
 export function Credentials() {
-  const credentials = useVaultStore((s) => s.credentials)
+  const allCredentials = useVaultStore((s) => s.credentials)
+  /** El tablero sólo muestra lo activo: lo archivado vive en su propio panel. */
+  const credentials = useMemo(
+    () => allCredentials.filter((credential) => !credential.archivedAt),
+    [allCredentials],
+  )
   const allCategories = useVaultStore((s) => s.categories)
   /**
    * Access sólo ve sus columnas: no comparte ninguna con Links ni Notas, y las
@@ -312,10 +317,9 @@ export function Credentials() {
         </div>
       )}
 
-      {/* Aviso: si hay tarjetas en columnas archivadas, se ve aquí y no en un limbo. */}
+      {/* Aviso: si hay tarjetas archivadas, se ve aquí y no desaparecen en silencio. */}
       <ArchivedItemsNotice
-        module="credential"
-        items={credentials}
+        items={allCredentials}
         one="credencial"
         many="credenciales"
       />

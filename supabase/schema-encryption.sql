@@ -188,6 +188,12 @@ comment on column public.vault_categories.sort_order is
   'Orden estable entre categorías hermanas.';
 comment on column public.vault_categories.archived_at is
   'Fecha de archivado. No es un borrado: la columna y sus registros siguen ahí y se recuperan desde el panel de Archivados.';
+comment on column public.vault_credentials.archived_at is
+  'Fecha de archivado de la credencial. Se recupera o se elimina desde el panel de Archivados.';
+comment on column public.vault_links.archived_at is
+  'Fecha de archivado del enlace. Se recupera o se elimina desde el panel de Archivados.';
+comment on column public.vault_notes.archived_at is
+  'Fecha de archivado de la nota. Se recupera o se elimina desde el panel de Archivados.';
 
 comment on table public.vault_crypto_keys is
   'Configuración E2EE por usuario. No contiene la frase maestra ni la clave AES en claro.';
@@ -237,6 +243,31 @@ create policy "vault_attachments_delete_own"
 -- 5) Reconstruye el snapshot del Vault para incluir explícitamente el
 -- ciphertext. Así el cliente puede descifrar filas nuevas aunque la función
 -- originalmente se haya creado antes de schema-encryption.sql.
+-- Archivado de REGISTROS: credenciales, enlaces y notas también se archivan,
+-- no sólo las columnas. Una tarjeta archivada sale del tablero y se queda en el
+-- panel «Archivados», sin perder su columna de origen ni sus adjuntos.
+--
+-- Al archivar una columna, sus registros se archivan con ella: así nada aparece
+-- de golpe en «Sin categoría», que es lo que desconcierta. Al recuperarla,
+-- vuelven los que sigan archivados, cada uno a la misma columna.
+--
+-- `null` = registro activo.
+alter table public.vault_credentials add column if not exists archived_at timestamptz;
+alter table public.vault_links       add column if not exists archived_at timestamptz;
+alter table public.vault_notes       add column if not exists archived_at timestamptz;
+
+create index if not exists idx_credentials_archived
+  on public.vault_credentials (user_id, archived_at desc)
+  where archived_at is not null;
+create index if not exists idx_links_archived
+  on public.vault_links (user_id, archived_at desc)
+  where archived_at is not null;
+create index if not exists idx_notes_archived
+  on public.vault_notes (user_id, archived_at desc)
+  where archived_at is not null;
+
+-- Las credenciales viajan en el snapshot del Vault: sin `archived_at` aquí el
+-- cliente no podría distinguirlas de las activas.
 create or replace function public.get_vault_snapshot()
 returns jsonb
 language sql
@@ -289,6 +320,7 @@ as $$
           'url', cr.url,
           'notes', cr.notes,
           'favorite', cr.favorite,
+          'archived_at', cr.archived_at,
           'encrypted_payload', cr.encrypted_payload,
           'created_at', cr.created_at,
           'updated_at', cr.updated_at

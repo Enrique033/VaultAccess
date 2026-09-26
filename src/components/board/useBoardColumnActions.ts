@@ -152,9 +152,9 @@ export function useBoardColumnActions(module: Module) {
       const target = categories.find((c) => c.id === columnId)
       if (!target) return
       /*
-        Cuenta lo que hay dentro para poder explicarlo: sin ese detalle, archivar
-        una columna con tarjetas parece que hace brotar una columna nueva,
-        cuando en realidad sus tarjetas se ven en «Sin categoría».
+        Cuenta lo que hay dentro para poder explicarlo: archivar una columna se
+        lleva también sus tarjetas al panel de Archivados, y conviene decirlo
+        antes de que pase y no después.
       */
       const inside =
         module === 'credential'
@@ -165,15 +165,15 @@ export function useBoardColumnActions(module: Module) {
       const plural = inside === 1 ? itemLabel.slice(0, -1) : itemLabel
       const confirmed = window.confirm(
         inside > 0
-          ? `¿Archivar la columna "${target.name}"? Desaparecerá del tablero y sus ${inside} ${plural} se verán en «Sin categoría» hasta que la recuperes. No se borra nada.`
+          ? `¿Archivar la columna "${target.name}"? Sus ${inside} ${plural} irán también a Archivados. Nada se borra: puedes recuperarlo todo cuando quieras.`
           : `¿Archivar la columna "${target.name}"? Desaparecerá del tablero. Puedes recuperarla cuando quieras desde tu icono de cuenta → Archivados.`,
       )
       if (!confirmed) return
       try {
-        await setCategoryArchived(columnId, true)
+        const moved = await setCategoryArchived(columnId, true)
         toast.success(
-          inside > 0
-            ? `Columna archivada · sus ${inside} ${plural} están en «Sin categoría»`
+          moved > 0
+            ? `Columna archivada · ${moved} ${plural} en Archivados`
             : 'Columna archivada',
         )
       } catch (e) {

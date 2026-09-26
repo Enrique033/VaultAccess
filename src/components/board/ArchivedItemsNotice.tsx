@@ -1,46 +1,29 @@
 import { useMemo } from 'react'
 import { Archive, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { useVaultStore } from '@/store/vault.store'
 import { useUIStore } from '@/store/ui.store'
-import type { CategorizedItem } from '@/lib/vault-filters'
-import type { CategoryModule } from '@/types'
+import type { ArchivedItem } from '@/lib/vault-filters'
 
 interface ArchivedItemsNoticeProps {
-  module: CategoryModule
-  /** Registros de este tablero (los ya filtrados por búsqueda, si los hay). */
-  items: CategorizedItem[]
+  /** Registros del módulo, activos y archivados (los tres tableros filtran). */
+  items: ArchivedItem[]
   /** Singular y plural, para redactar el aviso: «1 nota» / «3 notas». */
   one: string
   many: string
 }
 
 /**
- * Aviso de tarjetas que están en columnas archivadas.
+ * Aviso de tarjetas archivadas.
  *
- * Al archivar una columna sus tarjetas no se sueltan: siguen apuntando a ella,
- * así que el tablero las muestra en «Sin categoría» para que no se pierdan ni
- * se puedan arrastrar a la ciegas. Sin este aviso el efecto es desconcertante:
- * parece que hubiera aparecido una columna nueva de la nada.
+ * Una tarjeta archivada sale del tablero y se queda en el panel de Archivados,
+ * conservando su columna y sus imágenes. Sin este aviso el archivado sería
+ * silencioso y el usuario creería que se le han perdido cosas.
  */
-export function ArchivedItemsNotice({
-  module,
-  items,
-  one,
-  many,
-}: ArchivedItemsNoticeProps) {
-  const archivedIds = useVaultStore((s) => s.categories)
+export function ArchivedItemsNotice({ items, one, many }: ArchivedItemsNoticeProps) {
   const openArchived = useUIStore((s) => s.setArchivedColumnsOpen)
 
-  const count = useMemo(() => {
-    const ids = new Set(
-      archivedIds
-        .filter((category) => category.module === module && category.archivedAt)
-        .map((category) => category.id),
-    )
-    if (ids.size === 0) return 0
-    return items.filter((item) => item.categoryId && ids.has(item.categoryId)).length
-  }, [archivedIds, items, module])
+  // Cada tablero pasa sólo sus propios registros, así que no hace falta filtrar.
+  const count = useMemo(() => items.filter((item) => item.archivedAt).length, [items])
 
   if (count === 0) return null
 
@@ -52,10 +35,9 @@ export function ArchivedItemsNotice({
       <Archive className="size-4 shrink-0 text-primary" />
       <p className="min-w-0 flex-1">
         <span className="font-semibold">
-          {count === 1 ? `1 ${one}` : `${count} ${many}`} en columnas archivadas.
+          {count === 1 ? `1 ${one} archivada` : `${count} ${many} archivadas`}.
         </span>{' '}
-        Las ves en «Sin categoría» y vuelven a su columna en cuanto la
-        recuperes.
+        No se ha borrado nada: están en Archivados y vuelven cuando quieras.
       </p>
       <Button
         variant="primary"

@@ -11,4 +11,9 @@ export interface Note {
   favorite: boolean
   createdAt: string
   updatedAt: string
+  /**
+   * Fecha de archivado (ISO). Una nota archivada sale del tablero y pasa al
+   * panel «Archivados», sin perder su columna ni sus imágenes.
+   */
+  archivedAt?: string
 }

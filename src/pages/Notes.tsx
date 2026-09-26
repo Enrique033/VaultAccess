@@ -24,7 +24,12 @@ import { buildBoardColumns } from '@/lib/vault-board'
 import type { Note } from '@/types'
 
 export function Notes() {
-  const notes = useVaultStore((s) => s.notes)
+  const allNotes = useVaultStore((s) => s.notes)
+  /** El tablero sólo muestra lo activo: lo archivado vive en su propio panel. */
+  const notes = useMemo(
+    () => allNotes.filter((note) => !note.archivedAt),
+    [allNotes],
+  )
   const allCategories = useVaultStore((s) => s.categories)
   /**
    * Notas sólo ve sus columnas: no comparte ninguna con Access ni Links, y las
@@ -197,13 +202,8 @@ export function Notes() {
         </div>
       )}
 
-      {/* Aviso: si hay tarjetas en columnas archivadas, se ve aquí y no en un limbo. */}
-      <ArchivedItemsNotice
-        module="note"
-        items={notes}
-        one="nota"
-        many="notas"
-      />
+      {/* Aviso: si hay tarjetas archivadas, se ve aquí y no desaparecen en silencio. */}
+      <ArchivedItemsNotice items={allNotes} one="nota" many="notas" />
 
       {status === 'loading' || notesLoading || (!notesLoaded && !notesError) ? (
         <CardGridSkeleton />

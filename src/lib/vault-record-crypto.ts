@@ -37,6 +37,8 @@ export interface CredentialRow extends EncryptedRow {
   url?: string | null
   notes?: string | null
   favorite: boolean
+  /** `null`/ausente = credencial activa. */
+  archived_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -47,6 +49,8 @@ export interface LinkRow extends EncryptedRow {
   url?: string | null
   description?: string | null
   favorite: boolean
+  /** `null`/ausente = enlace activo. */
+  archived_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -56,6 +60,8 @@ export interface NoteRow extends EncryptedRow {
   title?: string | null
   content?: string | null
   favorite: boolean
+  /** `null`/ausente = nota activa. */
+  archived_at?: string | null
   created_at: string
   updated_at: string
 }
@@ -210,6 +216,7 @@ export async function toEncryptedCredential(
     favorite: row.favorite,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    archivedAt: row.archived_at ?? undefined,
   }
 }
 
@@ -233,6 +240,7 @@ export async function toEncryptedLink(
     favorite: row.favorite,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    archivedAt: row.archived_at ?? undefined,
   }
 }
 
@@ -256,6 +264,7 @@ export async function toEncryptedNote(
     favorite: row.favorite,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    archivedAt: row.archived_at ?? undefined,
   }
 }
 

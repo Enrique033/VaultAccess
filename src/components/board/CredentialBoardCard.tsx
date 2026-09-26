@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router'
 import {
   AlignLeft,
+  Archive,
   ExternalLink,
   MoreVertical,
   Pencil,
@@ -26,6 +27,7 @@ import {
 } from '@/store/workspace.store'
 import { toast } from '@/store/ui.store'
 import { copyToClipboard } from '@/lib/clipboard'
+import { useArchiveRecord } from './useArchiveRecord'
 import type { Credential } from '@/types'
 
 interface CredentialBoardCardProps {
@@ -44,6 +46,7 @@ export function CredentialBoardCard({
   const workspaces = useWorkspaceStore((s) => s.workspaces)
   const sharedItems = useWorkspaceStore((s) => s.itemReferences)
   const [shareOpen, setShareOpen] = useState(false)
+  const archiveCredential = useArchiveRecord('credential', 'credencial')
 
   const sharedIn = workspacesOfCredential(
     sharedItems,
@@ -137,6 +140,9 @@ export function CredentialBoardCard({
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => setShareOpen(true)}>
                 <Share2 className="size-3.5" /> Compartir en equipo
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void archiveCredential(credential)}>
+                <Archive className="size-3.5" /> Archivar
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem

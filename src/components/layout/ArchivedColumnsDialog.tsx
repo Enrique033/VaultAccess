@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Archive, ArchiveRestore, Info, Trash2 } from 'lucide-react'
+import {
+  Archive,
+  ArchiveRestore,
+  Columns3,
+  Info,
+  LayoutList,
+  Trash2,
+} from 'lucide-react'
 import {
   Dialog,
   DialogCloseButton,
@@ -10,14 +17,9 @@ import {
 } from '@/components/ui/Dialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { Button } from '@/components/ui/Button'
-import { useVaultStore } from '@/store/vault.store'
+import { useVaultStore, type RecordKind } from '@/store/vault.store'
 import { toast } from '@/store/ui.store'
-import {
-  archivedCategories,
-  countByCategory,
-  moduleLabel,
-} from '@/lib/vault-filters'
-import { cn } from '@/lib/utils'
+import { archivedCategories, countByCategory, moduleLabel } from '@/lib/vault-filters'
 import type { Category, CategoryModule } from '@/types'
 
 interface ArchivedColumnsDialogProps {
@@ -25,7 +27,21 @@ interface ArchivedColumnsDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-/** Singular y plural de cada tipo de registro, para los contadores. */
+/** Una tarjeta archivada, con el mínimo dato para listarla y recuperarla. */
+interface ArchivedRecord {
+  id: string
+  title: string
+  module: CategoryModule
+  categoryId?: string
+  archivedAt?: string
+}
+
+/** Lo que el usuario pidió borrar de verdad, a la espera de confirmar. */
+type PendingDelete =
+  | { type: 'column'; category: Category }
+  | { type: 'record'; record: ArchivedRecord }
+
+/** Singular y plural de cada tipo de registro, para los mensajes. */
 function recordLabel(module: CategoryModule, count: number): string {
   if (module === 'credential')
     return count === 1 ? '1 credencial' : `${count} credenciales`
@@ -34,7 +50,8 @@ function recordLabel(module: CategoryModule, count: number): string {
 }
 
 /** Formato corto de la fecha de archivado, en español. */
-function archivedOn(iso: string): string {
+function archivedOn(iso: string | undefined): string {
+  if (!iso) return ''
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
   return date.toLocaleDateString('es', {
@@ -47,10 +64,11 @@ function archivedOn(iso: string): string {
 /**
  * Panel «Archivados», desde el icono de cuenta.
  *
- * Archivar **no borra**: la columna sale del tablero y sus registros siguen
- * apuntando a ella. Por eso este panel es el único sitio donde se recupera o
- * se elimina de verdad — eliminar sí suelta los registros, dejándolos en
- * «Sin categoría» de su propio tablero.
+ * Dos secciones, porque hay dos cosas que se archivan: **columnas** (⋯ de la
+ * columna) y **tarjetas** (⋯ de cada credencial, enlace o nota).
+ *
+ * Archivar no borra nunca. Recuperar devuelve el elemento al tablero; eliminar
+ * sí lo destruye, y por eso pide confirmación.
  */
 export function ArchivedColumnsDialog({
   open,
@@ -67,20 +85,37 @@ export function ArchivedColumnsDialog({
   const loadLinks = useVaultStore((s) => s.loadLinks)
   const loadNotes = useVaultStore((s) => s.loadNotes)
   const setCategoryArchived = useVaultStore((s) => s.setCategoryArchived)
+  const setRecordArchived = useVaultStore((s) => s.setRecordArchived)
   const deleteCategory = useVaultStore((s) => s.deleteCategory)
+  const deleteCredential = useVaultStore((s) => s.deleteCredential)
+  const deleteLink = useVaultStore((s) => s.deleteLink)
+  const deleteNote = useVaultStore((s) => s.deleteNote)
 
-  const [busyId, setBusyId] = useState<string | null>(null)
-  const [pendingDelete, setPendingDelete] = useState<Category | null>(null)
+  /** Clave de la fila ocupada, para deshabilitar sólo ese botón. */
+  const [busyKey, setBusyKey] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
 
-  const archived = useMemo(
+  const columns = useMemo(
     () => archivedCategories(allCategories),
     [allCategories],
   )
 
+  const records = useMemo<ArchivedRecord[]>(() => {
+    const toRecords = (
+      items: { id: string; title: string; categoryId?: string; archivedAt?: string }[],
+      module: CategoryModule,
+    ): ArchivedRecord[] =>
+      items.filter((item) => item.archivedAt).map((item) => ({ ...item, module }))
+    return [
+      ...toRecords(credentials, 'credential'),
+      ...toRecords(links, 'link'),
+      ...toRecords(notes, 'note'),
+    ].sort((a, b) => (b.archivedAt ?? '').localeCompare(a.archivedAt ?? ''))
+  }, [credentials, links, notes])
+
   /*
     Enlaces y notas se cargan bajo demanda en la app. Aquí se piden al abrir el
-    panel para que el contador de cada columna sea el de verdad y no un cero
-    engañoso.
+    panel para que no salga una lista vacía cuando lo que hay son cosas sin cargar.
   */
   useEffect(() => {
     if (!open) return
@@ -103,15 +138,36 @@ export function ArchivedColumnsDialog({
     return countByCategory(notes, category.id)
   }
 
-  const restore = async (category: Category) => {
-    setBusyId(category.id)
+  const restoreColumn = async (category: Category) => {
+    setBusyKey(`col:${category.id}`)
     try {
-      await setCategoryArchived(category.id, false)
-      toast.success(`"${category.name}" vuelve a ${moduleLabel(category.module)}`)
+      const moved = await setCategoryArchived(category.id, false)
+      toast.success(
+        moved > 0
+          ? `"${category.name}" vuelve con ${recordLabel(category.module, moved)}`
+          : `"${category.name}" vuelve a ${moduleLabel(category.module)}`,
+      )
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo recuperar')
     } finally {
-      setBusyId(null)
+      setBusyKey(null)
+    }
+  }
+
+  const restoreRecord = async (record: ArchivedRecord) => {
+    setBusyKey(`rec:${record.id}`)
+    try {
+      await setRecordArchived(record.module as RecordKind, record.id, false)
+      const column = allCategories.find((c) => c.id === record.categoryId)
+      toast.success(
+        column && !column.archivedAt
+          ? `"${record.title}" vuelve a "${column.name}"`
+          : `"${record.title}" vuelve al tablero`,
+      )
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'No se pudo recuperar')
+    } finally {
+      setBusyKey(null)
     }
   }
 
@@ -119,52 +175,68 @@ export function ArchivedColumnsDialog({
     if (!pendingDelete) return
     const target = pendingDelete
     setPendingDelete(null)
-    setBusyId(target.id)
+    setBusyKey(
+      target.type === 'column' ? `col:${target.category.id}` : `rec:${target.record.id}`,
+    )
     try {
-      await deleteCategory(target.id)
-      toast.success('Columna eliminada')
+      if (target.type === 'column') {
+        await deleteCategory(target.category.id)
+        toast.success('Columna eliminada')
+      } else {
+        const record = target.record
+        if (record.module === 'credential') await deleteCredential(record.id)
+        else if (record.module === 'link') await deleteLink(record.id)
+        else await deleteNote(record.id)
+        toast.success('Registro eliminado')
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo eliminar')
     } finally {
-      setBusyId(null)
+      setBusyKey(null)
     }
   }
+  const isEmpty = columns.length === 0 && records.length === 0
+  const row =
+    'flex items-center gap-3 rounded-2xl border border-border bg-surface px-3 py-2.5'
+  const iconBtn =
+    'shrink-0 text-muted transition-colors hover:text-danger disabled:opacity-50'
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange} className="max-w-lg">
         <DialogHeader>
           <div>
-            <DialogTitle>Columnas archivadas</DialogTitle>
+            <DialogTitle>Archivados</DialogTitle>
             <DialogDescription>
-              Al archivar, la columna sale del tablero pero sus registros no se
-              borran: siguen guardados y vuelven a su sitio al recuperarla.
+              Nada de lo que hay aquí se ha borrado. Recupera lo que quieras y
+              vuelve a su sitio; elimina sólo cuando ya no lo necesites.
             </DialogDescription>
           </div>
           <DialogCloseButton onClick={() => onOpenChange(false)} />
         </DialogHeader>
 
-        <DialogContent>
-          {archived.length === 0 ? (
+        <DialogContent className="space-y-4">
+          {isEmpty && (
             <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-border px-4 py-10 text-center">
               <Archive className="size-7 text-muted" />
               <p className="text-sm font-semibold text-foreground">
                 No hay nada archivado
               </p>
               <p className="text-xs text-muted">
-                Usa «Archivar columna» en los 3 puntitos de cualquier columna del
-                tablero para guardarla aquí sin perder sus tarjetas.
+                Usa «Archivar» en los 3 puntitos de una columna o de una tarjeta.
+                Aquí podrás recuperarlos o eliminarlos.
               </p>
             </div>
-          ) : (
-            <ul className="max-h-[60vh] space-y-2 overflow-y-auto overscroll-contain">
-              {archived.map((category) => {
-                const count = countFor(category)
-                return (
-                  <li
-                    key={category.id}
-                    className="flex items-center gap-3 rounded-2xl border border-border bg-surface px-3 py-2.5"
-                  >
+          )}
+
+          {columns.length > 0 && (
+            <section>
+              <h3 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
+                <Columns3 className="size-3.5" /> Columnas ({columns.length})
+              </h3>
+              <ul className="max-h-56 space-y-2 overflow-y-auto overscroll-contain">
+                {columns.map((category) => (
+                  <li key={category.id} className={row}>
                     <span
                       aria-hidden="true"
                       className="size-2.5 shrink-0 rounded-full"
@@ -176,59 +248,109 @@ export function ArchivedColumnsDialog({
                       </p>
                       <p className="truncate text-[11px] text-muted">
                         {moduleLabel(category.module)} ·{' '}
-                        {recordLabel(category.module, count)}
-                        {category.archivedAt
-                          ? ` · archivada el ${archivedOn(category.archivedAt)}`
-                          : ''}
+                        {recordLabel(category.module, countFor(category))}
+                        {category.archivedAt &&
+                          ` · archivada el ${archivedOn(category.archivedAt)}`}
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={busyKey === `col:${category.id}`}
+                      onClick={() => void restoreColumn(category)}
+                    >
+                      <ArchiveRestore className="size-3.5" /> Recuperar
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={iconBtn}
+                      aria-label={`Eliminar la columna ${category.name}`}
+                      title="Eliminar para siempre"
+                      disabled={busyKey === `col:${category.id}`}
+                      onClick={() => setPendingDelete({ type: 'column', category })}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {records.length > 0 && (
+            <section>
+              <h3 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
+                <LayoutList className="size-3.5" /> Tarjetas ({records.length})
+              </h3>
+              <ul className="max-h-56 space-y-2 overflow-y-auto overscroll-contain">
+                {records.map((record) => {
+                  const column = allCategories.find(
+                    (category) => category.id === record.categoryId,
+                  )
+                  return (
+                    <li key={record.id} className={row}>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[13px] font-semibold text-foreground">
+                          {record.title}
+                        </p>
+                        <p className="truncate text-[11px] text-muted">
+                          {moduleLabel(record.module)}
+                          {column ? ` · ${column.name}` : ''}
+                          {record.archivedAt &&
+                            ` · archivada el ${archivedOn(record.archivedAt)}`}
+                        </p>
+                      </div>
                       <Button
                         variant="primary"
                         size="sm"
-                        disabled={busyId === category.id}
-                        onClick={() => void restore(category)}
+                        disabled={busyKey === `rec:${record.id}`}
+                        onClick={() => void restoreRecord(record)}
                       >
                         <ArchiveRestore className="size-3.5" /> Recuperar
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        aria-label={`Eliminar la columna ${category.name}`}
+                        className={iconBtn}
+                        aria-label={`Eliminar ${record.title}`}
                         title="Eliminar para siempre"
-                        disabled={busyId === category.id}
-                        onClick={() => setPendingDelete(category)}
-                        className={cn('text-muted hover:text-danger')}
+                        disabled={busyKey === `rec:${record.id}`}
+                        onClick={() => setPendingDelete({ type: 'record', record })}
                       >
                         <Trash2 className="size-4" />
                       </Button>
-                    </div>
-                  </li>
-                )
-              })}
-            </ul>
+                    </li>
+                  )
+                })}
+              </ul>
+            </section>
           )}
 
-          {archived.length > 0 && (
+          {!isEmpty && (
             <p className="flex items-start gap-1.5 pt-1 text-[11px] text-muted">
               <Info className="mt-px size-3.5 shrink-0" />
-              Recuperar devuelve la columna con todas sus tarjetas. Eliminar la
-              borra y deja sus registros sin columna, en «Sin categoría».
+              Recuperar devuelve cada elemento a su sitio. Archivar una columna
+              se llevó sus tarjetas consigo, y al recuperarla vuelven con ella.
             </p>
           )}
         </DialogContent>
       </Dialog>
-
       <ConfirmDialog
         open={pendingDelete !== null}
         onOpenChange={(next) => {
           if (!next) setPendingDelete(null)
         }}
-        title="Eliminar la columna"
+        title={
+          pendingDelete?.type === 'column'
+            ? 'Eliminar la columna'
+            : 'Eliminar el registro'
+        }
         description={
-          pendingDelete
-            ? `Se eliminará "${pendingDelete.name}" para siempre. Sus registros quedarán sin columna en ${moduleLabel(pendingDelete.module)}, pero no se borrarán. Si sólo quieres quitarla del tablero, archívala en su lugar.`
-            : undefined
+          pendingDelete?.type === 'column'
+            ? `Se eliminará "${pendingDelete.category.name}" para siempre. Sus registros quedarán sin columna, pero no se borrarán.`
+            : pendingDelete?.type === 'record'
+              ? `Se eliminará "${pendingDelete.record.title}" para siempre. Esta vez sí se borra, con su contenido y sus imágenes.`
+              : undefined
         }
         confirmLabel="Eliminar"
         onConfirm={() => void confirmDelete()}

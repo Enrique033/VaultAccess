@@ -12,4 +12,9 @@ export interface Credential {
   favorite: boolean
   createdAt: string
   updatedAt: string
+  /**
+   * Fecha de archivado (ISO). Una credencial archivada sale del tablero y pasa
+   * al panel «Archivados», sin perder su columna ni sus datos.
+   */
+  archivedAt?: string
 }

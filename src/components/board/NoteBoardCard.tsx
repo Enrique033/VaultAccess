@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import {
+  Archive,
   Copy,
   MoreVertical,
   Pencil,
@@ -21,6 +22,7 @@ import { useWorkspaceStore, workspacesOfItem } from '@/store/workspace.store'
 import { ShareItemDialog } from '@/components/sharing/ShareItemDialog'
 import { toast } from '@/store/ui.store'
 import { copyToClipboard } from '@/lib/clipboard'
+import { useArchiveRecord } from './useArchiveRecord'
 import type { Note } from '@/types'
 
 interface NoteBoardCardProps {
@@ -47,6 +49,7 @@ export function NoteBoardCard({ note, onEdit, onDelete }: NoteBoardCardProps) {
   const sharedItems = useWorkspaceStore((s) => s.itemReferences)
   const sharedIn = workspacesOfItem(sharedItems, workspaces, 'note', note.id)
   const [shareOpen, setShareOpen] = useState(false)
+  const archiveNote = useArchiveRecord('note', 'nota')
 
   const handleToggleFavorite = async () => {
     try {
@@ -112,6 +115,9 @@ export function NoteBoardCard({ note, onEdit, onDelete }: NoteBoardCardProps) {
                 <Share2 className="size-3.5" /> Compartir en equipo
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => void archiveNote(note)}>
+                <Archive className="size-3.5" /> Archivar
+              </DropdownMenuItem>
               <DropdownMenuItem variant="danger" onClick={() => onDelete(note)}>
                 <Trash2 className="size-3.5" /> Eliminar
               </DropdownMenuItem>

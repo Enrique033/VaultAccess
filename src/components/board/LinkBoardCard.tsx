@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import {
   AlignLeft,
+  Archive,
   ExternalLink,
   MoreVertical,
   Pencil,
@@ -21,6 +22,7 @@ import { useWorkspaceStore, workspacesOfItem } from '@/store/workspace.store'
 import { ShareItemDialog } from '@/components/sharing/ShareItemDialog'
 import { toast } from '@/store/ui.store'
 import { copyToClipboard } from '@/lib/clipboard'
+import { useArchiveRecord } from './useArchiveRecord'
 import type { LinkItem } from '@/types'
 
 interface LinkBoardCardProps {
@@ -44,6 +46,7 @@ export function LinkBoardCard({ link, onEdit, onDelete }: LinkBoardCardProps) {
   const sharedItems = useWorkspaceStore((s) => s.itemReferences)
   const sharedIn = workspacesOfItem(sharedItems, workspaces, 'link', link.id)
   const [shareOpen, setShareOpen] = useState(false)
+  const archiveLink = useArchiveRecord('link', 'enlace')
 
   const handleOpen = () => {
     window.open(link.url, '_blank', 'noopener,noreferrer')
@@ -112,6 +115,9 @@ export function LinkBoardCard({ link, onEdit, onDelete }: LinkBoardCardProps) {
                 <Share2 className="size-3.5" /> Compartir en equipo
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => void archiveLink(link)}>
+                <Archive className="size-3.5" /> Archivar
+              </DropdownMenuItem>
               <DropdownMenuItem variant="danger" onClick={() => onDelete(link)}>
                 <Trash2 className="size-3.5" /> Eliminar
               </DropdownMenuItem>

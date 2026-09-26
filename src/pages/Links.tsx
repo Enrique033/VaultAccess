@@ -24,7 +24,12 @@ import { buildBoardColumns } from '@/lib/vault-board'
 import type { LinkItem } from '@/types'
 
 export function Links() {
-  const links = useVaultStore((s) => s.links)
+  const allLinks = useVaultStore((s) => s.links)
+  /** El tablero sólo muestra lo activo: lo archivado vive en su propio panel. */
+  const links = useMemo(
+    () => allLinks.filter((link) => !link.archivedAt),
+    [allLinks],
+  )
   const allCategories = useVaultStore((s) => s.categories)
   /**
    * Links sólo ve sus columnas: no comparte ninguna con Access ni Notas, y las
@@ -195,13 +200,8 @@ export function Links() {
         </div>
       )}
 
-      {/* Aviso: si hay tarjetas en columnas archivadas, se ve aquí y no en un limbo. */}
-      <ArchivedItemsNotice
-        module="link"
-        items={links}
-        one="enlace"
-        many="enlaces"
-      />
+      {/* Aviso: si hay tarjetas archivadas, se ve aquí y no desaparecen en silencio. */}
+      <ArchivedItemsNotice items={allLinks} one="enlace" many="enlaces" />
 
       {/* Content */}
       {status === 'loading' || linksLoading || (!linksLoaded && !linksError) ? (
