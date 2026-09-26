@@ -3,7 +3,31 @@
 -- Ejecutar DESPUÉS de schema-scalability.sql.
 -- No elimina datos: primero añade ciphertext y conserva las columnas
 -- antiguas durante la migración de los datos existentes.
+--
+-- IMPORTANTE: ejecuta el archivo ENTERO, de la primera a la última línea, con
+-- la versión más reciente. Si lo partes o usas una copia antigua, puede fallar
+-- con "column archived_at does not exist": las columnas y la función que las
+-- lee tienen que estar en la misma ejecución.
 -- ============================================================
+
+-- 0) Diagnóstico previo. Debe devolver 4 filas con "si"; si alguna sale en
+--    "no", para y vuelve a ejecutar el archivo completo desde arriba.
+select
+  t.tabla,
+  coalesce(cols.c ? 'archived_at', false) as tiene_archived_at
+from (values
+  ('vault_categories'), ('vault_credentials'),
+  ('vault_links'),       ('vault_notes')
+) as t(tabla)
+cross join lateral (
+  -- to_regclass devuelve NULL si la tabla no existe, en vez de fallar: así el
+  -- diagnóstico nunca se rompe, que es justo cuando más falta hace.
+  select array_agg(a.attname) as c
+  from pg_attribute a
+  where a.attrelid = to_regclass(format('public.%I', t.tabla))
+    and a.attnum > 0
+    and not a.attisdropped
+) as cols;
 
 -- 1) Configuración criptográfica por usuario.
 -- La clave privada se almacena cifrada con la clave AES derivada de la
@@ -299,7 +323,9 @@ as $$
           'module', c.module,
           -- Sin `archived_at` el cliente no sabría qué columnas están
           -- archivadas y las mostraría todas en el tablero.
-          'archived_at', c.archived_at,
+          -- Igual que en credenciales: sin referencia directa para que la
+          -- creación de la función no dependa del orden de ejecución.
+          to_jsonb(c) ->> 'archived_at'       as archived_at,
           'name', c.name,
           'color', c.color,
           'encrypted_payload', c.encrypted_payload,
@@ -320,7 +346,13 @@ as $$
           'url', cr.url,
           'notes', cr.notes,
           'favorite', cr.favorite,
-          'archived_at', cr.archived_at,
+          -- `to_jsonb(cr) ->> 'archived_at'` en vez de `cr.archived_at`: la
+          -- función se valida al crearse, y si esta consulta se ejecutara antes
+          -- de añadir la columna (copia antigua del script, ejecución a medias)
+          -- el CREATE FUNCTION fallaría y abortaría TODO el archivo. Con to_jsonb
+          -- no hay referencia en tiempo de compilación: si la columna no está,
+          -- devuelve NULL y el resto del script sigue adelante.
+          to_jsonb(cr) ->> 'archived_at'      as archived_at,
           'encrypted_payload', cr.encrypted_payload,
           'created_at', cr.created_at,
           'updated_at', cr.updated_at
