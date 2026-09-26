@@ -30,7 +30,7 @@ import type { LinkItem } from '@/types'
 
 export function Links() {
   const allLinks = useVaultStore((s) => s.links)
-  const allLinks = useVaultStore((s) => s.links)
+  const allCategories = useVaultStore((s) => s.categories)
   /** Tablero sin lo archivado, ni el propio ni por columna (ver Notes). */
   const archivedIds = useMemo(
     () => archivedCategoryIds(allCategories),
@@ -40,7 +40,6 @@ export function Links() {
     () => allLinks.filter((link) => !isArchivedItem(link, archivedIds)),
     [allLinks, archivedIds],
   )
-  const allCategories = useVaultStore((s) => s.categories)
   /**
    * Links sólo ve sus columnas: no comparte ninguna con Access ni Notas, y las
    * archivadas quedan fuera hasta recuperarlas desde el panel de Archivados.

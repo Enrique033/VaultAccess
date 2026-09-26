@@ -215,13 +215,14 @@ interface VaultState {
   /**
    * Archiva o recupera un registro suelto (credencial, enlace o nota). No lo
    * borra: sale del tablero y aparece en el panel «Archivados», conservando su
-   * columna de origen y sus imágenes.
+   * columna de origen y sus imágenes. Al recuperarlo, si su columna seguía
+   * archivada, se recupera también (si no, quedaría en «Sin categoría»).
    */
   setRecordArchived: (
     kind: RecordKind,
     id: string,
     archived: boolean,
-  ) => Promise<void>
+  ) => Promise<{ restoredColumn?: string }>
   moveCategory: (
     id: string,
     sectionId: string,
@@ -1639,8 +1640,14 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
   },
 
   setRecordArchived: async (kind, id, archived) => {
-    const list = get()[`${kind}s`] as { id: string; archivedAt?: string }[]
-    if (!list.some((item) => item.id === id)) {
+    const state = get()
+    const list = state[`${kind}s`] as {
+      id: string
+      categoryId?: string
+      archivedAt?: string
+    }[]
+    const item = list.find((entry) => entry.id === id)
+    if (!item) {
       throw new Error('El registro ya no existe.')
     }
     const at = archived ? new Date().toISOString() : null
@@ -1650,10 +1657,24 @@ export const useVaultStore = create<VaultState>()((set, get) => ({
       .eq('id', id)
     if (error) throw new Error(friendlySyncError(error.message))
     set((s) => ({
-      [`${kind}s`]: (s[`${kind}s`] as typeof list).map((item) =>
-        item.id === id ? { ...item, archivedAt: at ?? undefined } : item,
+      [`${kind}s`]: (s[`${kind}s`] as typeof list).map((entry) =>
+        entry.id === id ? { ...entry, archivedAt: at ?? undefined } : entry,
       ),
     }))
+
+    /*
+      Al recuperar, si su columna seguía archivada se recupera también. Si no, la
+      tarjeta quedaría activa colgando de una columna que el tablero no muestra, y
+      aparecería en «Sin categoría»: es el limbo que hay que evitar. Como la
+      columna se recupera con el mismo método, sus demás tarjetas archivadas
+      vuelven también y todo queda coherente.
+    */
+    const column = state.categories.find((c) => c.id === item.categoryId)
+    if (!archived && column?.archivedAt) {
+      await get().setCategoryArchived(column.id, false)
+      return { restoredColumn: column.name }
+    }
+    return { restoredColumn: undefined }
   },
 
   moveCategory: async (id, sectionId, parentId, sortOrder) => {

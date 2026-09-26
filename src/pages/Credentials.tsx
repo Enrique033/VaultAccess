@@ -35,7 +35,7 @@ import type { Credential } from '@/types'
 
 export function Credentials() {
   const allCredentials = useVaultStore((s) => s.credentials)
-  const allCredentials = useVaultStore((s) => s.credentials)
+  const allCategories = useVaultStore((s) => s.categories)
   /** Tablero sin lo archivado, ni el propio ni por columna (ver Notes). */
   const archivedIds = useMemo(
     () => archivedCategoryIds(allCategories),
@@ -45,7 +45,6 @@ export function Credentials() {
     () => allCredentials.filter((c) => !isArchivedItem(c, archivedIds)),
     [allCredentials, archivedIds],
   )
-  const allCategories = useVaultStore((s) => s.categories)
   /**
    * Access sólo ve sus columnas: no comparte ninguna con Links ni Notas, y las
    * archivadas quedan fuera hasta recuperarlas desde el panel de Archivados.

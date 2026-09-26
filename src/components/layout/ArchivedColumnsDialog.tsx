@@ -157,12 +157,24 @@ export function ArchivedColumnsDialog({
   const restoreRecord = async (record: ArchivedRecord) => {
     setBusyKey(`rec:${record.id}`)
     try {
-      await setRecordArchived(record.module as RecordKind, record.id, false)
+      const { restoredColumn } = await setRecordArchived(
+        record.module as RecordKind,
+        record.id,
+        false,
+      )
+      if (restoredColumn) {
+        // La columna estaba archivada, así que se recuperó con ella: si no, la
+        // tarjeta habría quedado colgando de una columna invisible.
+        toast.success(
+          `"${record.title}" vuelve a "${restoredColumn}" · su columna se recuperó también`,
+        )
+        return
+      }
       const column = allCategories.find((c) => c.id === record.categoryId)
       toast.success(
-        column && !column.archivedAt
+        column
           ? `"${record.title}" vuelve a "${column.name}"`
-          : `"${record.title}" vuelve al tablero`,
+          : `"${record.title}" vuelve al tablero, sin columna`,
       )
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'No se pudo recuperar')
