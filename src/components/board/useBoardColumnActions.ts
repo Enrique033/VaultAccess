@@ -32,7 +32,6 @@ export function useBoardColumnActions(module: Module) {
   const addSection = useVaultStore((s) => s.addSection)
   const addCategory = useVaultStore((s) => s.addCategory)
   const renameCategory = useVaultStore((s) => s.renameCategory)
-  const setCategoryArchived = useVaultStore((s) => s.setCategoryArchived)
   const deleteCategory = useVaultStore((s) => s.deleteCategory)
   const credentials = useVaultStore((s) => s.credentials)
   const links = useVaultStore((s) => s.links)
@@ -123,39 +122,6 @@ export function useBoardColumnActions(module: Module) {
       }
       const target = categories.find((c) => c.id === columnId)
       if (!target) return
-      const confirmed = window.confirm(
-        `¿Eliminar la columna "${target.name}"? Tus ${itemLabel} quedarán sin columna.`,
-      )
-      if (!confirmed) return
-      try {
-        await deleteCategory(columnId)
-        toast.success('Columna eliminada')
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'No se pudo eliminar')
-      }
-    },
-    [categories, deleteCategory],
-  )
-
-  /**
-   * Archivar esconde la columna del tablero **sin borrar nada**: sus registros
-   * la siguen apuntando, así que si más adelante la recuperas desde el panel de
-   * Archivados, vuelven a aparecer en la misma columna.
-   */
-  const archiveColumn = useCallback(
-    async (columnId: string, itemLabel: string) => {
-      // El cajón «Sin categoría» no existe en la base: no hay nada que archivar.
-      if (columnId === UNCATEGORIZED_COLUMN) {
-        toast.error('Esa columna no se puede archivar')
-        return
-      }
-      const target = categories.find((c) => c.id === columnId)
-      if (!target) return
-      /*
-        Cuenta lo que hay dentro para poder explicarlo: archivar una columna se
-        lleva también sus tarjetas al panel de Archivados, y conviene decirlo
-        antes de que pase y no después.
-      */
       const inside =
         module === 'credential'
           ? credentials.filter((c) => c.categoryId === columnId).length
@@ -165,23 +131,19 @@ export function useBoardColumnActions(module: Module) {
       const plural = inside === 1 ? itemLabel.slice(0, -1) : itemLabel
       const confirmed = window.confirm(
         inside > 0
-          ? `¿Archivar la columna "${target.name}"? Sus ${inside} ${plural} irán también a Archivados. Nada se borra: puedes recuperarlo todo cuando quieras.`
-          : `¿Archivar la columna "${target.name}"? Desaparecerá del tablero. Puedes recuperarla cuando quieras desde tu icono de cuenta → Archivados.`,
+          ? `¿Eliminar la columna "${target.name}"?\n\nTus ${inside} ${plural} NO se borran, pero se quedan sin columna (en "Sin categoría"). Si prefieres conservarlas agrupadas, cancélalo y muévelas antes.`
+          : `¿Eliminar la columna "${target.name}"?`,
       )
       if (!confirmed) return
       try {
-        const moved = await setCategoryArchived(columnId, true)
-        toast.success(
-          moved > 0
-            ? `Columna archivada · ${moved} ${plural} en Archivados`
-            : 'Columna archivada',
-        )
+        await deleteCategory(columnId)
+        toast.success('Columna eliminada')
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'No se pudo archivar')
+        toast.error(e instanceof Error ? e.message : 'No se pudo eliminar')
       }
     },
-    [categories, credentials, links, module, notes, setCategoryArchived],
+    [categories, credentials, links, module, notes, deleteCategory],
   )
 
-  return { renameColumn, archiveColumn, deleteColumn }
+  return { renameColumn, deleteColumn }
 }

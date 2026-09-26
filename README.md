@@ -43,17 +43,18 @@ Auth** (Google OAuth) y protegida con **Row Level Security**.
   columna nace lista para recibir tarjetas. Las columnas vacías **sí se muestran**,
   como en Trello. No hay selector «Anidada en» ni pestañas de sección, y la barra
   lateral queda sólo con la navegación (Access, Links, Notas, Equipos).
-- **Archivar columnas y tarjetas sin perder nada**: el menú `⋯` ofrece
-  **«Archivar columna»** y **«Archivar»** en cada credencial, enlace o nota.
-  Archivar **no borra**: desaparece del tablero (`archived_at`) y se queda en el
-  panel **icono de cuenta → Archivados**, con su columna de origen y sus
-  imágenes. Al archivar una columna, sus tarjetas se archivan con ella: así nada
-  aparece de golpe en «Sin categoría». Al recuperarla, vuelven a su sitio. El
-  panel tiene dos secciones —**Columnas** y **Tarjetas**— y en ambas **Recuperar**
-  (vuelve al tablero) y **Eliminar** (borrado de verdad, con confirmación). Los
-  tableros avisan con un enlace directo cuando hay algo archivado. El cajón
-  «Sin categoría» no se archiva porque no existe en la base: sólo se renombra, y
-  al hacerlo se convierte en columna real.
+- **Archivar tarjetas sin perder nada**: el menú `⋯` de cada credencial, enlace o
+  nota incluye **«Archivar»**. Archivar **no borra**: la tarjeta desaparece del
+  tablero (`archived_at`) y se queda en el panel **icono de cuenta → Archivados**,
+  con su contenido y sus imágenes. **Recuperar** la devuelve a su columna;
+  **Eliminar** la destruye de verdad, con confirmación. Los tableros avisan con un
+  enlace directo cuando hay algo archivado. **Las columnas no se archivan**: se
+  renombran o se eliminan, y al eliminar una se explica cuántas tarjetas tiene y
+  se ofrece **moverlas a otra columna** antes de continuar (no se borra ninguna
+  tarjeta, quedan sin columna).
+- **«Sin categoría» se comporta como las demás**: al renombrarla se convierte en
+  una columna real —crea la categoría y traslada allí todo lo que estaba suelto— y
+  a partir de ese momento es editable y eliminable como cualquier otra.
 - **Sin categorías de ejemplo**: la app ya no siembra secciones ni columnas al
   registrarte. Empiezas con el tablero vacío y creas las columnas que quieras. Si
   quieres tirar las que tienes, `supabase/reset-columns.sql` es un script aparte,

@@ -13,9 +13,10 @@ import { BoardView } from '@/components/board/BoardView'
 import { BoardHeader } from '@/components/board/BoardHeader'
 import { useBoardColumnActions } from '@/components/board/useBoardColumnActions'
 import { ArchivedItemsNotice } from '@/components/board/ArchivedItemsNotice'
+import { DeleteColumnDialog } from '@/components/board/DeleteColumnDialog'
 import { NoteBoardCard } from '@/components/board/NoteBoardCard'
 import { ShareItemDialog } from '@/components/sharing/ShareItemDialog'
-import type { AttachmentDraft } from '@/types'
+import type { AttachmentDraft, Category } from '@/types'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
 import { toast, useUIStore } from '@/store/ui.store'
@@ -151,8 +152,11 @@ export function Notes() {
     Renombrar y eliminar columnas vive en un hook compartido: ahí se resuelve
     el caso especial de «Sin categoría», que se convierte en columna real.
   */
-  const { renameColumn, archiveColumn, deleteColumn } =
-    useBoardColumnActions('note')
+  const { renameColumn } = useBoardColumnActions('note')
+  /** Columna pendiente de confirmar su eliminación (ver Credentials). */
+  const [pendingColumn, setPendingColumn] = useState<Category | null>(null)
+  const openColumnForDelete = (id: string) =>
+    setPendingColumn(categories.find((c) => c.id === id) ?? null)
 
   const handleSubmit = async (values: NoteFormValues, attachments: AttachmentDraft) => {
     const normalized = {
@@ -288,8 +292,7 @@ export function Notes() {
             />
           )}
           onRenameColumn={(id, name) => void renameColumn(id, name)}
-          onArchiveColumn={(id) => void archiveColumn(id, 'notas')}
-          onDeleteColumn={(id) => void deleteColumn(id, 'notas')}
+          onDeleteColumn={openColumnForDelete}
           addLabel="Añade una nota"
         />
       ) : (
@@ -321,6 +324,18 @@ export function Notes() {
         defaultCategoryId={editing ? undefined : createCategoryId}
         onSubmit={handleSubmit}
         onShareRequest={setShareTarget}
+      />
+
+      <DeleteColumnDialog
+        open={pendingColumn !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingColumn(null)
+        }}
+        column={pendingColumn}
+        module="note"
+        items={notes}
+        one="nota"
+        many="notas"
       />
 
       <ShareItemDialog

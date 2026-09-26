@@ -218,10 +218,11 @@ export function ArchivedColumnsDialog({
       <Dialog open={open} onOpenChange={onOpenChange} className="max-w-lg">
         <DialogHeader>
           <div>
-            <DialogTitle>Archivados</DialogTitle>
+            <DialogTitle>Tarjetas archivadas</DialogTitle>
             <DialogDescription>
-              Nada de lo que hay aquí se ha borrado. Recupera lo que quieras y
-              vuelve a su sitio; elimina sólo cuando ya no lo necesites.
+              Archivar una tarjeta la esconde del tablero sin borrarla: sigue
+              aquí, con su contenido y sus imágenes, y vuelve cuando la
+              recuperes.
             </DialogDescription>
           </div>
           <DialogCloseButton onClick={() => onOpenChange(false)} />
@@ -235,8 +236,8 @@ export function ArchivedColumnsDialog({
                 No hay nada archivado
               </p>
               <p className="text-xs text-muted">
-                Usa «Archivar» en los 3 puntitos de una columna o de una tarjeta.
-                Aquí podrás recuperarlos o eliminarlos.
+                Usa «Archivar» en los 3 puntitos de cualquier credencial, enlace
+                o nota. Aquí podrás recuperarlas o eliminarlas.
               </p>
             </div>
           )}
@@ -246,6 +247,11 @@ export function ArchivedColumnsDialog({
               <h3 className="mb-1.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted">
                 <Columns3 className="size-3.5" /> Columnas ({columns.length})
               </h3>
+              <p className="mb-1.5 text-[11px] text-muted">
+                Ya no se archivan columnas: aquí sólo aparecen las que quedaron
+                archivadas antes de este cambio. Recupéralas para volver a usarlas
+                o elimínalas si ya no las quieres.
+              </p>
               <ul className="max-h-56 space-y-2 overflow-y-auto overscroll-contain">
                 {columns.map((category) => (
                   <li key={category.id} className={row}>
@@ -341,8 +347,9 @@ export function ArchivedColumnsDialog({
           {!isEmpty && (
             <p className="flex items-start gap-1.5 pt-1 text-[11px] text-muted">
               <Info className="mt-px size-3.5 shrink-0" />
-              Recuperar devuelve cada elemento a su sitio. Archivar una columna
-              se llevó sus tarjetas consigo, y al recuperarla vuelven con ella.
+              Archivar una tarjeta no la borra: la esconde del tablero y la deja
+              aquí, con su contenido y sus imágenes. Recuperar la devuelve a su
+              columna; eliminar sí la destruye.
             </p>
           )}
         </DialogContent>

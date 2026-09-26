@@ -14,6 +14,7 @@ import { BoardView } from '@/components/board/BoardView'
 import { BoardHeader } from '@/components/board/BoardHeader'
 import { useBoardColumnActions } from '@/components/board/useBoardColumnActions'
 import { ArchivedItemsNotice } from '@/components/board/ArchivedItemsNotice'
+import { DeleteColumnDialog } from '@/components/board/DeleteColumnDialog'
 import { CredentialBoardCard } from '@/components/board/CredentialBoardCard'
 import { ShareItemDialog } from '@/components/sharing/ShareItemDialog'
 import type { CredentialFormValues } from '@/components/credentials/CredentialForm'
@@ -31,7 +32,7 @@ import {
   isArchivedItem,
   matchesCategoryFilter,
 } from '@/lib/vault-filters'
-import type { Credential } from '@/types'
+import type { Category, Credential } from '@/types'
 
 export function Credentials() {
   const allCredentials = useVaultStore((s) => s.credentials)
@@ -178,8 +179,11 @@ export function Credentials() {
   }
 
   /* Ver `useBoardColumnActions`: ahí se resuelve el caso de «Sin categoría». */
-  const { renameColumn, archiveColumn, deleteColumn } =
-    useBoardColumnActions('credential')
+  const { renameColumn } = useBoardColumnActions('credential')
+  /** Columna pendiente de confirmar su eliminación (ver Credentials). */
+  const [pendingColumn, setPendingColumn] = useState<Category | null>(null)
+  const openColumnForDelete = (id: string) =>
+    setPendingColumn(categories.find((c) => c.id === id) ?? null)
 
   const handleSubmit = async (
     values: CredentialFormValues,
@@ -387,8 +391,7 @@ export function Credentials() {
             />
           )}
           onRenameColumn={(id, name) => void renameColumn(id, name)}
-          onArchiveColumn={(id) => void archiveColumn(id, 'credenciales')}
-          onDeleteColumn={(id) => void deleteColumn(id, 'credenciales')}
+          onDeleteColumn={openColumnForDelete}
           addLabel="Añade una credencial"
         />
       ) : (
@@ -413,6 +416,18 @@ export function Credentials() {
         defaultCategoryId={editing ? undefined : createCategoryId}
         onSubmit={handleSubmit}
         onShareRequest={setShareTarget}
+      />
+
+      <DeleteColumnDialog
+        open={pendingColumn !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingColumn(null)
+        }}
+        column={pendingColumn}
+        module="credential"
+        items={credentials}
+        one="credencial"
+        many="credenciales"
       />
 
       <ShareItemDialog

@@ -13,9 +13,10 @@ import { BoardView } from '@/components/board/BoardView'
 import { BoardHeader } from '@/components/board/BoardHeader'
 import { useBoardColumnActions } from '@/components/board/useBoardColumnActions'
 import { ArchivedItemsNotice } from '@/components/board/ArchivedItemsNotice'
+import { DeleteColumnDialog } from '@/components/board/DeleteColumnDialog'
 import { LinkBoardCard } from '@/components/board/LinkBoardCard'
 import { ShareItemDialog } from '@/components/sharing/ShareItemDialog'
-import type { AttachmentDraft } from '@/types'
+import type { AttachmentDraft, Category } from '@/types'
 import { useVaultStore } from '@/store/vault.store'
 import { useSearchStore } from '@/store/search.store'
 import { toast, useUIStore } from '@/store/ui.store'
@@ -146,8 +147,14 @@ export function Links() {
   }
 
   /* Ver `useBoardColumnActions`: ahí se resuelve el caso de «Sin categoría». */
-  const { renameColumn, archiveColumn, deleteColumn } =
-    useBoardColumnActions('link')
+  const { renameColumn } = useBoardColumnActions('link')
+  /**
+   * Columna a la que se va a pedir confirmación. Eliminar una columna suelta sus
+   * tarjetas, así que el diálogo explica el qué y ofrece moverlas antes.
+   */
+  const [pendingColumn, setPendingColumn] = useState<Category | null>(null)
+  const openColumnForDelete = (id: string) =>
+    setPendingColumn(categories.find((c) => c.id === id) ?? null)
 
   const handleSubmit = async (values: LinkFormValues, attachments: AttachmentDraft) => {
     const normalized = {
@@ -283,8 +290,7 @@ export function Links() {
             />
           )}
           onRenameColumn={(id, name) => void renameColumn(id, name)}
-          onArchiveColumn={(id) => void archiveColumn(id, 'enlaces')}
-          onDeleteColumn={(id) => void deleteColumn(id, 'enlaces')}
+          onDeleteColumn={openColumnForDelete}
           addLabel="Añade un enlace"
         />
       ) : (
@@ -316,6 +322,18 @@ export function Links() {
         defaultCategoryId={editing ? undefined : createCategoryId}
         onSubmit={handleSubmit}
         onShareRequest={setShareTarget}
+      />
+
+      <DeleteColumnDialog
+        open={pendingColumn !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingColumn(null)
+        }}
+        column={pendingColumn}
+        module="link"
+        items={links}
+        one="enlace"
+        many="enlaces"
       />
 
       <ShareItemDialog
