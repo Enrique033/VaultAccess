@@ -307,11 +307,16 @@ as $$
           'parent_id', c.parent_id,
           'sort_order', c.sort_order,
           'module', c.module,
-          -- Sin `archived_at` el cliente no sabría qué columnas están
-          -- archivadas y las mostraría todas en el tablero.
-          -- Igual que en credenciales: sin referencia directa para que la
-          -- creación de la función no dependa del orden de ejecución.
-          to_jsonb(c) ->> 'archived_at'       as archived_at,
+          -- Sin `archived_at` el cliente no sabría qué columnas están archivadas
+          -- y las mostraría todas en el tablero.
+          --
+          -- Se usa to_jsonb(c) ->> 'archived_at' en vez de c.archived_at: así la
+          -- creación de la función no depende de que la columna exista ya, y si
+          -- faltara devolvería NULL en vez de abortar todo el script.
+          --
+          -- Ojo: dentro de jsonb_build_object van pares 'clave', valor. El formato
+          -- `expresión as alias` sólo vale en un SELECT y aquí daría error 42601.
+          'archived_at', to_jsonb(c) ->> 'archived_at',
           'name', c.name,
           'color', c.color,
           'encrypted_payload', c.encrypted_payload,
@@ -332,13 +337,14 @@ as $$
           'url', cr.url,
           'notes', cr.notes,
           'favorite', cr.favorite,
-          -- `to_jsonb(cr) ->> 'archived_at'` en vez de `cr.archived_at`: la
-          -- función se valida al crearse, y si esta consulta se ejecutara antes
-          -- de añadir la columna (copia antigua del script, ejecución a medias)
-          -- el CREATE FUNCTION fallaría y abortaría TODO el archivo. Con to_jsonb
-          -- no hay referencia en tiempo de compilación: si la columna no está,
-          -- devuelve NULL y el resto del script sigue adelante.
-          to_jsonb(cr) ->> 'archived_at'      as archived_at,
+          -- Mismo truco que en las categorías: to_jsonb(cr) ->> 'archived_at' no
+          -- genera referencia en tiempo de compilación, así que el CREATE
+          -- FUNCTION no falla si esta consulta se ejecuta antes de que exista la
+          -- columna (copia antigua del script, ejecución a medias).
+          --
+          -- Dentro de jsonb_build_object van pares 'clave', valor: nada de
+          -- `expresión as alias`, que aquí daría error 42601.
+          'archived_at', to_jsonb(cr) ->> 'archived_at',
           'encrypted_payload', cr.encrypted_payload,
           'created_at', cr.created_at,
           'updated_at', cr.updated_at
